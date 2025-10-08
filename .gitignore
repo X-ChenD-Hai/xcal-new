@@ -1,0 +1,11 @@
+/*
+
+
+!.gitignore
+!.clang-format
+!xmake.lua
+
+!xc/
+!test/
+!bin/
+!examples/

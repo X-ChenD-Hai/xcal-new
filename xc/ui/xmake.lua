@@ -1,0 +1,10 @@
+
+add_requires("glfw","glbinding")
+add_requires("imgui",{configs={ glfw_opengl3=true }})
+target("ui")
+    set_kind("static")
+    add_files("*.cc")
+    add_packages("glfw","imgui","glbinding")
+    add_defines("USE_GLBINDING")
+    add_deps("libxc","event")
+    add_includedirs("../",{public=true})
