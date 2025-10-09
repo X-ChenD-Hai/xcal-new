@@ -7,7 +7,6 @@
 #include <print>
 #include <xc_assert.hpp>
 
-
 class ArchetypeInfo {
     friend class World;
     archtype_t archetype_id;
@@ -72,15 +71,26 @@ void show_name(World &world, Querier querier, ComponentAccessor cmps,
         world.quit();
     }
 }
+class MySystem {
+    int count = 11;
+
+   public:
+    void system() { std::println("MySystem::system called {}", count++); }
+};
 
 int main() {
+    MySystem my_system;
+    using a = decltype(&MySystem::system);
     World world;
     world.add_component<EntityName>()
         ->add_component<EntityUserId>()
         ->add_resource<AppName>("Hello, world!")
         ->add_resource<Timer>(0)
         ->add_system<update_timer>()
-        ->add_system<show_name>();
+        ->add_system<show_name>()
+        ->add_system<&MySystem::system>(&my_system)
+        
+        ;
 
     while (!world.should_quit()) {
         world.update();

@@ -99,8 +99,9 @@ struct tvector {
     struct remove_all_from_lists_helper<Arg> {
         using type = remove_all_from_list<Arg>;
     };
-    template<typename... T>
-    using remove_all_from_lists = typename remove_all_from_lists_helper<T...>::type;
+    template <typename... T>
+    using remove_all_from_lists =
+        typename remove_all_from_lists_helper<T...>::type;
 };
 template <>
 struct tvector<> {
@@ -121,6 +122,8 @@ struct tvector<> {
     using remove_all = tvector<>;
     template <typename T>
     using remove_all_from_list = tvector<>;
+    template <typename... T>
+    using remove_all_from_lists = tvector<>;
 };
 
 namespace internal {
@@ -181,18 +184,24 @@ struct type_list {
 template <typename T>
 struct func_traits;
 template <typename R, typename... Args>
-struct func_traits<R (*)(Args...)> {
-    using return_type = R;
-    using args = std::tuple<Args...>;
-    using args_vec = tvector<Args...>;
-    static constexpr size_t arity = sizeof...(Args);
-};
-template <typename R, typename... Args>
 struct func_traits<R(Args...)> {
     using return_type = R;
     using args = std::tuple<Args...>;
+    using args_vec = tvector<Args...>;
+    using self = R(*)(Args...);
     static constexpr size_t arity = sizeof...(Args);
+    static constexpr bool is_member_function = false;
 };
+template <typename R, typename... Args>
+struct func_traits<R (*)(Args...)> : public func_traits<R(Args...)> {};
+template <typename C, typename R, typename... Args>
+struct func_traits<R (C::*)(Args...)> : public func_traits<R(Args...)> {
+    using Class = C;
+    static constexpr bool is_member_function = true;
+};
+template <typename C, typename R, typename... Args>
+struct func_traits<R (C::*)(Args...) const>
+    : public func_traits<R (C::*)(Args...)> {};
 
 }  // namespace internal
 template <auto Fn>

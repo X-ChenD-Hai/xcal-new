@@ -130,6 +130,7 @@ class Editor {
                 }()...);
             }(std::make_index_sequence<(Ft::arity)>{});
         };
+        update();
     }
     void update() { callback_(*this); }
     template <typename T>

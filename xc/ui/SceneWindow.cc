@@ -11,8 +11,14 @@
 
 #include "./SceneWindow.hpp"
 
-SceneWindow::SceneWindow() : GlfwImguiWindow() {
-    _gl glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+SceneWindow::SceneWindow(const std::string& name, int width, int height,
+                         int fps)
+    : GlfwImguiWindow(name, width, height, fps) {
+    init_();
+}
+SceneWindow::SceneWindow() : GlfwImguiWindow() { init_(); }
+void SceneWindow::render() { _gl glClear(_gl GL_COLOR_BUFFER_BIT); }
+void SceneWindow::init_() {
     add_editor([this](std::string& name) { name_ = name; }, "global", "name",
                name_);
     add_editor(
@@ -21,6 +27,5 @@ SceneWindow::SceneWindow() : GlfwImguiWindow() {
             _gl glClearColor(r, g, b, 1.0f);
             std::print("clear color: {} {} {}\n", r, g, b);
         },
-        "clear color", "r", color_[0], "g", color_[1], "b", color_[2]);
-}
-void SceneWindow::render() { _gl glClear(_gl GL_COLOR_BUFFER_BIT); }
+        "clear color", "r", 0.3f, "g", 0.3f, "b", 0.3f);
+};

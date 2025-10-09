@@ -10,7 +10,7 @@ int main() {
     EventLoop loop;
     loop.make_global();
 
-    SceneWindow window;
+    SceneWindow window{"Scene", 1280, 720, 144};
 
     window.show();
 

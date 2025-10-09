@@ -2,8 +2,9 @@
 #include <IdGenerator.hpp>
 #include <SparseList.hpp>
 #include <functional>
-#include <xc_assert.hpp>
 #include <print>
+#include <xc_assert.hpp>
+
 #include "./CommandSubmit.hpp"
 #include "./ComponentAccessor.hpp"
 #include "./ComponentInfo.hpp"
@@ -19,7 +20,8 @@ class CommandSubmit;
 class Querier;
 struct SystemInfo {
     std::vector<size_t> resources_ids_;
-    void (*callback_)(World &);
+    void (*callback_)(World &, void *);
+    void *callback_obj_{nullptr};
 };
 template <typename T>
 class SystemBuilder {
@@ -30,15 +32,18 @@ class SystemBuilder {
 
     World *finish() { return &world_; }
 };
-template <auto T>
+template <auto System, typename BindObj = void>
 class ObjectSystemBuilder {
-    using Self = ObjectSystemBuilder<T>;
+    using Self = ObjectSystemBuilder<System, BindObj>;
     World &world_;
     SystemInfo system_info_;
     bool finished_{false};
 
    public:
     explicit ObjectSystemBuilder(World &world) : world_(world) {}
+    explicit ObjectSystemBuilder(World &world, BindObj *obj) : world_(world) {
+        system_info_.callback_obj_ = obj;
+    }
 
     World *build_system();
 
@@ -78,7 +83,7 @@ class World {
     friend class ComponentAccessor;
     template <typename T>
     friend class SystemBuilder;
-    template <auto T>
+    template <auto System, typename BindObj>
     friend class ObjectSystemBuilder;
 
     static constexpr auto Entity2ArchetypeBucktSize = 1024;
@@ -105,6 +110,8 @@ class World {
     ObjectSystemBuilder<System> with_system();
     template <auto System>
     World *add_system();
+    template <auto System, typename BindObj>
+    World *add_system(BindObj *obj);
     template <typename System>
     SystemBuilder<System> add_setup_system() {};
     template <auto System>
@@ -114,21 +121,21 @@ class World {
     ~World();
     bool should_quit() const { return quit_; }
     void quit() { quit_ = true; }
-    void start() {quit_ =false;}
+    void start() { quit_ = false; }
     CommandSubmit *submit();
     ComponentAccessor accessor() noexcept;
     Querier queryer() const noexcept;
     void update() {
         std::println("start update__________________");
         for (auto &system_info : system_infos_) {
-            system_info.callback_(*this);
+            system_info.callback_(*this, system_info.callback_obj_);
         }
         command_submit_.execute(*this);
         std::println("__________________end update");
     }
 };
-template <auto System>
-inline World *World::add_system() {
+template <auto System, typename BindObj>
+inline World *World::add_system(BindObj *obj) {
     using args = func_traits<System>::args_vec;
     using purges = tvector<World, Querier, ComponentAccessor, CommandSubmit>;
     using c_ = tvector<const World, const Querier, const ComponentAccessor,
@@ -140,12 +147,16 @@ inline World *World::add_system() {
     using ppnter = tvector<CommandSubmit *>;
     using real = typename args::template remove_all_from_lists<purges, c_, refs,
                                                                c_refs, ppnter>;
-    [this]<typename... Args>(tvector<Args...> *) {
-        ObjectSystemBuilder<System>{*this}
+    [this, obj]<typename... Args>(tvector<Args...> *) {
+        ObjectSystemBuilder<System>{*this, obj}
             .template use_resources<
                 std::remove_pointer_t<std::remove_reference_t<Args>>...>();
     }((real *)0);
     return this;
+};
+template <auto System>
+inline World *World::add_system() {
+    return add_system<System, void>(nullptr);
 };
 
 template <typename Resource, typename... Args>
@@ -175,10 +186,18 @@ inline World *World::add_component() {
     component2pool_map_.insert(ComponentIdGenerator<Component>::get());
     return this;
 }
-template <auto T>
+
+template <auto T, typename BindObj>
+inline World *ObjectSystemBuilder<T, BindObj>::build_system() {
+    if (finished_) return &world_;
+    finished_ = true;
+    world_.system_infos_.emplace_back(system_info_);
+    return &world_;
+}
+template <auto T, typename BindObj>
 template <typename... Resource>
-inline typename ObjectSystemBuilder<T>::Self &
-ObjectSystemBuilder<T>::use_resources() {
+inline typename ObjectSystemBuilder<T, BindObj>::Self &
+ObjectSystemBuilder<T, BindObj>::use_resources() {
     (
         [&]() {
             auto id = ResourceIdGenerator::get<Resource>();
@@ -186,55 +205,37 @@ ObjectSystemBuilder<T>::use_resources() {
             system_info_.resources_ids_.push_back(id);
         }(),
         ...);
-    system_info_.callback_ = [](World &world) {
-        using args = func_traits<T>::args;
-        [&]<typename _F, typename Arg, typename... Args>(
-            this auto &&self, _F &&F, std::tuple<Arg, Args...> *) {
-            using at = purge_t<Arg>;
-            if constexpr (std::is_same_v<at, World>) {
-                return self(
-                    [F = std::move(F), &world](Args &&...args) {
-                        return F(world, std::forward<Args>(args)...);
-                    },
-                    (std::tuple<Args...> *)nullptr);
-            } else if constexpr (std::is_same_v<at, Querier>) {
-                return self(
-                    [F = std::move(F), &world](Args &&...args) {
-                        return F(world.queryer(), std::forward<Args>(args)...);
-                    },
-                    (std::tuple<Args...> *)nullptr);
-            } else if constexpr (std::is_same_v<at, ComponentAccessor>) {
-                return self(
-                    [F = std::move(F), &world](Args &&...args) {
-                        return F(world.accessor(), std::forward<Args>(args)...);
-                    },
-                    (std::tuple<Args...> *)nullptr);
+    system_info_.callback_ = [](World &world, void *obj) {
+        using trait = func_traits<T>;
+        using args = trait::args;
+        auto arghandle = [&]<typename Arg>() -> decltype(auto) {
+            using Pt = purge_t<Arg>;
+            if constexpr (std::is_same_v<Pt, World>) {
+                return world;
+            } else if constexpr (std::is_same_v<Arg, Querier>) {
+                return world.queryer();
+            } else if constexpr (std::is_same_v<Pt, ComponentAccessor>) {
+                return world.accessor();
             } else if constexpr (std::is_same_v<Arg, CommandSubmit *>) {
-                return self(
-                    [F = std::move(F), &world](Args &&...args) {
-                        return F(world.submit(), std::forward<Args>(args)...);
-                    },
-                    (std::tuple<Args...> *)nullptr);
+                return world.submit();
             } else if constexpr (std::is_same_v<Arg, CommandSubmit &>) {
-                return self(
-                    [F = std::move(F), &world](Args &&...args) {
-                        return F(*world.submit(), std::forward<Args>(args)...);
-                    },
-                    (std::tuple<Args...> *)nullptr);
+                return *world.submit();
             } else {
-                return F;
+                return *(
+                    (Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
+                        .resource_.get());
             }
-        }(T, (args *)nullptr)(
-            *((Resource *)world
-                  .resource_infos_[ResourceIdGenerator::get<Resource>()]
-                  .resource_.get())...);
+        };
+        if constexpr (trait::is_member_function) {
+            [&]<typename... Args>(std::tuple<Args...> *) -> decltype(auto) {
+                (((typename trait::Class *)obj)->*T)(
+                    arghandle.template operator()<Args>()...);
+            }((args *)nullptr);
+        } else {
+            [&]<typename... Args>(std::tuple<Args...> *) -> decltype(auto) {
+                T(arghandle.template operator()<Args>()...);
+            }((args *)nullptr);
+        }
     };
     return *this;
-}
-template <auto T>
-inline World *ObjectSystemBuilder<T>::build_system() {
-    if (finished_) return &world_;
-    finished_ = true;
-    world_.system_infos_.emplace_back(system_info_);
-    return &world_;
 }
