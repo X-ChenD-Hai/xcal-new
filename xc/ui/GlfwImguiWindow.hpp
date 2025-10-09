@@ -6,7 +6,7 @@
 #include "./GlfwWindowLoader.hpp"
 #include "./event.h"
 
-class Window final : public AbsWindow {
+class GlfwImguiWindow : public AbsWindow {
    private:
     std::unique_ptr<GlfwWindowLoader> loader_{nullptr};
     std::unique_ptr<UiTimer> frame_timer_{nullptr};
@@ -24,14 +24,15 @@ class Window final : public AbsWindow {
     virtual void render();
 
    public:
-    Window(const Window&) = delete;
-    Window(Window&&) = delete;
-    Window& operator=(const Window&) = delete;
-    Window& operator=(Window&&) = delete;
+    GlfwImguiWindow(const GlfwImguiWindow&) = delete;
+    GlfwImguiWindow(GlfwImguiWindow&&) = delete;
+    GlfwImguiWindow& operator=(const GlfwImguiWindow&) = delete;
+    GlfwImguiWindow& operator=(GlfwImguiWindow&&) = delete;
 
    public:
-    Window();
-    ~Window();
+    GlfwImguiWindow(const std::string& title = "GlfwImguiWindow",
+                    int width = 800, int height = 600, int fps = 60);
+    ~GlfwImguiWindow();
     inline void update() {
         publish(std::make_unique<Event>(EventType::Render, this));
     }
@@ -48,7 +49,7 @@ class Window final : public AbsWindow {
     }
     void update_frame() override { loader_->poll_events_timeout(0.005); };
     template <typename Fn, typename... NamedArgs>
-    Editor* add_editor(Fn fn, std::string title, NamedArgs&&... args) {
+    Editor* add_editor(Fn fn, std::string_view title, NamedArgs&&... args) {
         return editors_
             .emplace_back(new Editor(Editor(std::forward<Fn>(fn), title,
                                             std::forward<NamedArgs>(args)...)))

@@ -14,63 +14,26 @@
 #include <imgui_impl_opengl3.h>
 
 static bool render_editor_field(EditorField& field) {
-    // auto tmp = field.value;
-
-    auto render = [&]<typename T, typename Fn>(EditorField& field, T& val,
-                                               Fn&& r) {
-        try {
-            val = std::get<T>(field.value);
-        } catch (...) {
-        }
-        if (r(field.name.c_str(), &val)) {
-            field.value = val;
-            return true;
-        }
-        return false;
-    };
-
-    switch (field.type) {
-        case EditFieldType::String: {
-            static char buf[1024];
-            fill(buf, buf + 1024, '\0');
-            try {
-                string str = std::get<std::string>(field.value);
-                strcpy_s(buf, str.c_str());
-            } catch (...) {
-            }
-            if (ImGui::InputText(field.name.c_str(), buf, 1024)) {
+    return std::visit(
+        [&](auto&& val) {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr (std::is_same_v<T, std::string>) {
+                static char buf[1024];
+                fill(buf, buf + 1024, '\0');
+                if (!ImGui::InputText(field.name.c_str(), buf, 1024))
+                    return false;
                 field.value = std::string(buf);
-                std::println("set val: {} from {}",std::get<std::string>(field.value),(void*)&field);
                 return true;
+            } else if constexpr (std::is_same_v<T, int>) {
+                return ImGui::InputInt(field.name.c_str(), &val);
+            } else if constexpr (std::is_same_v<T, float>) {
+                return ImGui::InputFloat(field.name.c_str(), &val);
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return ImGui::Checkbox(field.name.c_str(), &val);
             }
-            break;
-        }
-        case EditFieldType::Int: {
-            auto val = 0;
-            return render(field, val, [&](auto name, auto* val) {
-                // std::println("render int: {}",std::get<int>(field.value) );
-                return ImGui::InputInt(name, val);
-            });
-            break;
-        }
-        case EditFieldType::Float: {
-            auto val = 0.f;
-            return render(field, val, [](auto name, auto* val) {
-                return ImGui::InputFloat(name, val);
-            });
-            break;
-        }
-
-        case EditFieldType::Bool: {
-            auto val = false;
-            return render(field, val, [](auto name, auto* val) {
-                return ImGui::Checkbox(name, val);
-            });
-            break;
-        }
-    }
-
-    return false;
+            return false;
+        },
+        field.value);
 }
 
 static void render_editor(std::vector<std::unique_ptr<Editor>>& editors) {
@@ -85,13 +48,14 @@ static void render_editor(std::vector<std::unique_ptr<Editor>>& editors) {
     }
 }
 
-void Window::render_frame_() {
+void GlfwImguiWindow::render_frame_() {
     loader_->make_current();
-    _gl glClear(_gl GL_COLOR_BUFFER_BIT);
+    // _gl glClear(_gl GL_COLOR_BUFFER_BIT);
+    render();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("Hello, world!");
+    ImGui::Begin(loader_->window_title().data());
     ImGui::SetWindowFontScale(2.f);
 
     ImGui::PushID(1);
@@ -99,15 +63,13 @@ void Window::render_frame_() {
     ImGui::PopID();
     ImGui::End();
 
-    render();
-
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     loader_->swap_buffers();
 }
 
-bool Window::event(AbsEvent* event) {
+bool GlfwImguiWindow::event(AbsEvent* event) {
     auto e = static_cast<Event*>(event);
     if (e->sender() == this) {
         if (e->type() == EventType::Render) {
@@ -145,21 +107,24 @@ bool Window::event(AbsEvent* event) {
     }
     return false;
 }
-Window::Window()
-    : AbsWindow(), loader_(std::make_unique<GlfwWindowLoader>(loop())) {
-    loader_->make_current();
-    glbinding::initialize(loader_->get_proc_address(), false);
-    ImGui::CreateContext();
-    auto io = &ImGui::GetIO();
-    ImGui_ImplGlfw_InitForOpenGL(loader_->glfw_window_raw_ptr(), true);
-    ImGui_ImplOpenGL3_Init();
-    _gl glClearColor(0.2f, 0.3f, 0.f, 1.0f);
-}
-Window::~Window() {
+GlfwImguiWindow::~GlfwImguiWindow() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
 
     ImGui::DestroyContext();
     loader_.reset();
 }
-void Window::render() {};
+void GlfwImguiWindow::render() {};
+GlfwImguiWindow::GlfwImguiWindow(const std::string& title, int width,
+                                 int height, int fps)
+    : fps_(fps),
+      AbsWindow(),
+      loader_(std::make_unique<GlfwWindowLoader>(loop(), title.c_str(), width,
+                                                 height)) {
+    loader_->make_current();
+    glbinding::initialize(loader_->get_proc_address(), false);
+    ImGui::CreateContext();
+    auto io = &ImGui::GetIO();
+    ImGui_ImplGlfw_InitForOpenGL(loader_->glfw_window_raw_ptr(), true);
+    ImGui_ImplOpenGL3_Init();
+}

@@ -13,7 +13,7 @@ class GlfwWindowLoader : EventPublisher {
     void init_callbacks_();
 
    public:
-    GlfwWindowLoader(EventLoop* loop);
+    GlfwWindowLoader(EventLoop* loop,const char* title="LearnOpenGL",int width=800,int height=600);
     GlfwWindowLoader();
     ~GlfwWindowLoader();
     void poll_events_timeout(double seconds);
@@ -21,4 +21,5 @@ class GlfwWindowLoader : EventPublisher {
     void swap_buffers();
     ProcAddress get_proc_address();
     GLFWwindow* glfw_window_raw_ptr() const { return window_; }
+    std::string_view window_title() const;
 };

@@ -102,7 +102,7 @@ class Editor {
    public:
     template <typename Fn, typename... NameArgs>
         requires(sizeof...(NameArgs) == FunctionTraits<Fn>::arity * 2)
-    Editor(Fn&& fn, std::string title, NameArgs&&... args) : title_(title) {
+    Editor(Fn&& fn, std::string_view title, NameArgs&&... args) : title_(title) {
         using Ft = FunctionTraits<Fn>;
         fields_.reserve(sizeof...(NameArgs) / 2);
         [&]<typename Arg1, typename Arg2, typename... Args>(
@@ -117,16 +117,15 @@ class Editor {
 
         callback_ = [fn](Editor& eidtor) {
             [&]<size_t... I>(std::index_sequence<I...>) {
-                if constexpr (Ft::is_member_function) {
-                }
-                fn([&]() {
+                fn([&]() -> decltype(auto) {
                     using At = std::remove_reference_t<decltype(std::get<I>(
                         std::declval<typename Ft::arg_types>()))>;
                     try {
                         return std::get<At>(eidtor.fields_[I].value);
                     } catch (...) {
                         std::println("Invalid input");
-                        return At{};
+                        eidtor.fields_[I].value =At{};
+                        return std::get<At>(eidtor.fields_[I].value);
                     }
                 }()...);
             }(std::make_index_sequence<(Ft::arity)>{});

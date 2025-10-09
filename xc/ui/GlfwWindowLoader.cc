@@ -176,11 +176,11 @@ static Modifier glfwToModifier(int glfwMods) {
 void GlfwWindowLoader::init_callbacks_() {
 #define M_self(w) \
     (static_cast<GlfwWindowLoader*>(glfwGetWindowUserPointer(window)))
-    glfwSetScrollCallback(window_, [](GLFWwindow* window, double xoffset,
-                                      double yoffset) {
-        auto p = M_self(window_);
-        p->publish(std::make_unique<WheelEvent>(xoffset, yoffset, p));
-    });
+    glfwSetScrollCallback(
+        window_, [](GLFWwindow* window, double xoffset, double yoffset) {
+            auto p = M_self(window_);
+            p->publish(std::make_unique<WheelEvent>(xoffset, yoffset, p));
+        });
     glfwSetCursorPosCallback(
         window_, [](GLFWwindow* window, double xpos, double ypos) {
             auto p = M_self(window);
@@ -228,8 +228,12 @@ void GlfwWindowLoader::make_current() { glfwMakeContextCurrent(window_); }
 
 ProcAddress GlfwWindowLoader::get_proc_address() { return glfwGetProcAddress; }
 size_t GlfwWindowLoader::alive_window_count_ = 0;
-GlfwWindowLoader::GlfwWindowLoader(EventLoop* loop) : EventPublisher(loop) {
+GlfwWindowLoader::GlfwWindowLoader(EventLoop* loop, const char* title,
+                                   int width, int height)
+    : EventPublisher(loop) {
     init_();
+    glfwSetWindowTitle(window_, title);
+    glfwSetWindowSize(window_, width, height);
 }
 GlfwWindowLoader::GlfwWindowLoader() : EventPublisher() { init_(); }
 void GlfwWindowLoader::init_() {
@@ -250,4 +254,7 @@ void GlfwWindowLoader::init_() {
 GlfwWindowLoader::~GlfwWindowLoader() {
     if (window_) glfwDestroyWindow(window_);
     if (!--alive_window_count_) glfwTerminate();
+}
+std::string_view GlfwWindowLoader::window_title() const {
+    return glfwGetWindowTitle(window_);
 }
