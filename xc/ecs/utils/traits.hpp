@@ -93,7 +93,7 @@ struct tvector {
     template <typename Arg, typename... Args>
     struct remove_all_from_lists_helper {
         using type = remove_all_from_list<
-            Arg>::template remove_all_from_lists_helper<Args...>::type;
+            Arg>::template remove_all_from_lists<Args...>;
     };
     template <typename Arg>
     struct remove_all_from_lists_helper<Arg> {

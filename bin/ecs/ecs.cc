@@ -6,19 +6,7 @@
 #include <ecs/World.hpp>
 #include <print>
 #include <xc_assert.hpp>
-
-class ArchetypeInfo {
-    friend class World;
-    archtype_t archetype_id;
-    SparseList<component_t, uint32_t, 32> components_;
-
-   public:
-    void add_component(component_t component) {}
-    void remove_component(component_t component) {}
-    bool has_component(component_t component) const {
-        return components_.has_value(component);
-    }
-};
+#include <Overload.hpp>
 
 class EntityName {
     std::string name_;
@@ -75,12 +63,27 @@ class MySystem {
     int count = 11;
 
    public:
-    void system() { std::println("MySystem::system called {}", count++); }
+    void system1(const World &) {
+        std::println("MySystem::system called {}", count++);
+    }
+    void system(const World &) {
+        std::println("MySystem::system called {}", count++);
+    }
+    void system(World &, Querier) {
+        std::println("MySystem::system called {}", count++);
+    }
+    void system() const { std::println("MySystem::system called {}", count); }
+    void system() { std::println("MySystem::system called {}", count); }
 };
+
+
+
+
+void a1(int &) {}
+void a1(int &, int &) {}
 
 int main() {
     MySystem my_system;
-    using a = decltype(&MySystem::system);
     World world;
     world.add_component<EntityName>()
         ->add_component<EntityUserId>()
@@ -88,8 +91,14 @@ int main() {
         ->add_resource<Timer>(0)
         ->add_system<update_timer>()
         ->add_system<show_name>()
-        ->add_system<&MySystem::system>(&my_system)
-        
+        ->add_system<&MySystem::system1>(&my_system)
+        ->add_system<Overload<void()>::const_of(&MySystem::system)>(
+            &my_system)
+        ->add_system<Overload<void()>::of(&MySystem::system)>(
+            &my_system)
+        ->add_system<Overload<void(World &, Querier)>::of(&MySystem::system)>(
+            &my_system)
+
         ;
 
     while (!world.should_quit()) {

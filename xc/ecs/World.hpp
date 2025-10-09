@@ -98,6 +98,10 @@ class World {
     CommandSubmit command_submit_;
     bool quit_{false};
 
+   protected:
+    template <class Arg>
+    static decltype(auto) fatch_args(World &world) noexcept;
+
    public:
     template <typename Component>
     World *add_component();
@@ -148,7 +152,7 @@ inline World *World::add_system(BindObj *obj) {
     using real = typename args::template remove_all_from_lists<purges, c_, refs,
                                                                c_refs, ppnter>;
     [this, obj]<typename... Args>(tvector<Args...> *) {
-        ObjectSystemBuilder<System>{*this, obj}
+        ObjectSystemBuilder<System,BindObj>{*this, obj}
             .template use_resources<
                 std::remove_pointer_t<std::remove_reference_t<Args>>...>();
     }((real *)0);
@@ -194,6 +198,62 @@ inline World *ObjectSystemBuilder<T, BindObj>::build_system() {
     world_.system_infos_.emplace_back(system_info_);
     return &world_;
 }
+
+template <class Arg>
+decltype(auto) World::fatch_args(World &world) noexcept {
+    using Pt = purge_t<Arg>;
+    using Np = std::remove_cv_t<Arg>;
+    if constexpr (std::is_same_v<Np, World>) {
+        static_assert(false, "not support world");
+    } else if constexpr (std::is_same_v<Np, World &>) {
+        return std::ref(world);
+    } else if constexpr (std::is_same_v<Arg, const World &>) {
+        return std::cref(world);
+    } else if constexpr (std::is_same_v<Np, World *>) {
+        return &world;
+    } else if constexpr (std::is_same_v<Np, Querier>) {
+        return world.queryer();
+    } else if constexpr (std::is_same_v<Np, Querier &> ||
+                         std::is_same_v<Np, Querier *>) {
+        static_assert(false, "not support Querier ref or ptr");
+    } else if constexpr (std::is_same_v<Np, ComponentAccessor>) {
+        return world.accessor();
+    } else if constexpr (std::is_same_v<Np, ComponentAccessor &> ||
+                         std::is_same_v<Np, ComponentAccessor *>) {
+        static_assert(false, "not support ComponentAccessor ref or ptr");
+    } else if constexpr (std::is_same_v<Np, CommandSubmit *>) {
+        return world.submit();
+    } else if constexpr (std::is_same_v<Np, CommandSubmit &>) {
+        return *world.submit();
+    } else if constexpr (std::is_same_v<Np, CommandSubmit>) {
+        static_assert(false, "use CommandSubmit by ref or ptr");
+    } else if constexpr (std::is_same_v<Np, Pt &>) {
+        return std::ref(
+            *((Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
+                  .resource_.get()));
+    } else if constexpr (std::is_same_v<Np, const Pt &>) {
+        return std::cref(
+            *((Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
+                  .resource_.get()));
+    } else if constexpr (std::is_same_v<Np, const Pt *> ||
+                         std::is_same_v<Np, const Pt *>) {
+        return (const Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
+            .resource_.get();
+    } else if constexpr (std::is_same_v<Np, Pt *> ||
+                         std::is_same_v<Np, const Pt *>) {
+        return (Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
+            .resource_.get();
+    } else {
+        static_assert(false, "not support this type");
+    }
+}
+
+template <typename C, typename R, typename... Args>
+struct invoke {
+    using type = R (C::*)(Args...);
+    static consteval R of(type* fn) { return fn; }
+};
+
 template <auto T, typename BindObj>
 template <typename... Resource>
 inline typename ObjectSystemBuilder<T, BindObj>::Self &
@@ -208,33 +268,19 @@ ObjectSystemBuilder<T, BindObj>::use_resources() {
     system_info_.callback_ = [](World &world, void *obj) {
         using trait = func_traits<T>;
         using args = trait::args;
-        auto arghandle = [&]<typename Arg>() -> decltype(auto) {
-            using Pt = purge_t<Arg>;
-            if constexpr (std::is_same_v<Pt, World>) {
-                return world;
-            } else if constexpr (std::is_same_v<Arg, Querier>) {
-                return world.queryer();
-            } else if constexpr (std::is_same_v<Pt, ComponentAccessor>) {
-                return world.accessor();
-            } else if constexpr (std::is_same_v<Arg, CommandSubmit *>) {
-                return world.submit();
-            } else if constexpr (std::is_same_v<Arg, CommandSubmit &>) {
-                return *world.submit();
-            } else {
-                return *(
-                    (Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
-                        .resource_.get());
-            }
-        };
+
         if constexpr (trait::is_member_function) {
-            [&]<typename... Args>(std::tuple<Args...> *) -> decltype(auto) {
+            static_assert(std::is_same_v<BindObj, typename trait::Class>,"not support bind obj");
+            []<typename... Args>(std::tuple<Args...> *, World &world,
+                                 void *obj) -> decltype(auto) {
                 (((typename trait::Class *)obj)->*T)(
-                    arghandle.template operator()<Args>()...);
-            }((args *)nullptr);
+                    World::fatch_args<Args>(world)...);
+            }((args *)nullptr, world, obj);
         } else {
-            [&]<typename... Args>(std::tuple<Args...> *) -> decltype(auto) {
-                T(arghandle.template operator()<Args>()...);
-            }((args *)nullptr);
+            []<typename... Args>(std::tuple<Args...> *,
+                                 World &world) -> decltype(auto) {
+                T(World::fatch_args<Args>(world)...);
+            }((args *)nullptr, world);
         }
     };
     return *this;
