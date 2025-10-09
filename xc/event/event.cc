@@ -3,10 +3,12 @@
 #include <cassert>
 #include <iostream>
 #include <mutex>
+#include <print>
 #include <queue>
 #include <unordered_set>
-#include <print>
+
 #include "./xc_assert.hpp"
+
 
 thread_local std::vector<EventLoop*> EventLoop::thread_loops_;
 thread_local std::shared_mutex EventLoop::thread_loops_mutex_;
@@ -16,7 +18,7 @@ std::shared_mutex EventLoop::global_loops_mutex_;
 EventListener::EventListener() { EventLoop::current()->subscribe(this); };
 EventListener::~EventListener() { EventLoop::current()->unsubscribe(this); };
 void EventLoop::subscribe(EventListener* listener) {
-    std::println("subscribe listener {} {}",(void*)this, (void*)listener);
+    std::println("subscribe listener {} {}", (void*)this, (void*)listener);
     std::lock_guard lock(listeners_mutex_);
     listeners_.insert(listener);
 }
@@ -52,9 +54,11 @@ bool EventLoop::flush() noexcept {
         if (!e) continue;
         for (auto& listener : listeners) {
             try {
-                if (listener->event(e.get())) break;
-            } catch (...) {
-                std::cerr << "Exception caught in event listener" << std::endl;
+                if (listener->event(e.get())) {
+                    break;
+                }
+            } catch (std::runtime_error& e) {
+                std::cerr << "Runtime error caught in event listener: " << e.what() << std::endl;
             }
         }
     }

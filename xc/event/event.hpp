@@ -32,14 +32,6 @@ class AbsEvent {
     virtual ~AbsEvent() = 0;
 };
 
-// struct Event {
-//     EventType type_id : 31;
-//     bool ignored : 1;
-//     void* sender;
-//     Event(EventType type_id, void* sender)
-//         : type_id(type_id), ignored(false), sender(sender) {}
-//     virtual ~Event() = default;
-// };
 class EventLoop;
 class EventListener;
 class EventListener {

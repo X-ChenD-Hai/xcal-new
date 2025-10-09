@@ -1,3 +1,4 @@
+#pragma once
 #include <array>
 #include <string_view>
 
@@ -74,15 +75,20 @@ template <auto _Value>
 consteval auto value_name() {
     return enum_value_name<decltype(_Value), _Value>();
 }
+namespace xc::internal {
+
 template <class _Enum, _Enum _Value, class _VTp>
 struct allocator {};
+
+};  // namespace xc::internal
+
 template <class _Enum, class _VTp>
 struct EnumMap {
     template <size_t _Start, size_t _End>
     static constexpr auto value_map{
         []<size_t... _Idx>(std::index_sequence<_Idx...>) {
             return std::array<_VTp (*)(), sizeof...(_Idx)>{
-                allocator<_Enum, (_Enum)_Idx, _VTp>::allocate...};
+                xc::internal::allocator<_Enum, (_Enum)_Idx, _VTp>::allocate...};
         }(std::make_index_sequence<_End - _Start>{})};
 };
 template <auto _Value, class _VTp>

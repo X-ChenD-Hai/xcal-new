@@ -3,6 +3,7 @@
 #include <event/timer.hpp>
 #include <flags.hpp>
 
+#include "./KeyCode.hpp"
 
 using namespace std;
 
@@ -13,9 +14,10 @@ enum class EventType {
     MouseMoved,
     MouseButtonPressed,
     MouseButtonReleased,
-    KeyPressed,
-    KeyReleased,
+    Key,
+    Wheel,
     WindowCloseRequested,
+    WindowResized,
 };
 
 class Event : public AbsEvent {
@@ -91,3 +93,50 @@ using Cfg =
 using UiTimer = Timer<Cfg, [](void* p) -> std::unique_ptr<AbsEvent> {
     return std::make_unique<Event>(EventType::TimeOut, p);
 }>;
+
+class WindowResizeEvent : public Event {
+   private:
+    int width_, height_;
+
+   public:
+    WindowResizeEvent(int width, int height, void* sender)
+        : Event(EventType::WindowResized, sender),
+          width_(width),
+          height_(height) {}
+    ~WindowResizeEvent() override {}
+
+    int width() const { return width_; }
+    int height() const { return height_; }
+};
+
+class KeyEvent : public Event {
+    Key key_;
+    KeyAction action_;
+    Modifier modifiers_;
+
+   public:
+    KeyEvent(Key key, KeyAction action, Modifier modifiers, void* sender)
+        : Event(EventType::Key, sender),
+          key_(key),
+          action_(action),
+          modifiers_(modifiers) {}
+    ~KeyEvent() override {}
+
+    Key key() const { return key_; }
+    KeyAction action() const { return action_; }
+    Modifier modifiers() const { return modifiers_; }
+};
+
+class WheelEvent : public Event {
+    double x_offset_, y_offset_;
+
+   public:
+    WheelEvent(double x_offset, double y_offset, void* sender)
+        : Event(EventType::Wheel, sender),
+          x_offset_(x_offset),
+          y_offset_(y_offset) {}
+    ~WheelEvent() override {}
+
+    double x_offset() const { return x_offset_; }
+    double y_offset() const { return y_offset_; }
+};

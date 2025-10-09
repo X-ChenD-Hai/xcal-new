@@ -1,33 +1,27 @@
 #pragma once
 #include <chrono>
+
+#include "./AbsWindow.hpp"
+#include "./Editor.hpp"
 #include "./GlfwWindowLoader.hpp"
 #include "./event.h"
 
-using namespace std;
-
-
-
-class Window : public EventPublisher, public EventListener {
+class Window final : public AbsWindow {
    private:
     std::unique_ptr<GlfwWindowLoader> loader_{nullptr};
-    bool stop_flag_ = false;
     std::unique_ptr<UiTimer> frame_timer_{nullptr};
     float fps_ = 60.f;
+    std::vector<std::unique_ptr<Editor>> editors_;
 
    private:
     inline void update_immediately_() { render_frame_(); }
     void render_frame_();
 
    protected:
-   virtual bool mouse_move_event(MouseMoveEvent* e) {
-        update_immediately_();
-        return true;
-    }
-    virtual bool mouse_button_event(MouseButtonEvent* e) {
-        update_immediately_();
-        return true;
-    }
     bool event(AbsEvent* event) override;
+
+   protected:
+    virtual void render();
 
    public:
     Window(const Window&) = delete;
@@ -41,8 +35,7 @@ class Window : public EventPublisher, public EventListener {
     inline void update() {
         publish(std::make_unique<Event>(EventType::Render, this));
     }
-    inline void show() {
-        stop_flag_ = false;
+    bool ready_to_show() override {
         frame_timer_ = std::make_unique<UiTimer>();
         auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(
             1000ms / fps_);
@@ -50,10 +43,15 @@ class Window : public EventPublisher, public EventListener {
         frame_timer_->start(interval, true);
         publish(std::make_unique<Event>(EventType::Update, this));
         publish(std::make_unique<Event>(EventType::Render, this));
-        while (!stop_flag_) {
-            publish(std::make_unique<Event>(EventType::Update, this));
-            loader_->poll_events_timeout(0.005);
-            loop()->flush();
-        }
+
+        return true;
+    }
+    void update_frame() override { loader_->poll_events_timeout(0.005); };
+    template <typename Fn, typename... NamedArgs>
+    Editor* add_editor(Fn fn, std::string title, NamedArgs&&... args) {
+        return editors_
+            .emplace_back(new Editor(Editor(std::forward<Fn>(fn), title,
+                                            std::forward<NamedArgs>(args)...)))
+            .get();
     }
 };

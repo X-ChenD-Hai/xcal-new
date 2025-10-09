@@ -1,6 +1,5 @@
 #pragma once
 #include "./event.hpp"
-#include <print>
 using TimeOutEventAllocator = std::unique_ptr<AbsEvent>(void*);
 template <EventConfigConcept _EventConfig, TimeOutEventAllocator _TimeOutEventAllocator>
 class Timer : public EventListener, public EventPublisher {
@@ -16,7 +15,6 @@ class Timer : public EventListener, public EventPublisher {
     Timer() : EventListener(), EventPublisher() {}
     Timer(EventLoop* loop) : EventListener(), EventPublisher(loop) {}
     bool event(AbsEvent* event) override {
-        std::println("Timer event");
         if (!running_) return false;
         if (static_cast<Event*>((event))->type() != _EventConfig::Update) return false;
         auto now = std::chrono::steady_clock::now();

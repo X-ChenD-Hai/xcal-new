@@ -11,7 +11,11 @@ class AbsWindow : public EventPublisher, public EventListener {
    protected:
     virtual bool mouse_move_event(MouseMoveEvent*) { return true; }
     virtual bool mouse_button_event(MouseButtonEvent*) { return true; }
-
+    virtual bool key_event(KeyEvent*) { return true; }
+    virtual bool resize_event(WindowResizeEvent*) { return true; }
+    virtual bool wheel_event(WheelEvent*) {
+        return true;
+    }
    protected:
     virtual bool ready_to_show() { return true; }
     virtual void update_frame() = 0;
