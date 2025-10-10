@@ -1,12 +1,13 @@
 #include <IdGenerator.hpp>
+#include <Overload.hpp>
 #include <SparseList.hpp>
 #include <ecs/CommandSubmit.hpp>
 #include <ecs/ComponentAccessor.hpp>
 #include <ecs/Querier.hpp>
 #include <ecs/World.hpp>
+#include <ecs/EventBus.hpp>
 #include <print>
 #include <xc_assert.hpp>
-#include <Overload.hpp>
 
 class EntityName {
     std::string name_;
@@ -75,14 +76,45 @@ class MySystem {
     void system() const { std::println("MySystem::system called {}", count); }
     void system() { std::println("MySystem::system called {}", count); }
 };
-
-
-
-
 void a1(int &) {}
 void a1(int &, int &) {}
 
+struct A {
+    int a;
+    int b;
+};
+struct B {
+    int a;
+    size_t b;
+};
+
 int main() {
+    EventBus event_bus;
+
+    for (size_t i = 0; i < 2; i++) event_bus.publish<char>('a');
+    for (size_t i = 0; i < 2; i++) event_bus.publish<A>(i, i + 1);
+    for (size_t i = 0; i < 2; i++) event_bus.publish<B>(i, i + 1);
+    // auto s = sizeof(uint64_t);
+
+    event_bus.each<A>([](auto &a) { std::println("A: {} , {}", a.a, a.b); });
+    std::println("each A");
+    event_bus.each<B>([](auto &a) {
+        std::println("A: {} , {} and remove", a.a, a.b);
+        return true;
+    });
+    std::println("each A");
+    event_bus.each<B>([](auto &a) { std::println("A: {} , {}", a.a, a.b); });
+    std::println("clear A");
+    event_bus.clear<A>();
+    std::println("each A");
+    event_bus.each<A>([](auto &a) { std::println("A: {} , {}", a.a, a.b); });
+    std::println("insert A");
+    for (size_t i = 0; i < 2; i++) event_bus.publish<A>(i, i + 1);
+    std::println("each A");
+    event_bus.each<A>(
+        [](auto &a, auto &bus) { std::println("A: {} , {}", a.a, a.b); },
+        event_bus);
+
     MySystem my_system;
     World world;
     world.add_component<EntityName>()
@@ -93,11 +125,10 @@ int main() {
         ->add_system<show_name>()
         ->add_system<&MySystem::system1>(&my_system)
         ->add_system<&MySystem::system1>(&my_system)
-        ->add_system<Overload<void()>::const_of(&MySystem::system)>(
-            &my_system)
-        ->add_system<Overload<void()>::of(&MySystem::system)>(
-            &my_system)
-        ->add_system<Overload<void(World &, Querier)>::of(&MySystem::system)>(
+        ->add_system<Overload<void()>::const_of(&MySystem::system)>(&my_system)
+        ->add_system<Overload<void()>::of(&MySystem::system)>(&my_system)
+        ->add_system<Overload<void(World &,
+        Querier)>::of(&MySystem::system)>(
             &my_system)
 
         ;
