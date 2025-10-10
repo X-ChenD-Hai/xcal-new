@@ -92,6 +92,7 @@ int main() {
         ->add_system<update_timer>()
         ->add_system<show_name>()
         ->add_system<&MySystem::system1>(&my_system)
+        ->add_system<&MySystem::system1>(&my_system)
         ->add_system<Overload<void()>::const_of(&MySystem::system)>(
             &my_system)
         ->add_system<Overload<void()>::of(&MySystem::system)>(

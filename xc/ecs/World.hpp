@@ -10,6 +10,7 @@
 #include "./ComponentInfo.hpp"
 #include "./Entity.hpp"
 #include "./Querier.hpp"
+#include "./Resource.hpp"
 #include "./utils/traits.hpp"
 
 using component_t = uint32_t;
@@ -18,21 +19,17 @@ class Entity;
 class ComponentInfo;
 class CommandSubmit;
 class Querier;
+
+template <auto System, typename BindObj = void>
+class ObjectSystemBuilder;
+struct SystemInfo;
+
 struct SystemInfo {
     std::vector<size_t> resources_ids_;
     void (*callback_)(World &, void *);
     void *callback_obj_{nullptr};
 };
-template <typename T>
-class SystemBuilder {
-    World &world_;
-
-   public:
-    explicit SystemBuilder(World &world) : world_(world) {}
-
-    World *finish() { return &world_; }
-};
-template <auto System, typename BindObj = void>
+template <auto System, typename BindObj>
 class ObjectSystemBuilder {
     using Self = ObjectSystemBuilder<System, BindObj>;
     World &world_;
@@ -51,30 +48,6 @@ class ObjectSystemBuilder {
     Self &use_resources();
     World *operator->() { return build_system(); }
     ~ObjectSystemBuilder() { build_system(); }
-};
-
-class ResourceIdGenerator {
-    static inline size_t next_id_{0};
-
-   public:
-    template <typename T>
-    static size_t get() {
-        static size_t id = _get<purge_t<T>>();
-        return id;
-    }
-
-   private:
-    template <typename T>
-    static size_t _get() {
-        static size_t id = next_id_++;
-        return id;
-    }
-};
-
-using Cell = std::unique_ptr<void, std::function<void(void *)>>;
-struct ResourceInfo {
-    size_t id;
-    Cell resource_;
 };
 
 class World {
@@ -108,16 +81,12 @@ class World {
     //
     template <typename Resource, typename... Args>
     World *add_resource(Args &&...args);
-    template <typename System, typename... Args>
-    SystemBuilder<System> add_system(Args... args) {};
-    template <auto System>
-    ObjectSystemBuilder<System> with_system();
+    template <auto System, typename BindObj>
+    ObjectSystemBuilder<System, BindObj> with_system();
     template <auto System>
     World *add_system();
     template <auto System, typename BindObj>
     World *add_system(BindObj *obj);
-    template <typename System>
-    SystemBuilder<System> add_setup_system() {};
     template <auto System>
     ObjectSystemBuilder<System> add_setup_system() {};
 
@@ -139,7 +108,7 @@ class World {
     }
 };
 template <auto System, typename BindObj>
-inline World *World::add_system(BindObj *obj) {
+World *World::add_system(BindObj *obj) {
     using args = func_traits<System>::args_vec;
     using purges = tvector<World, Querier, ComponentAccessor, CommandSubmit>;
     using c_ = tvector<const World, const Querier, const ComponentAccessor,
@@ -152,19 +121,19 @@ inline World *World::add_system(BindObj *obj) {
     using real = typename args::template remove_all_from_lists<purges, c_, refs,
                                                                c_refs, ppnter>;
     [this, obj]<typename... Args>(tvector<Args...> *) {
-        ObjectSystemBuilder<System,BindObj>{*this, obj}
+        ObjectSystemBuilder<System, BindObj>{*this, obj}
             .template use_resources<
                 std::remove_pointer_t<std::remove_reference_t<Args>>...>();
     }((real *)0);
     return this;
 };
 template <auto System>
-inline World *World::add_system() {
+World *World::add_system() {
     return add_system<System, void>(nullptr);
 };
 
 template <typename Resource, typename... Args>
-inline World *World::add_resource(Args &&...args) {
+World *World::add_resource(Args &&...args) {
     auto idx = resource_infos_.size();
     auto id = ResourceIdGenerator::get<Resource>();
     XC_ASSERT(id == idx);
@@ -173,13 +142,9 @@ inline World *World::add_resource(Args &&...args) {
                   [](void *ptr) { delete static_cast<Resource *>(ptr); }));
     return this;
 };
-template <auto System>
-ObjectSystemBuilder<System> World::with_system() {
-    return ObjectSystemBuilder<System>{*this};
-};
 
 template <typename Component>
-inline World *World::add_component() {
+World *World::add_component() {
     XC_ASSERT(
         !component2pool_map_.has_value(ComponentIdGenerator<Component>::get()));
     auto pool_index = component_infos_.size();
@@ -190,14 +155,10 @@ inline World *World::add_component() {
     component2pool_map_.insert(ComponentIdGenerator<Component>::get());
     return this;
 }
-
-template <auto T, typename BindObj>
-inline World *ObjectSystemBuilder<T, BindObj>::build_system() {
-    if (finished_) return &world_;
-    finished_ = true;
-    world_.system_infos_.emplace_back(system_info_);
-    return &world_;
-}
+template <auto System, typename BindObj>
+ObjectSystemBuilder<System, BindObj> World::with_system() {
+    return ObjectSystemBuilder<System>{*this};
+};
 
 template <class Arg>
 decltype(auto) World::fatch_args(World &world) noexcept {
@@ -247,16 +208,9 @@ decltype(auto) World::fatch_args(World &world) noexcept {
         static_assert(false, "not support this type");
     }
 }
-
-template <typename C, typename R, typename... Args>
-struct invoke {
-    using type = R (C::*)(Args...);
-    static consteval R of(type* fn) { return fn; }
-};
-
 template <auto T, typename BindObj>
 template <typename... Resource>
-inline typename ObjectSystemBuilder<T, BindObj>::Self &
+typename ObjectSystemBuilder<T, BindObj>::Self &
 ObjectSystemBuilder<T, BindObj>::use_resources() {
     (
         [&]() {
@@ -270,7 +224,8 @@ ObjectSystemBuilder<T, BindObj>::use_resources() {
         using args = trait::args;
 
         if constexpr (trait::is_member_function) {
-            static_assert(std::is_same_v<BindObj, typename trait::Class>,"not support bind obj");
+            static_assert(std::derived_from<BindObj, typename trait::Class>,
+                          "not support bind obj");
             []<typename... Args>(std::tuple<Args...> *, World &world,
                                  void *obj) -> decltype(auto) {
                 (((typename trait::Class *)obj)->*T)(
@@ -284,4 +239,11 @@ ObjectSystemBuilder<T, BindObj>::use_resources() {
         }
     };
     return *this;
+}
+template <auto T, typename BindObj>
+World *ObjectSystemBuilder<T, BindObj>::build_system() {
+    if (finished_) return &world_;
+    finished_ = true;
+    world_.system_infos_.emplace_back(system_info_);
+    return &world_;
 }
