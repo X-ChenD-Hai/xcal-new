@@ -63,6 +63,66 @@ class EventBus {
 #endif
         }
     }
+    template <typename T>
+    class EventRange;
+    template <typename T>
+        requires(internal::EventTraits<T>::required)
+    class EventIterator {
+        static constexpr auto index = size2index[sizeof(T)] - 1;
+        static constexpr auto alignment = 0x02 << index;
+        EventBus &bus_;
+        std::vector<uint16_t> &indices_;
+        size_t index_ = 0;
+
+       public:
+        T &operator*() const {
+            auto ptr =
+                (T *)(bus_.events_[index] + (indices_[index_] * alignment));
+            return *ptr;
+        }
+        T *operator->() const {
+            auto ptr =
+                (T *)(bus_.events_[index] + (indices_[index_] * alignment));
+            return ptr;
+        }
+        bool operator==(const EventIterator &other) const {
+            return index_ == other.index_;
+        }
+        bool operator!=(const EventIterator &other) const {
+            return index_ != other.index_;
+        }
+        void operator++() { index_++; }
+        void operator++(int) { index_++; }
+        void operator--() { index_--; }
+        void operator--(int) { index_--; }
+
+       protected:
+        EventIterator(EventBus &bus, std::vector<uint16_t> &indices,
+                      size_t index = -1)
+            : bus_(bus),
+              indices_(indices),
+              index_(index == -1 ? indices.size() : index) {}
+        friend class EventRange<T>;
+    };
+
+    template <typename T>
+    class EventRange {
+        EventBus &bus_;
+        std::vector<uint16_t> &indices_;
+
+       protected:
+        EventRange(EventBus &bus, std::vector<uint16_t> &indices)
+            : bus_(bus), indices_(indices) {}
+
+       public:
+        EventIterator<T> begin() const {
+            return EventIterator<T>(bus_, indices_, 0);
+        }
+        EventIterator<T> end() const {
+            return EventIterator<T>(bus_, indices_, indices_.size());
+        }
+        friend class EventBus;
+    };
 
     template <typename T, typename... Args>
         requires(internal::EventTraits<T>::required)
@@ -137,7 +197,11 @@ class EventBus {
             }
         }
     }
-
+    template <typename Event>
+        requires(internal::EventTraits<Event>::required)
+    EventRange<Event> each() {
+        return EventRange<Event>(*this, event_map_[typeid(Event).hash_code()]);
+    }
     template <typename Event>
         requires(internal::EventTraits<Event>::required)
     void clear() {

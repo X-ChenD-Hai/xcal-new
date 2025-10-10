@@ -111,30 +111,36 @@ int main() {
     std::println("insert A");
     for (size_t i = 0; i < 2; i++) event_bus.publish<A>(i, i + 1);
     std::println("each A");
-    event_bus.each<A>(
-        [](auto &a, auto &bus) { std::println("A: {} , {}", a.a, a.b); },
-        event_bus);
-
-    MySystem my_system;
-    World world;
-    world.add_component<EntityName>()
-        ->add_component<EntityUserId>()
-        ->add_resource<AppName>("Hello, world!")
-        ->add_resource<Timer>(0)
-        ->add_system<update_timer>()
-        ->add_system<show_name>()
-        ->add_system<&MySystem::system1>(&my_system)
-        ->add_system<&MySystem::system1>(&my_system)
-        ->add_system<Overload<void()>::const_of(&MySystem::system)>(&my_system)
-        ->add_system<Overload<void()>::of(&MySystem::system)>(&my_system)
-        ->add_system<Overload<void(World &,
-        Querier)>::of(&MySystem::system)>(
-            &my_system)
-
-        ;
-
-    while (!world.should_quit()) {
-        world.update();
+    // event_bus.each<A>(
+    //     [](auto &a, auto &bus) { std::println("A: {} , {}", a.a, a.b); },
+    //     event_bus);
+    
+    for(auto &e:event_bus.each<A>()){
+        std::println("A: {} , {}", e.a, e.b);
     }
+
+
+
+    // MySystem my_system;
+    // World world;
+    // world.add_component<EntityName>()
+    //     ->add_component<EntityUserId>()
+    //     ->add_resource<AppName>("Hello, world!")
+    //     ->add_resource<Timer>(0)
+    //     ->add_system<update_timer>()
+    //     ->add_system<show_name>()
+    //     ->add_system<&MySystem::system1>(&my_system)
+    //     ->add_system<&MySystem::system1>(&my_system)
+    //     ->add_system<Overload<void()>::const_of(&MySystem::system)>(&my_system)
+    //     ->add_system<Overload<void()>::of(&MySystem::system)>(&my_system)
+    //     ->add_system<Overload<void(World &,
+    //     Querier)>::of(&MySystem::system)>(
+    //         &my_system)
+
+    //     ;
+
+    // while (!world.should_quit()) {
+    //     world.update();
+    // }
     return 0;
 }
