@@ -1,9 +1,11 @@
 #pragma once
 #include <vector>
 
-#include "./utils/traits.hpp"
-#include "./Entity.hpp"
 #include "./ComponentInfo.hpp"
+#include "./Entity.hpp"
+#include "./utils/traits.hpp"
+
+namespace ecs {
 
 class World;
 class Entity;
@@ -29,3 +31,4 @@ Querier Querier::query() const {
      ...);
     return Querier{world_, component_info_index};
 }
+}  // namespace ecs

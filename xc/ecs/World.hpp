@@ -12,6 +12,7 @@
 #include "./Querier.hpp"
 #include "./Resource.hpp"
 #include "./utils/traits.hpp"
+namespace ecs {
 
 using component_t = uint32_t;
 using system_t = uint32_t;
@@ -247,3 +248,4 @@ World *ObjectSystemBuilder<T, BindObj>::build_system() {
     world_.system_infos_.emplace_back(system_info_);
     return &world_;
 }
+}  // namespace ecs

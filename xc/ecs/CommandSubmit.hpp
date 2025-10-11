@@ -3,7 +3,7 @@
 
 #include "./Entity.hpp"
 #include "./utils/traits.hpp"
-
+namespace ecs {
 class World;
 
 enum class CommandAction {
@@ -52,7 +52,7 @@ CommandSubmit *CommandSubmit::create_entity(Components &&...components) {
     commands_.push_back(std::move(command));
     return this;
 }
-// template <typename... Components>
+}  // namespace ecs
 // CommandSubmit *CommandSubmit::create_entity(Components &&...components) {
 //     auto entity = Entity{(Entity::id_t)world_.entities_.size(), 0};
 //     world_.entities_.emplace_back(entity);

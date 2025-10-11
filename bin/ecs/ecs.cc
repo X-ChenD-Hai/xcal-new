@@ -9,7 +9,7 @@
 #include <ecs/World.hpp>
 #include <print>
 #include <xc_assert.hpp>
-
+using namespace ecs;
 class EntityName {
     std::string name_;
     size_t copy_count_ = 0;

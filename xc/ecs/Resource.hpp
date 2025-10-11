@@ -1,6 +1,10 @@
 #pragma once
 #include <memory>
+
 #include "./utils/traits.hpp"
+
+
+namespace ecs {
 using Cell = std::unique_ptr<void, std::function<void(void *)>>;
 
 class ResourceIdGenerator {
@@ -25,3 +29,5 @@ struct ResourceInfo {
     size_t id;
     Cell resource_;
 };
+
+}  // namespace ecs

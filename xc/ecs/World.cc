@@ -1,11 +1,13 @@
-#include "./World.hpp" 
-#include "./ComponentAccessor.hpp"
+#include "./World.hpp"
+
 #include "./CommandSubmit.hpp"
+#include "./ComponentAccessor.hpp"
 #include "/Querier.hpp"
-Querier World::queryer() const noexcept { return {*this, {}}; }
-ComponentAccessor World::accessor() noexcept { return {*this}; }
 
-CommandSubmit *World::submit() { return &command_submit_; }
+ecs::Querier ecs::World::queryer() const noexcept { return {*this, {}}; }
+ecs::ComponentAccessor ecs::World::accessor() noexcept { return {*this}; }
 
-World::~World() {}
-World::World() {};
+ecs::CommandSubmit *ecs::World::submit() { return &command_submit_; }
+
+ecs::World::~World() {}
+ecs::World::World() {};

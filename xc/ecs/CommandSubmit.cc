@@ -2,7 +2,7 @@
 
 #include "./World.hpp"
 
-void CommandSubmit::execute(World &world) {
+void ecs::CommandSubmit::execute(World &world) {
     for (auto &command : commands_) {
         if (command->action_ == CommandAction::CreateEntity) {
             auto create_entity_command =

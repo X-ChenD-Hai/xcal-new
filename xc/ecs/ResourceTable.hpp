@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <xc_assert.hpp>
-
+namespace ecs {
 class ResourceTable {
     struct ResourceDescribtor {
         size_t type_id = -1;
@@ -162,3 +162,5 @@ class ResourceTable {
         }
     }
 };
+
+}  // namespace ecs

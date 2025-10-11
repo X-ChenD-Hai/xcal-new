@@ -2,6 +2,8 @@
 #include <IdGenerator.hpp>
 #include <SparseList.hpp>
 #include <xc_assert.hpp>
+namespace ecs {
+
 class World;
 class Entity final {
     friend class World;
@@ -45,3 +47,4 @@ using ComponentIdGenerator =
                                    uint32_t>::Generator<Component_>;
 using ComponentCounter =
     ThreadSaftyIdGeneratorTemplate<ComponentInfo, uint32_t>;
+}  // namespace ecs

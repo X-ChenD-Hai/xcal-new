@@ -1,6 +1,9 @@
 #pragma once
-#include "./Entity.hpp"
 #include "./ComponentInfo.hpp"
+#include "./Entity.hpp"
+
+
+namespace ecs {
 class World;
 class Entity;
 class ComponentAccessor {
@@ -13,8 +16,9 @@ class ComponentAccessor {
     void *data(Entity entity, component_t component_id);
 };
 
-
 template <typename Component>
 Component *ComponentAccessor::data(Entity entity) {
-    return static_cast<Component *>(data(entity,ComponentIdGenerator<Component>::get()));
+    return static_cast<Component *>(
+        data(entity, ComponentIdGenerator<Component>::get()));
 }
+}  // namespace ecs

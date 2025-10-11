@@ -1,8 +1,12 @@
 #pragma once
 #include <functional>
+
 #include "./Entity.hpp"
+
+
+namespace ecs {
 using component_t = uint32_t;
-class ComponentInfo {   
+class ComponentInfo {
     friend class World;
     friend class CommandSubmit;
     friend class Querier;
@@ -24,3 +28,4 @@ class ComponentInfo {
     ComponentInfo(uint32_t pool_index, std::function<void(void *)> deleter)
         : pool_index_(pool_index), deleter_(deleter) {}
 };
+}  // namespace ecs

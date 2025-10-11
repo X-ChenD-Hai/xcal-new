@@ -3,7 +3,7 @@
 #include "./World.hpp"
 
 
-void *ComponentAccessor::data(Entity entity, component_t component_id) {
+void * ecs::ComponentAccessor::data(Entity entity, component_t component_id) {
     auto &info = world_.component_infos_[world_.component2pool_map_.get_index(
         component_id)];
     auto &pool = world_.pools_[info.pool_index_];

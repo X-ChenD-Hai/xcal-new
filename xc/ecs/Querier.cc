@@ -1,7 +1,7 @@
 #include "./Querier.hpp"
 #include "./World.hpp"
 
-std::vector<Entity> Querier::entities() const {
+std::vector<ecs::Entity> ecs::Querier::entities() const {
     if (component_info_index_.empty()) return std::vector<Entity>();
     auto idx = *std::min_element(
         component_info_index_.begin(), component_info_index_.end(),
@@ -31,7 +31,7 @@ std::vector<Entity> Querier::entities() const {
 
     return result;
 }
-void Querier::inset_info_index(std::vector<size_t> &component_info_index,
+void ecs::Querier::inset_info_index(std::vector<size_t> &component_info_index,
                                component_t component_id) const {
     if (auto idx = world_.component2pool_map_.get_index(component_id);
         idx < world_.component_infos_.size()) {
