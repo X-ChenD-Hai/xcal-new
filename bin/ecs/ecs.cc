@@ -3,9 +3,10 @@
 #include <SparseList.hpp>
 #include <ecs/CommandSubmit.hpp>
 #include <ecs/ComponentAccessor.hpp>
-#include <ecs/Querier.hpp>
-#include <ecs/World.hpp>
 #include <ecs/EventBus.hpp>
+#include <ecs/Querier.hpp>
+#include <ecs/ResourceTable.hpp>
+#include <ecs/World.hpp>
 #include <print>
 #include <xc_assert.hpp>
 
@@ -88,59 +89,68 @@ struct B {
     size_t b;
 };
 
-int main() {
-    EventBus event_bus;
+class MyResource {
+   public:
+    int a = 10;
+    int b = 20;
 
-    for (size_t i = 0; i < 2; i++) event_bus.publish<char>('a');
-    for (size_t i = 0; i < 2; i++) event_bus.publish<A>(i, i + 1);
-    for (size_t i = 0; i < 2; i++) event_bus.publish<B>(i, i + 1);
-    // auto s = sizeof(uint64_t);
-
-    event_bus.each<A>([](auto &a) { std::println("A: {} , {}", a.a, a.b); });
-    std::println("each A");
-    event_bus.each<B>([](auto &a) {
-        std::println("A: {} , {} and remove", a.a, a.b);
-        return true;
-    });
-    std::println("each A");
-    event_bus.each<B>([](auto &a) { std::println("A: {} , {}", a.a, a.b); });
-    std::println("clear A");
-    event_bus.clear<A>();
-    std::println("each A");
-    event_bus.each<A>([](auto &a) { std::println("A: {} , {}", a.a, a.b); });
-    std::println("insert A");
-    for (size_t i = 0; i < 2; i++) event_bus.publish<A>(i, i + 1);
-    std::println("each A");
-    // event_bus.each<A>(
-    //     [](auto &a, auto &bus) { std::println("A: {} , {}", a.a, a.b); },
-    //     event_bus);
-    
-    for(auto &e:event_bus.each<A>()){
-        std::println("A: {} , {}", e.a, e.b);
+    MyResource(int a, int b) : a(a), b(b) {
+        std::println("MyResource created with a = {}, b = {}", a, b);
     }
 
+    ~MyResource() {
+        std::println("MyResource destroyed with a = {}, b = {}", a, b);
+    }
 
+    class Dynamic {};
+    class Static {};
+};
 
-    // MySystem my_system;
-    // World world;
-    // world.add_component<EntityName>()
-    //     ->add_component<EntityUserId>()
-    //     ->add_resource<AppName>("Hello, world!")
-    //     ->add_resource<Timer>(0)
-    //     ->add_system<update_timer>()
-    //     ->add_system<show_name>()
-    //     ->add_system<&MySystem::system1>(&my_system)
-    //     ->add_system<&MySystem::system1>(&my_system)
-    //     ->add_system<Overload<void()>::const_of(&MySystem::system)>(&my_system)
-    //     ->add_system<Overload<void()>::of(&MySystem::system)>(&my_system)
-    //     ->add_system<Overload<void(World &,
-    //     Querier)>::of(&MySystem::system)>(
-    //         &my_system)
+void read_resource(ResourceTable &table, Timer &timer) {
+    auto res = table.get_resource<MyResource>();
+    auto res2 = table.get_resource<MyResource, int>();
+    if (!res || !res2) {
+        table.async_create_or_get<MyResource>(1, 1);
+        table.async_create_or_get<MyResource, int>(1, 1);
+        return;
+    }
+    std::println("MyResource: id = {},  a = {}, b = {}",
+                 table.resource_id<MyResource>(), res->a++, res->b++);
+    std::println("MyResource: res2 id = {},  a = {}, b = {}",
+                 table.resource_id<MyResource, int>(), res2->a++, res2->b++);
+    if (timer.time == 5) {
+        table.async_release_resource<MyResource>();
+        table.async_release_resource<MyResource, int>();
+    }
+}
+void update_epoch(World &world, Timer &timer) {
+    timer.time++;
+    std::println("Current epoch: {}", timer.time);
+    if (timer.time == 10) {
+        world.quit();
+    }
+}
+void do_async_create_resource(ResourceTable &table) {
+    std::println("do_async_create_resource called");
+    table.do_async_create_tasks();
+}
 
-    //     ;
+int main() {
+    MySystem my_system;
+    World world;
+    world.add_component<EntityName>()
+        ->add_component<EntityUserId>()
+        ->add_resource<AppName>("Hello, world!")
+        ->add_resource<ResourceTable>()
+        ->add_resource<Timer>(0)
+        ->add_system<update_epoch>()
+        ->add_system<read_resource>()
+        ->add_system<do_async_create_resource>()
 
-    // while (!world.should_quit()) {
-    //     world.update();
-    // }
+        ;
+
+    while (!world.should_quit()) {
+        world.update();
+    }
     return 0;
 }
