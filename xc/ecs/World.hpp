@@ -89,6 +89,10 @@ class World {
     template <auto System, typename BindObj>
     World *add_system(BindObj *obj);
     template <auto System>
+    World *run_system();
+    template <auto System, typename BindObj>
+    World *run_system(BindObj *obj);
+    template <auto System>
     ObjectSystemBuilder<System> add_setup_system() {};
 
     World();
@@ -104,10 +108,36 @@ class World {
         for (auto &system_info : system_infos_) {
             system_info.callback_(*this, system_info.callback_obj_);
         }
-        command_submit_.execute(*this);
+        execute_commands();
         std::println("__________________end update");
     }
+    void execute_commands() { command_submit_.execute(*this); }
+    void execute_commands(CommandSubmit *submit) { submit->execute(*this); }
 };
+template <auto System, typename BindObj>
+inline World *World::run_system(BindObj *obj) {
+    using trait = func_traits<System>;
+    using args = trait::args;
+    static_assert(std::derived_from<BindObj, typename trait::Class>,
+                  "not support bind obj");
+    []<typename... Args>(std::tuple<Args...> *, World &world,
+                         void *obj) -> decltype(auto) {
+        (((typename trait::Class *)obj)->*System)(
+            World::fatch_args<Args>(world)...);
+    }((args *)nullptr, *this, obj);
+    return this;
+};
+template <auto System>
+inline World *World::run_system() {
+    using trait = func_traits<System>;
+    using args = trait::args;
+    []<typename... Args>(std::tuple<Args...> *,
+                         World &world) -> decltype(auto) {
+        System(World::fatch_args<Args>(world)...);
+    }((args *)nullptr, *this);
+    return this;
+}
+
 template <auto System, typename BindObj>
 World *World::add_system(BindObj *obj) {
     using args = func_traits<System>::args_vec;
@@ -209,10 +239,10 @@ decltype(auto) World::fatch_args(World &world) noexcept {
         static_assert(false, "not support this type");
     }
 }
-template <auto T, typename BindObj>
+template <auto System, typename BindObj>
 template <typename... Resource>
-typename ObjectSystemBuilder<T, BindObj>::Self &
-ObjectSystemBuilder<T, BindObj>::use_resources() {
+typename ObjectSystemBuilder<System, BindObj>::Self &
+ObjectSystemBuilder<System, BindObj>::use_resources() {
     (
         [&]() {
             auto id = ResourceIdGenerator::get<Resource>();
@@ -220,25 +250,14 @@ ObjectSystemBuilder<T, BindObj>::use_resources() {
             system_info_.resources_ids_.push_back(id);
         }(),
         ...);
-    system_info_.callback_ = [](World &world, void *obj) {
-        using trait = func_traits<T>;
-        using args = trait::args;
-
-        if constexpr (trait::is_member_function) {
-            static_assert(std::derived_from<BindObj, typename trait::Class>,
-                          "not support bind obj");
-            []<typename... Args>(std::tuple<Args...> *, World &world,
-                                 void *obj) -> decltype(auto) {
-                (((typename trait::Class *)obj)->*T)(
-                    World::fatch_args<Args>(world)...);
-            }((args *)nullptr, world, obj);
-        } else {
-            []<typename... Args>(std::tuple<Args...> *,
-                                 World &world) -> decltype(auto) {
-                T(World::fatch_args<Args>(world)...);
-            }((args *)nullptr, world);
-        }
-    };
+    if constexpr (std::is_member_function_pointer_v<decltype(System)>)
+        system_info_.callback_ = [](World &world, void *obj) {
+            world.run_system<System, BindObj>(static_cast<BindObj *>(obj));
+        };
+    else
+        system_info_.callback_ = [](World &world, void *obj) {
+            world.run_system<System>();
+        };
     return *this;
 }
 template <auto T, typename BindObj>

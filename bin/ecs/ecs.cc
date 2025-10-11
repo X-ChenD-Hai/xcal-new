@@ -153,11 +153,13 @@ int main(int argc, char *argv[]) {
         ->add_resource<EventBus>()
         ->add_resource<Timer>(0)
         ->add_system<update_epoch>()
-        ->add_system<do_async_create_resource>()
-
-        ;
+        ->add_system<read_resource>()
+        ->add_system<do_async_create_resource>();
+    ;
     auto start = std::chrono::high_resolution_clock::now();
     while (!world.should_quit()) {
+        // world.update();
+
         world.update();
     }
     auto end = std::chrono::high_resolution_clock::now();
