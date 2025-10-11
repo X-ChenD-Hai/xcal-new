@@ -1,6 +1,7 @@
 #include <IdGenerator.hpp>
 #include <Overload.hpp>
 #include <SparseList.hpp>
+#include <chrono>
 #include <ecs/CommandSubmit.hpp>
 #include <ecs/ComponentAccessor.hpp>
 #include <ecs/EventBus.hpp>
@@ -9,6 +10,7 @@
 #include <ecs/World.hpp>
 #include <print>
 #include <xc_assert.hpp>
+
 using namespace ecs;
 class EntityName {
     std::string name_;
@@ -88,6 +90,7 @@ struct B {
     int a;
     size_t b;
 };
+struct ReadyToExit {};
 
 class MyResource {
    public:
@@ -105,8 +108,14 @@ class MyResource {
     class Dynamic {};
     class Static {};
 };
+static constexpr size_t LOOP_COUNT = 100;
+void read_resource(ResourceTable &table, EventBus &bus, Timer &timer) {
+    if (bus.exist<ReadyToExit>()) {
+        table.async_release_resource<MyResource>();
+        table.async_release_resource<MyResource, int>();
+        return;
+    }
 
-void read_resource(ResourceTable &table, Timer &timer) {
     auto res = table.get_resource<MyResource>();
     auto res2 = table.get_resource<MyResource, int>();
     if (!res || !res2) {
@@ -118,15 +127,14 @@ void read_resource(ResourceTable &table, Timer &timer) {
                  table.resource_id<MyResource>(), res->a++, res->b++);
     std::println("MyResource: res2 id = {},  a = {}, b = {}",
                  table.resource_id<MyResource, int>(), res2->a++, res2->b++);
-    if (timer.time == 5) {
-        table.async_release_resource<MyResource>();
-        table.async_release_resource<MyResource, int>();
-    }
 }
-void update_epoch(World &world, Timer &timer) {
+void update_epoch(World &world, EventBus &bus, Timer &timer) {
     timer.time++;
     std::println("Current epoch: {}", timer.time);
-    if (timer.time == 10) {
+    if (timer.time == LOOP_COUNT - 1) {
+        bus.publish<ReadyToExit>();
+    } else if (timer.time == LOOP_COUNT) {
+        bus.clear<ReadyToExit>();
         world.quit();
     }
 }
@@ -135,22 +143,32 @@ void do_async_create_resource(ResourceTable &table) {
     table.do_async_create_tasks();
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     MySystem my_system;
     World world;
     world.add_component<EntityName>()
         ->add_component<EntityUserId>()
         ->add_resource<AppName>("Hello, world!")
         ->add_resource<ResourceTable>()
+        ->add_resource<EventBus>()
         ->add_resource<Timer>(0)
         ->add_system<update_epoch>()
-        ->add_system<read_resource>()
         ->add_system<do_async_create_resource>()
 
         ;
-
+    auto start = std::chrono::high_resolution_clock::now();
     while (!world.should_quit()) {
         world.update();
     }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::println("loop: {:}",
+                 std::chrono::duration_cast<std::chrono::duration<double>>(
+                     (end - start)));
+    std::println(
+        "loop avg: {:}",
+        std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(
+            (end - start)) /
+            LOOP_COUNT);
     return 0;
 }

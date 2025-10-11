@@ -165,27 +165,40 @@ class EventBus {
     }
 
     template <typename Event, typename Fn, typename... Args>
-        requires(std::is_invocable_v<Fn, Event &, Args && ...> &&
+        requires((std::is_invocable_v<Fn, Args && ...> ||
+                  std::is_invocable_v<Fn, Event &, Args && ...>) &&
                  internal::EventTraits<Event>::required)
-    void each(Fn fn, Args &&...args) {
+    bool each(Fn fn, Args &&...args) {
         static constexpr auto index = size2index[sizeof(Event)] - 1;
         static constexpr auto alignment = 0x02 << index;
 
         if (event_map_.find(typeid(Event).hash_code()) == event_map_.end())
-            return;
+            return false;
         auto &indices = event_map_[typeid(Event).hash_code()];
-        if constexpr (std::is_invocable_r_v<bool, Fn, Event &, Args &&...>) {
+        if (indices.empty()) return false;
+        if constexpr (std::is_invocable_r_v<bool, Fn, Event &, Args &&...> ||
+                      std::is_invocable_r_v<bool, Fn, Args &&...>) {
             std::vector<uint16_t> new_indices;
             new_indices.reserve(indices.size());
             auto free_tmp = next_free_slots_[index];
             for (auto idx : indices) {
                 auto ptr = (Event *)(events_[index] + (idx * alignment));
-                if (fn(*ptr, std::forward<Args>(args)...)) {
-                    *(uint16_t *)(events_[index] + (idx * alignment)) =
-                        free_tmp;
-                    free_tmp = idx;
+                if constexpr (std ::is_invocable_v<Fn, Event &, Args &&...>) {
+                    if (fn(*ptr, std::forward<Args>(args)...)) {
+                        *(uint16_t *)(events_[index] + (idx * alignment)) =
+                            free_tmp;
+                        free_tmp = idx;
+                    } else {
+                        new_indices.push_back(idx);
+                    }
                 } else {
-                    new_indices.push_back(idx);
+                    if (fn(std::forward<Args>(args)...)) {
+                        *(uint16_t *)(events_[index] + (idx * alignment)) =
+                            free_tmp;
+                        free_tmp = idx;
+                    } else {
+                        new_indices.push_back(idx);
+                    }
                 }
             }
             next_free_slots_[index] = free_tmp;
@@ -193,10 +206,31 @@ class EventBus {
         } else {
             for (auto idx : indices) {
                 auto ptr = (Event *)(events_[index] + (idx * alignment));
-                fn(*ptr, std::forward<Args>(args)...);
+                if constexpr (std ::is_invocable_v<Fn, Event &, Args &&...>)
+                    fn(*ptr, std::forward<Args>(args)...);
+                else
+                    fn(std::forward<Args>(args)...);
             }
         }
+        return true;
     }
+    template <typename... Event>
+    bool all_exist() {
+        return (exist<Event>() && ...);
+    }
+    template <typename... Event>
+    bool any_exist() {
+        return (exist<Event>() || ...);
+    }
+    template <typename Event>
+    bool exist() {
+        if (auto it = event_map_.find(typeid(Event).hash_code());
+            it != event_map_.end()) {
+            return !it->second.empty();
+        }
+        return false;
+    }
+
     template <typename Event>
         requires(internal::EventTraits<Event>::required)
     EventRange<Event> each() {

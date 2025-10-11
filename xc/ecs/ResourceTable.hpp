@@ -108,6 +108,7 @@ class ResourceTable {
 
     void release_resource(size_t id) {
         XC_ASSERT(id < resources_.size());
+        if (resources_[id] == nullptr) return;
         auto &describtor = describtors_[id];
         if (describtor.is_trivially_destructible) {
             std::destroy_at(resources_[describtor.id]);
