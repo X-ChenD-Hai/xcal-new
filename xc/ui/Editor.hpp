@@ -102,7 +102,8 @@ class Editor {
    public:
     template <typename Fn, typename... NameArgs>
         requires(sizeof...(NameArgs) == FunctionTraits<Fn>::arity * 2)
-    Editor(Fn&& fn, std::string_view title, NameArgs&&... args) : title_(title) {
+    Editor(Fn&& fn, std::string_view title, NameArgs&&... args)
+        : title_(title) {
         using Ft = FunctionTraits<Fn>;
         fields_.reserve(sizeof...(NameArgs) / 2);
         [&]<typename Arg1, typename Arg2, typename... Args>(
@@ -124,7 +125,7 @@ class Editor {
                         return std::get<At>(eidtor.fields_[I].value);
                     } catch (...) {
                         std::println("Invalid input");
-                        eidtor.fields_[I].value =At{};
+                        eidtor.fields_[I].value = At{};
                         return std::get<At>(eidtor.fields_[I].value);
                     }
                 }()...);
@@ -146,6 +147,17 @@ class Editor {
     };
     const auto& fields() const { return fields_; }
     auto& fields() { return fields_; }
+    const auto& title() const { return title_; }
+    auto& title() { return title_; }
+};
+class Button {
+    std::string title_;
+    std::function<void()> callback_;
+
+   public:
+    Button(std::string_view title, std::function<void()> callback)
+        : title_(title), callback_(callback) {}
+    void click() { callback_(); }
     const auto& title() const { return title_; }
     auto& title() { return title_; }
 };

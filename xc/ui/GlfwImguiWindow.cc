@@ -13,6 +13,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <ranges>
+
 static bool render_editor_field(EditorField& field) {
     return std::visit(
         [&](auto&& val) {
@@ -36,13 +38,34 @@ static bool render_editor_field(EditorField& field) {
         field.value);
 }
 
-static void render_editor(std::vector<std::unique_ptr<Editor>>& editors) {
-    for (int i; i < editors.size(); i++) {
-        auto& editor = editors[i];
+static void render_editor(GlfwImguiWindow::editor_list& editors) {
+    for (int i = 0; i < editors.size(); i++) {
+        auto& editor = editors[i].first;
         ImGui::PushID(i);
         ImGui::Text("%s", editor->title().c_str());
-        for (auto& field : editor->fields()) {
+        auto width = ImGui::GetWindowWidth();
+        auto item_width = width / editor->fields().size();
+
+        ImGui::PushItemWidth(item_width);
+        for (auto [idx, field] : std::views::enumerate(editor->fields())) {
             if (render_editor_field(field)) editor->update();
+            if (idx != editor->fields().size() - 1) {
+                if (editors[i].second) {
+                    ImGui::SameLine();
+                }
+            }
+        }
+        ImGui::PopItemWidth();
+        ImGui::PopID();
+    }
+}
+
+static void render_buttons(std::vector<std::unique_ptr<Button>>& buttons) {
+    for (int i = 0; i < buttons.size(); i++) {
+        auto& button = buttons[i];
+        ImGui::PushID(i);
+        if (ImGui::Button(button->title().c_str())) {
+            button->click();
         }
         ImGui::PopID();
     }
@@ -50,7 +73,6 @@ static void render_editor(std::vector<std::unique_ptr<Editor>>& editors) {
 
 void GlfwImguiWindow::render_frame_() {
     loader_->make_current();
-    // _gl glClear(_gl GL_COLOR_BUFFER_BIT);
     render();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -58,9 +80,21 @@ void GlfwImguiWindow::render_frame_() {
     ImGui::Begin(loader_->window_title().data());
     ImGui::SetWindowFontScale(2.f);
 
-    ImGui::PushID(1);
-    render_editor(editors_);
-    ImGui::PopID();
+    for (size_t i = 0; i < ui_elements_.size(); i++) {
+        ImGui::PushID(i);
+        std::visit(
+            [](auto&& element) {
+                using T = std::decay_t<decltype(element)>;
+                if constexpr (std::is_same_v<T, editor_list>) {
+                    render_editor(element);
+                } else if constexpr (std::is_same_v<T, button_list>) {
+                    render_buttons(element);
+                }
+            },
+            ui_elements_[i]);
+        ImGui::PopID();
+    }
+
     ImGui::End();
 
     ImGui::Render();
@@ -128,3 +162,25 @@ GlfwImguiWindow::GlfwImguiWindow(const std::string& title, int width,
     ImGui_ImplGlfw_InitForOpenGL(loader_->glfw_window_raw_ptr(), true);
     ImGui_ImplOpenGL3_Init();
 }
+template <typename T>
+T& GlfwImguiWindow::append_element(T&& element) {
+    if (ui_elements_.empty()) {
+        ui_elements_.emplace_back(std::vector<T>{});
+        std::get<std::vector<T>>(ui_elements_.back())
+            .emplace_back(std::move(element));
+        return std::get<std::vector<T>>(ui_elements_.back()).back();
+    }
+    if (auto it = std::get_if<std::vector<T>>(&ui_elements_.back())) {
+        it->emplace_back(std::move(element));
+    } else {
+        ui_elements_.emplace_back(std::vector<T>{});
+        std::get<std::vector<T>>(ui_elements_.back())
+            .emplace_back(std::move(element));
+    }
+    return std::get<std::vector<T>>(ui_elements_.back()).back();
+}
+template std::unique_ptr<Button>& GlfwImguiWindow::append_element(
+    std::unique_ptr<Button>&& element);
+template std::pair<std::unique_ptr<Editor>, bool>&
+GlfwImguiWindow::append_element(
+    std::pair<std::unique_ptr<Editor>, bool>&& element);

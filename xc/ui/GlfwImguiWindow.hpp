@@ -7,11 +7,17 @@
 #include "./event.h"
 
 class GlfwImguiWindow : public AbsWindow {
+   public:
+    using editor_list = std::vector<std::pair<std::unique_ptr<Editor>, bool>>;
+    using button_list = std::vector<std::unique_ptr<Button>>;
+    using element_list = std::variant<editor_list, button_list>;
+
    private:
     std::unique_ptr<GlfwWindowLoader> loader_{nullptr};
     std::unique_ptr<UiTimer> frame_timer_{nullptr};
     float fps_ = 60.f;
-    std::vector<std::unique_ptr<Editor>> editors_;
+    ;
+    std::vector<element_list> ui_elements_;
 
    private:
     inline void update_immediately_() { render_frame_(); }
@@ -49,10 +55,22 @@ class GlfwImguiWindow : public AbsWindow {
     }
     void update_frame() override { loader_->poll_events_timeout(0.005); };
     template <typename Fn, typename... NamedArgs>
-    Editor* add_editor(Fn fn, std::string_view title, NamedArgs&&... args) {
-        return editors_
-            .emplace_back(new Editor(Editor(std::forward<Fn>(fn), title,
-                                            std::forward<NamedArgs>(args)...)))
+    Editor* add_editor(Fn fn, std::string_view title, bool sameline,
+                       NamedArgs&&... args) {
+        return append_element(
+                   std::make_pair(std::make_unique<Editor>(
+                                      std::forward<Fn>(fn), title,
+                                      std::forward<NamedArgs>(args)...),
+                                  sameline))
+            .first.get();
+    }
+    template <typename Fn>
+    Button* add_button(Fn&& fn, std::string_view label) {
+        return append_element(
+                   std::make_unique<Button>(label, std::forward<Fn>(fn)))
             .get();
     }
+
+    template <typename T>
+    T& append_element(T&& element);
 };
