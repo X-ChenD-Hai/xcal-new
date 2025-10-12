@@ -130,7 +130,7 @@ class Flags final {
     constexpr Flags(data_t data = 0) : data_(data) {}
     constexpr Flags(T flag) : data_(static_cast<data_t>(flag)) {}
     template <class... Args>
-        requires(std::is_convertible_v<Args, data_t> && ...)
+        requires(std::is_convertible_v<Args, T> && ...)
     constexpr Flags(Args... args) : data_((static_cast<data_t>(args) | ...)) {}
     bool has(T flag) const {
         return (data_ & static_cast<data_t>(flag)) == static_cast<data_t>(flag);

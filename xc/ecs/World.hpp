@@ -81,7 +81,9 @@ class World {
     World &add_component();
     //
     template <typename Resource>
-    World &add_resource(Resource* resource);
+    World &add_resource(Resource *resource);
+    template <typename Resource>
+    Resource &resource();
     template <typename Resource, typename... Args>
     World &add_resource(Args &&...args);
     template <auto System, typename BindObj>
@@ -115,6 +117,12 @@ class World {
     }
     void execute_commands() { command_submit_.execute(*this); }
     void execute_commands(CommandSubmit *submit) { submit->execute(*this); }
+};
+template <typename Resource>
+inline Resource &World::resource() {
+    XC_ASSERT(ResourceIdGenerator::get<Resource>() < resource_infos_.size());
+    return *(static_cast<Resource *>(
+        resource_infos_[ResourceIdGenerator::get<Resource>()].resource_.get()));
 };
 template <auto System, typename BindObj>
 inline World &World::run_system(BindObj *obj) {

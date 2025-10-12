@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-
+#include <print>
 #include "./Entity.hpp"
 #include "./utils/traits.hpp"
 namespace ecs {
@@ -35,21 +35,28 @@ class CommandSubmit {
     CommandSubmit() {}
 
     template <typename... Components>
-    CommandSubmit &create_entity(Components &&...components);
+    CommandSubmit &create_entity(const Components &...components);
 };
+
+
 template <typename... Components>
-CommandSubmit &CommandSubmit::create_entity(Components &&...components) {
+CommandSubmit &CommandSubmit::create_entity(const Components &...components) {
     auto command = std::make_unique<CreateEntityCommand>();
+    std::println("CreateEntityCommand size: {}",sizeof...(components));
     command->action_ = CommandAction::CreateEntity;
     (
         [&]() {
             using Com = purge_t<Components>;
             command->components_.emplace_back(
                 ComponentIdGenerator<Com>::get(),
-                new Com(std::forward<Components>(components)));
+                new Com(components));
+            std::printf("CreateEntityCommand: %d\n",
+                        ComponentIdGenerator<Com>::get());
         }(),
         ...);
     commands_.push_back(std::move(command));
+
+    // std::terminate();
     return *this;
 }
 }  // namespace ecs
