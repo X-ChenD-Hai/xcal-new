@@ -147,14 +147,14 @@ int main(int argc, char *argv[]) {
     MySystem my_system;
     World world;
     world.add_component<EntityName>()
-        ->add_component<EntityUserId>()
-        ->add_resource<AppName>("Hello, world!")
-        ->add_resource<ResourceTable>()
-        ->add_resource<EventBus>()
-        ->add_resource<Timer>(0)
-        ->add_system<update_epoch>()
-        ->add_system<read_resource>()
-        ->add_system<do_async_create_resource>();
+        .add_component<EntityUserId>()
+        .add_resource<AppName>("Hello, world!")
+        .add_resource<ResourceTable>()
+        .add_resource<EventBus>()
+        .add_resource<Timer>(0)
+        .add_system<update_epoch>()
+        .add_system<read_resource>()
+        .add_system<do_async_create_resource>();
     ;
     auto start = std::chrono::high_resolution_clock::now();
     while (!world.should_quit()) {

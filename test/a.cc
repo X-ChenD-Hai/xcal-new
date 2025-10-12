@@ -571,7 +571,7 @@ class PrintComponent : public System {
     PrintComponent() { names_.emplace_back("No name"); };
     ~PrintComponent() override = default;
 };
-class PositionComponent {
+class TransformComponent {
     float x;
     float y;
     float z;
@@ -590,7 +590,7 @@ class ScaleComponent {
 TEST(Controller, Test) {
     Controller controller;
     auto& world = controller.world();
-    auto mask = world.attach_components<PositionComponent, RotationComponent,
+    auto mask = world.attach_components<TransformComponent, RotationComponent,
                                         ScaleComponent, EntityName>();
     world.set_components(world.create_entity(), mask);
     world.set_components(world.create_entity(), mask);

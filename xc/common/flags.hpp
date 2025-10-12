@@ -132,6 +132,35 @@ class Flags final {
     template <class... Args>
         requires(std::is_convertible_v<Args, data_t> && ...)
     constexpr Flags(Args... args) : data_((static_cast<data_t>(args) | ...)) {}
+    bool has(T flag) const {
+        return (data_ & static_cast<data_t>(flag)) == static_cast<data_t>(flag);
+    }
+    template <class... Args>
+        requires(std::is_convertible_v<Args, data_t> && ...)
+    bool has(Args... args) const {
+        return (data_ & (static_cast<data_t>(args) | ...)) ==
+               (static_cast<data_t>(args) | ...);
+    }
+    template <class... Args>
+        requires(std::is_convertible_v<Args, data_t> && ...)
+    constexpr void has_any(Args... args) const {
+        data_ = (data_ & (static_cast<data_t>(args) | ...)) != 0;
+    }
+
+    constexpr void remove(T flag) { data_ &= ~static_cast<data_t>(flag); }
+    template <class... Args>
+        requires(std::is_convertible_v<Args, data_t> && ...)
+    constexpr void remove(Args... args) {
+        data_ &= ~(static_cast<data_t>(args) | ...);
+    }
+    constexpr void add(T flag) { data_ |= static_cast<data_t>(flag); }
+    template <class... Args>
+        requires(std::is_convertible_v<Args, data_t> && ...)
+    constexpr void add(Args... args) {
+        data_ |= (static_cast<data_t>(args) | ...);
+    }
+    constexpr void clear() { data_ = 0; }
+
     constexpr Flags &operator=(T flag) {
         data_ = static_cast<data_t>(flag);
         return *this;
@@ -148,6 +177,7 @@ class Flags final {
         data_ ^= static_cast<data_t>(flag);
         return *this;
     }
+    constexpr Flags operator~() const { return static_cast<data_t>(~data_); }
     constexpr Flags operator|(T flag) const {
         return Flags(data_ | static_cast<data_t>(flag));
     }
@@ -156,9 +186,6 @@ class Flags final {
     }
     constexpr Flags operator^(T flag) const {
         return Flags(data_ ^ static_cast<data_t>(flag));
-    }
-    bool has(T flag) const {
-        return (data_ & static_cast<data_t>(flag)) == static_cast<data_t>(flag);
     }
     constexpr operator bool() const { return data_ != 0; }
     constexpr bool operator!() const { return data_ == 0; }

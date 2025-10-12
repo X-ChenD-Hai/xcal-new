@@ -1,12 +1,12 @@
-#include "../ecs/World.hpp"
-
 #include <IdGenerator.hpp>
 #include <SparseList.hpp>
 #include <ecs/CommandSubmit.hpp>
 #include <ecs/ComponentAccessor.hpp>
 #include <ecs/Querier.hpp>
+#include <ecs/World.hpp>
 #include <print>
 #include <xc_assert.hpp>
+
 
 class EntityName {
     std::string name_;
@@ -25,13 +25,13 @@ struct EntityUserId {
 };
 
 int main() {
-    World world;
-    world.add_component<EntityName>()->add_component<EntityUserId>();
+    ecs::World world;
+    world.add_component<EntityName>().add_component<EntityUserId>();
     EntityName name{"data"};
     world.submit()
-        ->create_entity(name)
-        ->create_entity(name, EntityUserId{11})
-        ->create_entity(EntityUserId{22});
+        .create_entity(name)
+        .create_entity(name, EntityUserId{11})
+        .create_entity(EntityUserId{22});
     auto q1 = world.queryer().query<EntityName>();
     auto q2 = world.queryer().query<EntityUserId>();
     auto q3 = q1.query<EntityUserId>();

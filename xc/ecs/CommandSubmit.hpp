@@ -35,10 +35,10 @@ class CommandSubmit {
     CommandSubmit() {}
 
     template <typename... Components>
-    CommandSubmit *create_entity(Components &&...components);
+    CommandSubmit &create_entity(Components &&...components);
 };
 template <typename... Components>
-CommandSubmit *CommandSubmit::create_entity(Components &&...components) {
+CommandSubmit &CommandSubmit::create_entity(Components &&...components) {
     auto command = std::make_unique<CreateEntityCommand>();
     command->action_ = CommandAction::CreateEntity;
     (
@@ -50,6 +50,6 @@ CommandSubmit *CommandSubmit::create_entity(Components &&...components) {
         }(),
         ...);
     commands_.push_back(std::move(command));
-    return this;
+    return *this;
 }
 }  // namespace ecs

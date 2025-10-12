@@ -43,11 +43,11 @@ class ObjectSystemBuilder {
         system_info_.callback_obj_ = obj;
     }
 
-    World *build_system();
+    World &build_system();
 
     template <typename... Resource>
     Self &use_resources();
-    World *operator->() { return build_system(); }
+    World &operator->() { return build_system(); }
     ~ObjectSystemBuilder() { build_system(); }
 };
 
@@ -78,20 +78,22 @@ class World {
 
    public:
     template <typename Component>
-    World *add_component();
+    World &add_component();
     //
+    template <typename Resource>
+    World &add_resource(Resource* resource);
     template <typename Resource, typename... Args>
-    World *add_resource(Args &&...args);
+    World &add_resource(Args &&...args);
     template <auto System, typename BindObj>
     ObjectSystemBuilder<System, BindObj> with_system();
     template <auto System>
-    World *add_system();
+    World &add_system();
     template <auto System, typename BindObj>
-    World *add_system(BindObj *obj);
+    World &add_system(BindObj *obj);
     template <auto System>
-    World *run_system();
+    World &run_system();
     template <auto System, typename BindObj>
-    World *run_system(BindObj *obj);
+    World &run_system(BindObj *obj);
     template <auto System>
     ObjectSystemBuilder<System> add_setup_system() {};
 
@@ -100,7 +102,7 @@ class World {
     bool should_quit() const { return quit_; }
     void quit() { quit_ = true; }
     void start() { quit_ = false; }
-    CommandSubmit *submit();
+    CommandSubmit &submit();
     ComponentAccessor accessor() noexcept;
     Querier queryer() const noexcept;
     void update() {
@@ -115,7 +117,7 @@ class World {
     void execute_commands(CommandSubmit *submit) { submit->execute(*this); }
 };
 template <auto System, typename BindObj>
-inline World *World::run_system(BindObj *obj) {
+inline World &World::run_system(BindObj *obj) {
     using trait = func_traits<System>;
     using args = trait::args;
     static_assert(std::derived_from<BindObj, typename trait::Class>,
@@ -125,21 +127,21 @@ inline World *World::run_system(BindObj *obj) {
         (((typename trait::Class *)obj)->*System)(
             World::fatch_args<Args>(world)...);
     }((args *)nullptr, *this, obj);
-    return this;
+    return *this;
 };
 template <auto System>
-inline World *World::run_system() {
+inline World &World::run_system() {
     using trait = func_traits<System>;
     using args = trait::args;
     []<typename... Args>(std::tuple<Args...> *,
                          World &world) -> decltype(auto) {
         System(World::fatch_args<Args>(world)...);
     }((args *)nullptr, *this);
-    return this;
+    return *this;
 }
 
 template <auto System, typename BindObj>
-World *World::add_system(BindObj *obj) {
+World &World::add_system(BindObj *obj) {
     using args = func_traits<System>::args_vec;
     using purges = tvector<World, Querier, ComponentAccessor, CommandSubmit>;
     using c_ = tvector<const World, const Querier, const ComponentAccessor,
@@ -156,26 +158,34 @@ World *World::add_system(BindObj *obj) {
             .template use_resources<
                 std::remove_pointer_t<std::remove_reference_t<Args>>...>();
     }((real *)0);
-    return this;
+    return *this;
 };
 template <auto System>
-World *World::add_system() {
+World &World::add_system() {
     return add_system<System, void>(nullptr);
 };
 
 template <typename Resource, typename... Args>
-World *World::add_resource(Args &&...args) {
+World &World::add_resource(Args &&...args) {
     auto idx = resource_infos_.size();
     auto id = ResourceIdGenerator::get<Resource>();
     XC_ASSERT(id == idx);
     resource_infos_.emplace_back(
         idx, Cell((void *)(new Resource(std::forward<Args>(args)...)),
                   [](void *ptr) { delete static_cast<Resource *>(ptr); }));
-    return this;
+    return *this;
+};
+template <typename Resource>
+World &World::add_resource(Resource *resource) {
+    auto idx = resource_infos_.size();
+    auto id = ResourceIdGenerator::get<Resource>();
+    XC_ASSERT(id == idx);
+    resource_infos_.emplace_back(idx, Cell((void *)resource, [](void *ptr) {}));
+    return *this;
 };
 
 template <typename Component>
-World *World::add_component() {
+World &World::add_component() {
     XC_ASSERT(
         !component2pool_map_.has_value(ComponentIdGenerator<Component>::get()));
     auto pool_index = component_infos_.size();
@@ -184,7 +194,7 @@ World *World::add_component() {
         delete (static_cast<purge_t<Component> *>(ptr));
     });
     component2pool_map_.insert(ComponentIdGenerator<Component>::get());
-    return this;
+    return *this;
 }
 template <auto System, typename BindObj>
 ObjectSystemBuilder<System, BindObj> World::with_system() {
@@ -201,7 +211,7 @@ decltype(auto) World::fatch_args(World &world) noexcept {
         return std::ref(world);
     } else if constexpr (std::is_same_v<Arg, const World &>) {
         return std::cref(world);
-    } else if constexpr (std::is_same_v<Np, World *>) {
+    } else if constexpr (std::is_same_v<Np, World &>) {
         return &world;
     } else if constexpr (std::is_same_v<Np, Querier>) {
         return world.queryer();
@@ -214,9 +224,9 @@ decltype(auto) World::fatch_args(World &world) noexcept {
                          std::is_same_v<Np, ComponentAccessor *>) {
         static_assert(false, "not support ComponentAccessor ref or ptr");
     } else if constexpr (std::is_same_v<Np, CommandSubmit *>) {
-        return world.submit();
+        return &world.submit();
     } else if constexpr (std::is_same_v<Np, CommandSubmit &>) {
-        return *world.submit();
+        return std::ref(world.submit());
     } else if constexpr (std::is_same_v<Np, CommandSubmit>) {
         static_assert(false, "use CommandSubmit by ref or ptr");
     } else if constexpr (std::is_same_v<Np, Pt &>) {
@@ -261,10 +271,10 @@ ObjectSystemBuilder<System, BindObj>::use_resources() {
     return *this;
 }
 template <auto T, typename BindObj>
-World *ObjectSystemBuilder<T, BindObj>::build_system() {
-    if (finished_) return &world_;
+World &ObjectSystemBuilder<T, BindObj>::build_system() {
+    if (finished_) return world_;
     finished_ = true;
     world_.system_infos_.emplace_back(system_info_);
-    return &world_;
+    return world_;
 }
 }  // namespace ecs

@@ -203,6 +203,9 @@ template <typename C, typename R, typename... Args>
 struct func_traits<R (C::*)(Args...) const>
     : public func_traits<R (C::*)(Args...)> {};
 
+template <typename T>
+struct func_traits:public func_traits<decltype(&T::operator())>{};
+
 }  // namespace internal
 template <auto Fn>
 using return_type_of_t = internal::return_type_of<decltype(Fn)>::type;

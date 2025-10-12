@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <ranges>
 #include <unordered_map>
+namespace ecs {
 
 namespace internal {
 template <typename T>
@@ -254,3 +255,4 @@ class EventBus {
         indices.clear();
     }
 };
+}  // namespace ecs

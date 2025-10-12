@@ -15,7 +15,8 @@ class ResourceTable {
     struct Pairhash {
         constexpr static auto hash_ = std::hash<size_t>{};
         size_t operator()(const std::pair<size_t, size_t> &p) const {
-            return hash_(p.first) ^ (hash_(p.second) << 1);
+            return hash_(p.first) ^
+                   (hash_(p.second) << (sizeof(size_t) * 8 / 2));
         }
     };
     std::unordered_map<size_t, void (*)(void *)>
@@ -89,7 +90,7 @@ class ResourceTable {
         if (auto it = resource_map_.find(
                 {typeid(T).hash_code(), typeid(Catgory).hash_code()});
             it != resource_map_.end()) {
-            return resources_[it->second] != nullptr;
+            return resources_[it->second];
         }
         return false;
     }
