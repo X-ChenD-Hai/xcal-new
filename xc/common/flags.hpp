@@ -149,7 +149,7 @@ class Flags final {
 
     constexpr void remove(T flag) { data_ &= ~static_cast<data_t>(flag); }
     template <class... Args>
-        requires(std::is_convertible_v<Args, data_t> && ...)
+        requires((std::is_convertible_v<Args, data_t>) && ...)
     constexpr void remove(Args... args) {
         data_ &= ~(static_cast<data_t>(args) | ...);
     }

@@ -2,10 +2,10 @@
 #include <malloc.h>
 #include <vcruntime_typeinfo.h>
 
+#include <TypeMap.hpp>
 #include <array>
 #include <cstdlib>
 #include <ranges>
-#include <unordered_map>
 namespace ecs {
 
 namespace internal {
@@ -21,7 +21,7 @@ class EventBus {
     std::array<std::byte *, 6> events_;
     std::array<uint16_t, 6> next_free_slots_;
     std::array<uint16_t, 6> chunk_size{};
-    std::unordered_map<size_t, std::vector<uint16_t>> event_map_;
+    TypeMap<std::vector<uint16_t>> event_map_{{}};
     static constexpr std::array<uint16_t, 64> size2index =
         []<size_t... I>(std::index_sequence<I...>) {
             return std::array<uint16_t, 64>{
@@ -127,7 +127,7 @@ class EventBus {
 
     template <typename T, typename... Args>
         requires(internal::EventTraits<T>::required)
-    void publish(Args &&...args) {
+    EventBus & publish(Args &&...args) {
         static constexpr auto index = size2index[sizeof(T)] - 1;
         static constexpr auto alignment = 0x02 << index;
         // std::println("size : {} ,index : {} ", sizeof(T), index);
@@ -136,11 +136,10 @@ class EventBus {
             extend_chunk(index);
         }
         auto ptr = (events_[index] + next_free_slots_[index] * alignment);
-        if (event_map_.find(typeid(T).hash_code()) == event_map_.end())
-            event_map_[typeid(T).hash_code()] = std::vector<uint16_t>();
-        event_map_[typeid(T).hash_code()].push_back(next_free_slots_[index]);
+        event_map_.data<T>().push_back(next_free_slots_[index]);
         next_free_slots_[index] = *(uint16_t *)(ptr);
         new ((void *)ptr) T(std::forward<Args>(args)...);
+        return *this;
     }
 
     void extend_chunk(const uint16_t index) {
@@ -166,23 +165,22 @@ class EventBus {
     }
 
     template <typename Event, typename Fn, typename... Args>
-        requires((std::is_invocable_v<Fn, Args && ...> ||
+        requires((
+                  std::is_invocable_v<Fn, Args && ...> ||
                   std::is_invocable_v<Fn, Event &, Args && ...>) &&
                  internal::EventTraits<Event>::required)
     bool each(Fn fn, Args &&...args) {
         static constexpr auto index = size2index[sizeof(Event)] - 1;
         static constexpr auto alignment = 0x02 << index;
 
-        if (event_map_.find(typeid(Event).hash_code()) == event_map_.end())
-            return false;
-        auto &indices = event_map_[typeid(Event).hash_code()];
-        if (indices.empty()) return false;
+        if (event_map_.data<Event>().empty()) return false;
+        if (event_map_.data<Event>().empty()) return false;
         if constexpr (std::is_invocable_r_v<bool, Fn, Event &, Args &&...> ||
                       std::is_invocable_r_v<bool, Fn, Args &&...>) {
             std::vector<uint16_t> new_indices;
-            new_indices.reserve(indices.size());
+            new_indices.reserve(event_map_.data<Event>().size());
             auto free_tmp = next_free_slots_[index];
-            for (auto idx : indices) {
+            for (auto idx : event_map_.data<Event>()) {
                 auto ptr = (Event *)(events_[index] + (idx * alignment));
                 if constexpr (std ::is_invocable_v<Fn, Event &, Args &&...>) {
                     if (fn(*ptr, std::forward<Args>(args)...)) {
@@ -203,9 +201,9 @@ class EventBus {
                 }
             }
             next_free_slots_[index] = free_tmp;
-            indices = std::move(new_indices);
+            event_map_.data<Event>() = std::move(new_indices);
         } else {
-            for (auto idx : indices) {
+            for (auto idx : event_map_.data<Event>()) {
                 auto ptr = (Event *)(events_[index] + (idx * alignment));
                 if constexpr (std ::is_invocable_v<Fn, Event &, Args &&...>)
                     fn(*ptr, std::forward<Args>(args)...);
@@ -225,24 +223,20 @@ class EventBus {
     }
     template <typename Event>
     bool exist() {
-        if (auto it = event_map_.find(typeid(Event).hash_code());
-            it != event_map_.end()) {
-            return !it->second.empty();
-        }
-        return false;
+        return !event_map_.data<Event>().size();
     }
 
     template <typename Event>
         requires(internal::EventTraits<Event>::required)
     EventRange<Event> each() {
-        return EventRange<Event>(*this, event_map_[typeid(Event).hash_code()]);
+        return EventRange<Event>(*this, event_map_.data<Event>());
     }
     template <typename Event>
         requires(internal::EventTraits<Event>::required)
     void clear() {
         static constexpr auto index = size2index[sizeof(Event)] - 1;
         static constexpr auto alignment = 0x02 << index;
-        auto &indices = event_map_[typeid(Event).hash_code()];
+        auto &indices = event_map_.data<Event>();
         if (indices.empty()) {
             return;
         }

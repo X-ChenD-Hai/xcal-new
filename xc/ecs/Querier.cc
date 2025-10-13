@@ -13,10 +13,6 @@ std::vector<ecs::Entity> ecs::Querier::entities() const {
                    world_.component_infos_[b].entities_.size();
         });
     auto result = std::vector<Entity>();
-    // std::println("result size: {}", result.size());
-    // for (size_t i = 0; i < world_.component_infos_.size(); i++) {
-    //     std::println("component_info_index_[{}]: {}", i, world_.component_infos_[i].entities_.size());
-    // }
     result.reserve(world_.component_infos_[idx].entities_.size());
     for (auto entity : world_.component_infos_[idx].entities_) {
         result.push_back(Entity(entity, 0));

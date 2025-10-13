@@ -29,11 +29,6 @@ Querier Querier::query() const {
     (inset_info_index(component_info_index,
                       ComponentIdGenerator<purge_t<Components>>::get()),
      ...);
-    //  std::print("component_info_index: [");
-    //  for (auto idx : component_info_index) {
-    //     std::print("{}, ", idx);
-    // }
-    // std::print("]\n");
     return Querier{world_, component_info_index};
 }
 }  // namespace ecs

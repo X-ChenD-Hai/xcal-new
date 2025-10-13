@@ -1,0 +1,4 @@
+target("xcal-opengl-render")
+    set_kind("static")
+    add_files("*.cc")
+    add_deps("xcal")

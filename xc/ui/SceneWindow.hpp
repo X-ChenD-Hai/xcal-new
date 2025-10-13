@@ -4,7 +4,9 @@
 
 #include "./GlfwImguiWindow.hpp"
 #include "ecs/EventBus.hpp"
-
+namespace ecs {
+class ResourceTable;
+}
 struct WorldRequestExitEvent {};
 struct WorldeadyToExitEvent {};
 struct Shader;
@@ -24,6 +26,7 @@ class SceneWindow : public GlfwImguiWindow {
     SceneWindow(const std::string& name, int width, int height, int fps);
     ~SceneWindow() override;
     bool event(AbsEvent* event) override;
+    bool resize_event(WindowResizeEvent*) override;
 
    private:
     void render() override;
@@ -32,7 +35,7 @@ class SceneWindow : public GlfwImguiWindow {
     void init_();
     void init_editors_();
     void init_world_();
-    void add_component_to_world_();
     void create_trangle_entity_();
     void update_world_();
+    void update_camera_(ecs::EventBus& event_bus, ecs::ResourceTable& tab);
 };

@@ -4,6 +4,31 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 namespace xc::xcal {
+namespace event {
+struct FrameResize {
+    uint32_t width;
+    uint32_t height;
+};
+struct CameraChanged {
+    glm::vec3 position;
+    glm::vec3 direction;
+    glm::vec3 up;
+};
+struct CameraProjectionChanged {
+    float fov;
+    float aspect;
+    float near;
+    float far;
+};
+
+struct ViewMatrixUpdate {
+    glm::mat4 view_matrix;
+};
+struct ProjectionMatrixUpdate {
+    glm::mat4 projection_matrix;
+};
+}  // namespace event
+
 enum class TransformState : uint8_t {
     Dirty = 1 << 0,
     Visible = 1 << 1,

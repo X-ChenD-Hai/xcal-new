@@ -1,7 +1,6 @@
 #pragma once
 #include "./ComponentInfo.hpp"
 #include "./Entity.hpp"
-
 namespace ecs {
 class World;
 class Entity;
@@ -16,6 +15,12 @@ class ComponentAccessor {
         requires(sizeof...(Component) > 1)
     std::tuple<Component *...> data(Entity entity);
     void *data(Entity entity, component_t component_id);
+    template <typename... Component, typename Fn>
+        requires std::is_invocable_v<Fn, Component& ...>
+    void each(Fn &&fn);
+    // template <typename Fn, typename... Component>
+    //     requires std::is_invocable_v<Fn, Component &...>
+    // void each(Fn &&fn);
 };
 
 template <typename Component>

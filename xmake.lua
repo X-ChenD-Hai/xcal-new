@@ -8,6 +8,7 @@ if is_mode("debug") then
 end
 
 
+includes("third_party/xcmath")
 includes("xc")
 includes("bin")
 includes("test")

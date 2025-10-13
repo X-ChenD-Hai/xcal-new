@@ -99,6 +99,15 @@ class World {
     template <auto System>
     ObjectSystemBuilder<System> add_setup_system() {};
 
+    template <typename... Plugin>
+    World &use_plugin() {
+        return (Plugin::install(*this), ...);
+    }
+    template <typename... Plugin>
+    World &run_plugin() {
+        return (Plugin::run(*this), ...);
+    }
+
     World();
     ~World();
     bool should_quit() const { return quit_; }
@@ -284,5 +293,38 @@ World &ObjectSystemBuilder<T, BindObj>::build_system() {
     finished_ = true;
     world_.system_infos_.emplace_back(system_info_);
     return world_;
+}
+
+template <typename... Component, typename Fn>
+    requires std::is_invocable_v<Fn, Component &...>
+inline void ComponentAccessor::each(Fn &&fn) {
+    std::array<size_t, sizeof...(Component)> component_info_index_{
+        world_.component2pool_map_.get_index(
+            ComponentIdGenerator<Component>::get())...};
+    auto it = std::min_element(
+        component_info_index_.begin(), component_info_index_.end(),
+        [&](size_t a, size_t b) {
+            XC_ASSERT(a < world_.component_infos_.size());
+            XC_ASSERT(b < world_.component_infos_.size());
+            return world_.component_infos_[a].entities_.size() <
+                   world_.component_infos_[b].entities_.size();
+        });
+    XC_ASSERT(it != component_info_index_.end());
+    XC_ASSERT(*it < component_info_index_.size());
+    auto &component_info = world_.component_infos_[*it];
+    [&]<size_t... I>(std::index_sequence<I...>) {
+        for (auto entity : component_info.entities_) {
+            if ((world_.component_infos_[component_info_index_[I]].has_entity(
+                     Entity(entity, 0)) &&
+                 ...))
+                fn(*(Component *)world_
+                        .pools_
+                            [world_.component_infos_[component_info_index_[I]]
+                                 .pool_index_]
+                            [world_.component_infos_[component_info_index_[I]]
+                                 .cell_index(Entity(entity, 0))]
+                        .get()...);
+        }
+    }(std::make_index_sequence<sizeof...(Component)>());
 }
 }  // namespace ecs

@@ -38,6 +38,9 @@ class SparseList final {
         auto row = value % bucket_size;
         if (indices_buckets_.size() <= col) {
             indices_buckets_.resize(col + 1);
+        } else if (indices_buckets_[col][row] != InvalidIndex) {
+            values_[indices_buckets_[col][row]] = value;
+            return indices_buckets_[col][row];
         }
         indices_buckets_[col][row] = values_.size();
         values_.push_back(value);

@@ -4,4 +4,5 @@ target("libxc")
 
 includes("event")
 includes("ecs")
+includes("xcal")
 includes("ui")

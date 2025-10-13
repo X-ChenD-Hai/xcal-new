@@ -1,4 +1,5 @@
 #pragma once
+#include <UniqueTypeTable.hpp>
 #include <cstddef>
 #include <functional>
 #include <type_traits>

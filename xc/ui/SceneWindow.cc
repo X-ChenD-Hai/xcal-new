@@ -16,10 +16,13 @@
 #include <glad/glad.h>
 #define _gl
 #endif
+#include <ecs/Application.hpp>
 #include <print>
+#include <xcmath/xcmath.hpp>
 
 #include "./SceneWindow.hpp"
 #include "./systems.hpp"
+
 struct UiEditorCacher {
     xc::xcal::TransformComponent transform_component;
 };
@@ -151,31 +154,59 @@ struct Shader {
         _gl glDeleteProgram(program);
     }
 };
+
+struct UniformBuffer {
+    _gl GLuint ubo;
+
+    glm::vec3 position{0.0f, 0.0f, -1.0f};
+    glm::vec3 center{0.0f, 0.0f, 0.0f};
+    glm::vec3 up{0.f, 1.0f, 0.f};
+    glm::vec3 color{1.0f, 1.0f, 1.0f};
+    float fov{45.0f};
+    float aspect{1.0f};
+    float near{0.1f};
+    float far{100.0f};
+
+    UniformBuffer() {
+        _gl glGenBuffers(1, &ubo);
+        _gl glBindBuffer(_gl GL_UNIFORM_BUFFER, ubo);
+        _gl glBufferData(_gl GL_UNIFORM_BUFFER, sizeof(glm::mat4),
+                         glm::value_ptr(glm::mat4(1.0f)), _gl GL_DYNAMIC_DRAW);
+    }
+    void update() {
+        auto pv = glm::perspective(glm::radians(fov), aspect, near, far) *
+                  glm::lookAt(position, center, up);
+
+        _gl glBindBuffer(_gl GL_UNIFORM_BUFFER, ubo);
+        _gl glBufferSubData(_gl GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4),
+                            glm::value_ptr(pv));
+        _gl glBindBuffer(_gl GL_UNIFORM_BUFFER, 0);
+    }
+    void bind() {
+        _gl glBindBuffer(_gl GL_UNIFORM_BUFFER, ubo);
+        _gl glBindBufferBase(_gl GL_UNIFORM_BUFFER, 1, ubo);
+        // _gl glBindBuffer(_gl GL_UNIFORM_BUFFER, 0);
+    }
+};
+
 void render_mesh(ecs::Querier q, ecs::ComponentAccessor a) {
     using namespace xc::xcal;
-    // std::print("render mesh\n");
-    for (auto e : q.query<TransformMatrixComponent,
-                          ShaderComponent, MeshComponent>()
-                      .entities()) {
-        // std::print("render entity: \n");
-        auto [shader, matrix, mesh] =
-            a.data<ShaderComponent, TransformMatrixComponent, MeshComponent>(e);
-        // if()
-        _gl glUseProgram(shader->program_id);
-        _gl glUniformMatrix4fv(
-            _gl glGetUniformLocation(shader->program_id, "model"), 1,
-            _gl GL_FALSE, glm::value_ptr(matrix->matrix));
-        _gl glBindVertexArray(mesh->vao_id);
-        if (mesh->ebo_id == 0)
-            _gl glDrawArrays(_gl GL_TRIANGLES, mesh->draw_offset,
-                             mesh->draw_count);
-        else {
-            _gl glDrawElements(_gl GL_TRIANGLES, mesh->draw_count,
-                               _gl GL_UNSIGNED_INT,
-                               (const void*)((size_t)mesh->draw_offset));
-        }
-    }
-    // std::print("render mesh end\n");
+
+    a.each<TransformMatrixComponent, ShaderComponent, MeshComponent>(
+        [](auto& t, auto& s, auto& m) {
+            _gl glUseProgram(s.program_id);
+            _gl glUniformMatrix4fv(
+                _gl glGetUniformLocation(s.program_id, "model"), 1,
+                _gl GL_FALSE, glm::value_ptr(t.matrix));
+            _gl glBindVertexArray(m.vao_id);
+            if (m.ebo_id == 0)
+                _gl glDrawArrays(_gl GL_TRIANGLES, m.draw_offset, m.draw_count);
+            else {
+                _gl glDrawElements(_gl GL_TRIANGLES, m.draw_count,
+                                   _gl GL_UNSIGNED_INT,
+                                   (const void*)((size_t)m.draw_offset));
+            }
+        });
 }
 void SceneWindow::render() {
     _gl glClear(_gl GL_COLOR_BUFFER_BIT);
@@ -196,12 +227,6 @@ bool SceneWindow::event(AbsEvent* event) {
     return GlfwImguiWindow::event(event);
 };
 SceneWindow::~SceneWindow() { std::println("SceneWindow destroy"); }
-void SceneWindow::add_component_to_world_() {
-    using namespace xc::xcal;
-    ui_editor_cacher_->transform_component.state = TransformState::Dirty;
-    world_.submit().create_entity(ui_editor_cacher_->transform_component,
-                                  TransformMatrixComponent{});
-}
 void SceneWindow::init_editors_() {
     ui_editor_cacher_ = std::make_unique<UiEditorCacher>();
     add_editor([this](std::string& name) { name_ = name; }, "global", true,
@@ -233,6 +258,8 @@ void SceneWindow::init_world_() {
     world_.add_resource<EventLoop>(loop())
         .add_resource<ecs::EventBus>(&event_bus_)
         .add_resource<ecs::ResourceTable>();
+
+    world_.use_plugin<xc::xcal::Application>();
 }
 void SceneWindow::create_trangle_entity_() {
     using namespace xc::xcal;
@@ -249,10 +276,11 @@ void SceneWindow::create_trangle_entity_() {
     transform_component.state = TransformState::Dirty;
     world_.submit().create_entity(transform_component, shader_component,
                                   mesh_comp, TransformMatrixComponent{});
-    
-                                };
+};
 void SceneWindow::update_world_() {
-    world_.run_system<xc::xcal::update_transform_matrix>()
+    world_.run_plugin<xc::xcal::Application>()
+        .run_system<xc::xcal::update_transform_matrix>()
+        .run_system<&SceneWindow::update_camera_>(this)
         .run_system<[](ecs::EventBus& bus, EventLoop& loop) {
             if (bus.exist<WorldeadyToExitEvent>()) {
                 loop.publish(std::make_unique<Event>(
@@ -263,24 +291,27 @@ void SceneWindow::update_world_() {
         .execute_commands();
 };
 
-// .run_system<[](ecs::EventBus& bus, ecs::ResourceTable& table) {
-//     if (bus.exist<WorldeadyToExitEvent>()) return;
-//     if (bus.exist<WorldRequestExitEvent>()) {
-//         table.release_resource<TrangleMesh>();
-//         table.release_resource<Shader, TrangleMesh>();
-//         return;
-//     }
-//     if (!table.has_resource<TrangleMesh>()) {
-//         table.create_or_get<TrangleMesh>(glm::vec3(0.0f, 0.5f, 0.0f),
-//                                          glm::vec3(-0.5f, -0.5f, 0.0f),
-//                                          glm::vec3(0.5f, -0.5f, 0.0f));
-//     }
-//     if (!table.has_resource<Shader, TrangleMesh>()) {
-//         table.create_or_get<Shader, TrangleMesh>("./res/line.vs",
-//                                                  "./res/line.fs");
-//     }
-//     auto trangle = table.get_resource<TrangleMesh>();
-//     auto shader = table.get_resource<Shader, TrangleMesh>();
-//     shader->use();
-//     trangle->draw();
-// }>()
+bool SceneWindow::resize_event(WindowResizeEvent* e) {
+    // std::print("resize event: {} {}\n", e->width(), e->height());
+    event_bus_.publish<xc::xcal::event::FrameResize>(e->width(), e->height())
+        .publish<xc::xcal::event::CameraProjectionChanged>(
+            45.0f, (float)e->width() / (float)e->height(), 0.1f, 100.0f);
+
+    return GlfwImguiWindow::resize_event(e);
+}
+void SceneWindow::update_camera_(ecs::EventBus& event_bus,
+                                 ecs::ResourceTable& tab) {
+    event_bus.each<xc::xcal::event::FrameResize>(
+        [](auto& e) { _gl glViewport(0, 0, e.width, e.height); });
+    event_bus.each<xc::xcal::event::CameraProjectionChanged>(
+        [](xc::xcal::event::CameraProjectionChanged& e, auto& tab) {
+            auto ubo = tab.template create_or_get<UniformBuffer>();
+            ubo->fov = e.fov;
+            ubo->aspect = e.aspect;
+            ubo->near = e.near;
+            ubo->far = e.far;
+            ubo->update();
+            ubo->bind();
+        },
+        tab);
+}
