@@ -60,12 +60,10 @@ class World {
     template <auto System, typename BindObj>
     friend class ObjectSystemBuilder;
 
-    static constexpr auto Entity2ArchetypeBucktSize = 1024;
-
    private:
     std::vector<Entity> entities_{};
     std::vector<ComponentInfo> component_infos_{};
-    std::vector<ResourceInfo> resource_infos_{};
+    ResourceManager resource_manager_;
     std::vector<SystemInfo> system_infos_{};
     SparseList<component_t, uint32_t, 32> component2pool_map_{};
     std::vector<std::vector<Cell>> pools_{};
@@ -99,10 +97,11 @@ class World {
     template <auto System>
     ObjectSystemBuilder<System> add_setup_system() {};
 
-    template <typename... Plugin>
-    World &use_plugin() {
-        return (Plugin::install(*this), ...);
+    template <typename Plugin, typename... Args>
+    World &use_plugin(Args &&...args) {
+        return Plugin::install(*this, std::forward<Args>(args)...);
     }
+
     template <typename... Plugin>
     World &run_plugin() {
         return (Plugin::run(*this), ...);
@@ -124,14 +123,19 @@ class World {
         execute_commands();
         std::println("__________________end update");
     }
-    void execute_commands() { command_submit_.execute(*this); }
-    void execute_commands(CommandSubmit *submit) { submit->execute(*this); }
+    World &execute_commands() {
+        command_submit_.execute(*this);
+        return *this;
+    }
+    World &execute_commands(CommandSubmit *submit) {
+        submit->execute(*this);
+        return *this;
+    }
 };
 template <typename Resource>
 inline Resource &World::resource() {
-    XC_ASSERT(ResourceIdGenerator::get<Resource>() < resource_infos_.size());
-    return *(static_cast<Resource *>(
-        resource_infos_[ResourceIdGenerator::get<Resource>()].resource_.get()));
+    XC_ASSERT(resource_manager_.has<Resource>());
+    return resource_manager_.get<Resource>();
 };
 template <auto System, typename BindObj>
 inline World &World::run_system(BindObj *obj) {
@@ -184,20 +188,12 @@ World &World::add_system() {
 
 template <typename Resource, typename... Args>
 World &World::add_resource(Args &&...args) {
-    auto idx = resource_infos_.size();
-    auto id = ResourceIdGenerator::get<Resource>();
-    XC_ASSERT(id == idx);
-    resource_infos_.emplace_back(
-        idx, Cell((void *)(new Resource(std::forward<Args>(args)...)),
-                  [](void *ptr) { delete static_cast<Resource *>(ptr); }));
+    resource_manager_.add<Resource>(std::forward<Args>(args)...);
     return *this;
 };
 template <typename Resource>
 World &World::add_resource(Resource *resource) {
-    auto idx = resource_infos_.size();
-    auto id = ResourceIdGenerator::get<Resource>();
-    XC_ASSERT(id == idx);
-    resource_infos_.emplace_back(idx, Cell((void *)resource, [](void *ptr) {}));
+    resource_manager_.add<Resource>(resource);
     return *this;
 };
 
@@ -247,21 +243,15 @@ decltype(auto) World::fatch_args(World &world) noexcept {
     } else if constexpr (std::is_same_v<Np, CommandSubmit>) {
         static_assert(false, "use CommandSubmit by ref or ptr");
     } else if constexpr (std::is_same_v<Np, Pt &>) {
-        return std::ref(
-            *((Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
-                  .resource_.get()));
+        return std::ref(world.resource<Pt>());
     } else if constexpr (std::is_same_v<Np, const Pt &>) {
-        return std::cref(
-            *((Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
-                  .resource_.get()));
+        return std::cref(world.resource<Pt>());
     } else if constexpr (std::is_same_v<Np, const Pt *> ||
                          std::is_same_v<Np, const Pt *>) {
-        return (const Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
-            .resource_.get();
+        return (const Pt *)&world.resource<Pt>();
     } else if constexpr (std::is_same_v<Np, Pt *> ||
                          std::is_same_v<Np, const Pt *>) {
-        return (Pt *)world.resource_infos_[ResourceIdGenerator::get<Pt>()]
-            .resource_.get();
+        return (Pt *)&world.resource<Pt>();
     } else {
         static_assert(false, "not support this type");
     }
@@ -272,8 +262,8 @@ typename ObjectSystemBuilder<System, BindObj>::Self &
 ObjectSystemBuilder<System, BindObj>::use_resources() {
     (
         [&]() {
-            auto id = ResourceIdGenerator::get<Resource>();
-            XC_ASSERT(id < world_.resource_infos_.size());
+            auto id = world_.resource_manager_.id<Resource>();
+            XC_ASSERT(id < world_.resource_manager_.size());
             system_info_.resources_ids_.push_back(id);
         }(),
         ...);

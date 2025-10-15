@@ -127,7 +127,7 @@ class EventBus {
 
     template <typename T, typename... Args>
         requires(internal::EventTraits<T>::required)
-    EventBus & publish(Args &&...args) {
+    EventBus &publish(Args &&...args) {
         static constexpr auto index = size2index[sizeof(T)] - 1;
         static constexpr auto alignment = 0x02 << index;
         // std::println("size : {} ,index : {} ", sizeof(T), index);
@@ -165,8 +165,7 @@ class EventBus {
     }
 
     template <typename Event, typename Fn, typename... Args>
-        requires((
-                  std::is_invocable_v<Fn, Args && ...> ||
+        requires((std::is_invocable_v<Fn, Args && ...> ||
                   std::is_invocable_v<Fn, Event &, Args && ...>) &&
                  internal::EventTraits<Event>::required)
     bool each(Fn fn, Args &&...args) {
@@ -247,6 +246,22 @@ class EventBus {
         }
         next_free_slots_[index] = free_tmp;
         indices.clear();
+    }
+    void clear_all() {
+        for (auto &indices : event_map_) {
+            if (indices.empty()) {
+                continue;
+            }
+            auto index = size2index[sizeof(indices[0])] - 1;
+            auto alignment = 0x02 << index;
+            auto free_tmp = next_free_slots_[index];
+            for (auto &idx : indices) {
+                *(uint16_t *)(events_[index] + (idx * alignment)) = free_tmp;
+                free_tmp = idx;
+            }
+            next_free_slots_[index] = free_tmp;
+            indices.clear();
+        }
     }
 };
 }  // namespace ecs

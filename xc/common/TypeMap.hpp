@@ -26,16 +26,29 @@ class TypeMap {
     const T fill_value_{};
     std::vector<T> table_;
 
+   private:
+    template <typename Tp>
+    static const size_t type_id;
+
    public:
     TypeMap(const T& fill_value = -1) : fill_value_(fill_value) {}
     template <typename Tp>
     T& data() {
-        static const size_t tid = next_type_id++;
-        if (table_.size() <= tid) table_.resize(tid + 1, fill_value_);
-        return table_[tid];
+        if (table_.size() <= type_id<Tp>)
+            table_.resize(type_id<Tp> + 1, fill_value_);
+        return table_[type_id<Tp>];
+    }
+    template <typename Tp>
+    const T& data() const {
+        if (table_.size() <= type_id<Tp>) return fill_value_;
+        return table_[type_id<Tp>];
     }
     std::vector<T>::iterator begin() { return table_.begin(); }
     std::vector<T>::iterator end() { return table_.end(); }
     std::vector<T>::const_iterator begin() const { return table_.begin(); }
     std::vector<T>::const_iterator end() const { return table_.end(); }
 };
+
+template <typename T>
+template <typename Tp>
+const size_t TypeMap<T>::type_id = TypeMap<T>::next_type_id++;
