@@ -77,9 +77,10 @@ class World {
    public:
     template <typename Component>
     World &add_component();
-    //
+
     template <typename Resource>
     World &add_resource(Resource *resource);
+    ResourceManager &resource_manager() { return resource_manager_; }
     template <typename Resource>
     Resource &resource();
     template <typename Resource, typename... Args>
@@ -242,6 +243,12 @@ decltype(auto) World::fatch_args(World &world) noexcept {
         return std::ref(world.submit());
     } else if constexpr (std::is_same_v<Np, CommandSubmit>) {
         static_assert(false, "use CommandSubmit by ref or ptr");
+    } else if constexpr (std::is_same_v<Np, ResourceManager *>) {
+        return &world.resource_manager();
+    } else if constexpr (std::is_same_v<Np, ResourceManager &>) {
+        return std::ref(world.resource_manager());
+    } else if constexpr (std::is_same_v<Np, ResourceManager>) {
+        static_assert(false, "use ResourceManager by ref or ptr");
     } else if constexpr (std::is_same_v<Np, Pt &>) {
         return std::ref(world.resource<Pt>());
     } else if constexpr (std::is_same_v<Np, const Pt &>) {

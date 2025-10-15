@@ -222,7 +222,7 @@ class EventBus {
     }
     template <typename Event>
     bool exist() {
-        return !event_map_.data<Event>().size();
+        return event_map_.data<Event>().size();
     }
 
     template <typename Event>
