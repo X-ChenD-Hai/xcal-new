@@ -6,7 +6,6 @@
 #include "./Shader.hpp"
 #include "./openglloader.h"
 
-
 void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
                                            ecs::ComponentAccessor a) {
     using namespace xc::xcal;

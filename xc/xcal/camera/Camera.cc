@@ -4,14 +4,15 @@
 #include <ecs/Resource.hpp>
 #include <ecs/ResourceTable.hpp>
 #include <print>
+
 #include "../event/events.hpp"
 
 void xc::xcal::camera::update_camera(ecs::ResourceManager& mgr,
                                      ecs::EventBus& event_bus) {
     event_bus.each<xc::xcal::event::FrameResize>(
         [](auto& e, auto& mgr, auto& bus) {
-            std::println("resource size {}",mgr.size());
-            std::println("resource id {}",mgr.template id<ProjectionConfig>());
+            std::println("resource size {}", mgr.size());
+            std::println("resource id {}", mgr.template id<ProjectionConfig>());
             mgr.template get<ProjectionConfig>().aspect =
                 (float)e.width / (float)e.height;
             bus.template publish<event::CameraProjectionChanged>();

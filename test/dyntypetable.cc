@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <TypeMap.hpp>
 #include <SparseList.hpp>
+#include <TypeMap.hpp>
 #include <chrono>
 #include <print>
 #include <unordered_map>

@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include <atomic>
 #include <chrono>
 #include <event/event.hpp>
@@ -5,8 +7,6 @@
 #include <print>
 #include <thread>
 #include <vector>
-#include <gtest/gtest.h>
-
 
 class CustomListener : public EventListener {
    public:
@@ -54,7 +54,6 @@ struct CustomPublisher : public EventPublisher {
    private:
     int id_;
 };
-
 
 void publish_events(CustomPublisher& publisher, size_t total_events,
                     int thread_id) {
@@ -147,6 +146,4 @@ int test_loop() {
 }
 int test_loop1() { return 0; }
 
-TEST(EventLoop, Concurrency) {
-    test_loop1();
-}
+TEST(EventLoop, Concurrency) { test_loop1(); }

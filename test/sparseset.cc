@@ -445,22 +445,22 @@ TEST(SparsetSet, rebuild_sparse_optimized) {
 
 TEST(SparsetSet, remove_range) {
     SparsetSet s;
-    
+
     // 初始化数据
     for (uint32_t i = 1; i <= 10; ++i) {
         s.insert({i, 1});
     }
-    
+
     // 批量删除
     std::vector<Entity> to_remove = {{2, 1}, {5, 1}, {7, 1}, {9, 1}};
     s.remove_range(to_remove);
-    
+
     // 验证删除结果
     EXPECT_FALSE(s.contains({2, 1}));
     EXPECT_FALSE(s.contains({5, 1}));
     EXPECT_FALSE(s.contains({7, 1}));
     EXPECT_FALSE(s.contains({9, 1}));
-    
+
     // 验证剩余实体
     EXPECT_TRUE(s.contains({1, 1}));
     EXPECT_TRUE(s.contains({3, 1}));
@@ -468,13 +468,12 @@ TEST(SparsetSet, remove_range) {
     EXPECT_TRUE(s.contains({6, 1}));
     EXPECT_TRUE(s.contains({8, 1}));
     EXPECT_TRUE(s.contains({10, 1}));
-    
+
     // 验证有序性
-    EXPECT_TRUE(std::is_sorted(s.dense_.begin(), s.dense_.end(),
-        [](const Entity& a, const Entity& b) {
-            return a.id() < b.id();
-        }));
-    
+    EXPECT_TRUE(std::is_sorted(
+        s.dense_.begin(), s.dense_.end(),
+        [](const Entity& a, const Entity& b) { return a.id() < b.id(); }));
+
     // 验证索引正确性
     for (size_t i = 0; i < s.dense_.size(); ++i) {
         EXPECT_EQ(s.sparse_[s.dense_[i].id()], i);
@@ -483,19 +482,19 @@ TEST(SparsetSet, remove_range) {
 
 TEST(SparsetSet, remove_range_iterator) {
     SparsetSet s;
-    
+
     for (uint32_t i = 1; i <= 8; ++i) {
         s.insert({i, 1});
     }
-    
+
     // 删除 ID 为 3,4,5 的实体
     auto begin = std::find_if(s.dense_.begin(), s.dense_.end(),
-        [](const Entity& e) { return e.id() == 3; });
+                              [](const Entity& e) { return e.id() == 3; });
     auto end = std::find_if(s.dense_.begin(), s.dense_.end(),
-        [](const Entity& e) { return e.id() == 6; });
-    
+                            [](const Entity& e) { return e.id() == 6; });
+
     s.remove_range(begin, end);
-    
+
     // 验证结果
     EXPECT_TRUE(s.contains({1, 1}));
     EXPECT_TRUE(s.contains({2, 1}));

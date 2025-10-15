@@ -34,8 +34,8 @@ class DA {};
 class DB {};
 class DC {};
 
-template<class T>
-void add(T *t){
+template <class T>
+void add(T *t) {
     MySystem::instence().call_object(*t);
 }
 

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <IdGenerator.hpp>
 #include <print>
 namespace category {
@@ -8,12 +9,16 @@ class Resource;
 
 template <typename Component_>
 using ComponentIdGenerator =
-    ThreadSaftyIdGeneratorTemplate<category::Component, uint32_t>::Generator<Component_>;
-using ComponentCounter = ThreadSaftyIdGeneratorTemplate<category::Component, uint32_t>;
+    ThreadSaftyIdGeneratorTemplate<category::Component,
+                                   uint32_t>::Generator<Component_>;
+using ComponentCounter =
+    ThreadSaftyIdGeneratorTemplate<category::Component, uint32_t>;
 template <typename Resource_>
 using ResourceIdGenerator =
-    ThreadSaftyIdGeneratorTemplate<category::Resource, uint32_t>::Generator<Resource_>;
-using ResourceCounter = ThreadSaftyIdGeneratorTemplate<category::Resource, uint32_t>;
+    ThreadSaftyIdGeneratorTemplate<category::Resource,
+                                   uint32_t>::Generator<Resource_>;
+using ResourceCounter =
+    ThreadSaftyIdGeneratorTemplate<category::Resource, uint32_t>;
 
 class Component1 {};
 class Component2 {};

@@ -7,7 +7,6 @@
 #include <print>
 #include <xc_assert.hpp>
 
-
 class EntityName {
     std::string name_;
     size_t copy_count_ = 0;

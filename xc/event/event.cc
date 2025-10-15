@@ -9,7 +9,6 @@
 
 #include "./xc_assert.hpp"
 
-
 thread_local std::vector<EventLoop*> EventLoop::thread_loops_;
 thread_local std::shared_mutex EventLoop::thread_loops_mutex_;
 std::vector<EventLoop*> EventLoop::global_loops_;
@@ -58,7 +57,8 @@ bool EventLoop::flush() noexcept {
                     break;
                 }
             } catch (std::runtime_error& e) {
-                std::cerr << "Runtime error caught in event listener: " << e.what() << std::endl;
+                std::cerr << "Runtime error caught in event listener: "
+                          << e.what() << std::endl;
             }
         }
     }

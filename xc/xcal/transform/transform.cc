@@ -1,4 +1,5 @@
 #include "./transform.hpp"
+
 #include <xcmath/utils/show.hpp>
 xcmath::mat4f xc::xcal::transform::TransformComponent::transform_matrix()
     const {

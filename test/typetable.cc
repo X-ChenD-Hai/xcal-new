@@ -23,7 +23,7 @@ TEST(UniqueTypeTableTest, UniqueIdAssignment) {
 
     // 初始化静态变量（重要！）
     Table::default_data() = 0;
-    
+
     size_t idA = Table::type_id<TestClassA>();
     size_t idB = Table::type_id<TestClassB>();
     size_t idC = Table::type_id<TestClassC>();
@@ -104,4 +104,3 @@ TEST(UniqueTypeTableTest, TypeIdIsConsistentForSameType) {
     EXPECT_EQ(id1, id2);
     EXPECT_EQ(id2, id3);
 }
-

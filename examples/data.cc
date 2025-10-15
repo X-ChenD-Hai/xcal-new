@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
 
     using tt = ReflectionGetType<A::Color::Red>::type;
 
-     A::Red r{};
+    A::Red r{};
     void* ins = EnumMapItem<A::Color::Red, A::AbsColor*>::allocate();
 
     // std::cout << type_string<tt>() << std::endl;

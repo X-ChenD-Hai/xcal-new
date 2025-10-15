@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
-#include <print>
+
 #include <chrono>
 #include <event/event.hpp>
 #include <event/timer.hpp>
+#include <print>
 std::mutex global_loops_mutex;
 std::atomic<bool> stop_loop = false;
 std::condition_variable stop_loop_cv;
