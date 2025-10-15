@@ -8,6 +8,7 @@
 #include "./event.h"
 
 static Key glfwToKey(int glfwKeycode) {
+    // GLFW_KEYl-+*_C
     static const std::array<Key, 349> keyMap = {{
         /* Printable keys */
         Key::SPACE,          // 32
@@ -135,7 +136,7 @@ static Key glfwToKey(int glfwKeycode) {
     }};
 
     if (glfwKeycode >= 0 && glfwKeycode <= static_cast<int>(Key::LAST)) {
-        return keyMap[glfwKeycode];
+        return static_cast<Key>(glfwKeycode);
     }
     return static_cast<Key>(-1);
 }
@@ -257,4 +258,15 @@ GlfwWindowLoader::~GlfwWindowLoader() {
 }
 std::string_view GlfwWindowLoader::window_title() const {
     return glfwGetWindowTitle(window_);
+}
+void GlfwWindowLoader::set_cursor_mode(CursorMode mode) {
+    if (mode == CursorMode::Normal) {
+        glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    } else if (mode == CursorMode::Hidden) {
+        glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    } else if (mode == CursorMode::Locked) {
+        glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    } else if (mode == CursorMode::Disabled) {
+        glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
 }

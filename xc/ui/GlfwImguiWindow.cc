@@ -184,3 +184,6 @@ template std::unique_ptr<Button>& GlfwImguiWindow::append_element(
 template std::pair<std::unique_ptr<Editor>, bool>&
 GlfwImguiWindow::append_element(
     std::pair<std::unique_ptr<Editor>, bool>&& element);
+void GlfwImguiWindow::set_cursor_mode(CursorMode mode) {
+    loader_->set_cursor_mode(mode);
+}

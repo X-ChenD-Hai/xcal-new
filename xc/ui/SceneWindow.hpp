@@ -9,7 +9,6 @@ class ResourceTable;
 }
 struct WorldRequestExitEvent {};
 struct WorldeadyToExitEvent {};
-struct Shader;
 class UiEditorCacher;
 class SceneWindow : public GlfwImguiWindow {
    private:
@@ -19,7 +18,11 @@ class SceneWindow : public GlfwImguiWindow {
     bool world_ready_stop_ = false;
     ecs::EventBus event_bus_;
     std::unique_ptr<UiEditorCacher> ui_editor_cacher_;
-    std::unordered_map<std::string, std::unique_ptr<Shader>> shaders_;
+    struct {
+       double x_pos = 0.0;
+       double y_pos = 0.0;
+    } last_mouse_pos_;
+    bool moving = false;
 
    public:
     SceneWindow();
@@ -27,6 +30,10 @@ class SceneWindow : public GlfwImguiWindow {
     ~SceneWindow() override;
     bool event(AbsEvent* event) override;
     bool resize_event(WindowResizeEvent*) override;
+    bool key_event(KeyEvent*) override;
+    bool wheel_event(WheelEvent*) override;
+    bool mouse_move_event(MouseMoveEvent*) override;
+    bool mouse_button_event(MouseButtonEvent*) override;
 
    private:
     void render() override;
@@ -37,5 +44,4 @@ class SceneWindow : public GlfwImguiWindow {
     void init_world_();
     void create_trangle_entity_();
     void update_world_();
-    void update_camera_(ecs::EventBus& event_bus, ecs::ResourceTable& tab);
 };

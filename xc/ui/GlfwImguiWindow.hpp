@@ -36,6 +36,9 @@ class GlfwImguiWindow : public AbsWindow {
     GlfwImguiWindow& operator=(GlfwImguiWindow&&) = delete;
 
    public:
+    virtual void set_cursor_mode(CursorMode mode) override;
+
+   public:
     GlfwImguiWindow(const std::string& title = "GlfwImguiWindow",
                     int width = 800, int height = 600, int fps = 60);
     ~GlfwImguiWindow();

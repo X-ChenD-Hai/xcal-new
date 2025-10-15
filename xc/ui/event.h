@@ -59,7 +59,7 @@ enum class Modifiers : uint16_t {
 };
 
 using MouseButton = flags::Flags<MouseButtons>;
-using KeyAction = flags::Flags<KeyActions>;
+using KeyAction = KeyActions;
 using Modifier = flags::Flags<Modifiers>;
 
 class MouseButtonEvent : public Event {

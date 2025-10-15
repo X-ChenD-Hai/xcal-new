@@ -1,6 +1,6 @@
 #pragma once
 #include <event/event.hpp>
-
+#include "./AbsWindow.hpp"
 struct GLFWwindow;
 using ProcAddress = void (*(*)(const char*))(void);
 class GlfwWindowLoader : EventPublisher {
@@ -22,4 +22,6 @@ class GlfwWindowLoader : EventPublisher {
     ProcAddress get_proc_address();
     GLFWwindow* glfw_window_raw_ptr() const { return window_; }
     std::string_view window_title() const;
+
+    void set_cursor_mode(CursorMode mode);
 };

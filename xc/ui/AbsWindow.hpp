@@ -1,5 +1,8 @@
 #pragma once
 #include "./event.h"
+
+enum class CursorMode { Normal, Hidden, Locked, Disabled };
+
 class AbsWindow : public EventPublisher, public EventListener {
     bool stop_flag_ = false;
 
@@ -13,14 +16,15 @@ class AbsWindow : public EventPublisher, public EventListener {
     virtual bool mouse_button_event(MouseButtonEvent*) { return true; }
     virtual bool key_event(KeyEvent*) { return true; }
     virtual bool resize_event(WindowResizeEvent*) { return true; }
-    virtual bool wheel_event(WheelEvent*) {
-        return true;
-    }
+    virtual bool wheel_event(WheelEvent*) { return true; }
+
    protected:
     virtual bool ready_to_show() { return true; }
     virtual void update_frame() = 0;
 
    public:
+    virtual void set_cursor_mode(CursorMode mode) {}
+
     void show() {
         stop_flag_ = !ready_to_show();
         while (is_showing()) {
