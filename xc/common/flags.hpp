@@ -132,30 +132,30 @@ class Flags final {
     template <class... Args>
         requires(std::is_convertible_v<Args, T> && ...)
     constexpr Flags(Args... args) : data_((static_cast<data_t>(args) | ...)) {}
-    bool has(T flag) const {
+    constexpr bool has(T flag) const {
         return (data_ & static_cast<data_t>(flag)) == static_cast<data_t>(flag);
     }
     template <class... Args>
-        requires(std::is_convertible_v<Args, data_t> && ...)
-    bool has(Args... args) const {
+        requires(std::is_convertible_v<Args, T> && ...)
+    constexpr bool has(Args... args) const {
         return (data_ & (static_cast<data_t>(args) | ...)) ==
                (static_cast<data_t>(args) | ...);
     }
     template <class... Args>
-        requires(std::is_convertible_v<Args, data_t> && ...)
-    constexpr void has_any(Args... args) const {
-        data_ = (data_ & (static_cast<data_t>(args) | ...)) != 0;
+        requires(std::is_convertible_v<Args, T> && ...)
+    constexpr bool has_any(Args... args) const {
+        return (data_ & (static_cast<data_t>(args) | ...)) != 0;
     }
 
     constexpr void remove(T flag) { data_ &= ~static_cast<data_t>(flag); }
     template <class... Args>
-        requires((std::is_convertible_v<Args, data_t>) && ...)
+        requires((std::is_convertible_v<Args, T>) && ...)
     constexpr void remove(Args... args) {
         data_ &= ~(static_cast<data_t>(args) | ...);
     }
     constexpr void add(T flag) { data_ |= static_cast<data_t>(flag); }
     template <class... Args>
-        requires(std::is_convertible_v<Args, data_t> && ...)
+        requires(std::is_convertible_v<Args, T> && ...)
     constexpr void add(Args... args) {
         data_ |= (static_cast<data_t>(args) | ...);
     }
