@@ -12,6 +12,8 @@
 #include <xcal/render/backend/opengl/Shader.hpp>
 #include <xcal/transform/transform.hpp>
 
+#include "render/backend/opengl/mesh/trangle.hpp"
+
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
@@ -39,43 +41,6 @@ SceneWindow::SceneWindow(const std::string& name, int width, int height,
 }
 SceneWindow::SceneWindow() : GlfwImguiWindow() { init_(); }
 
-struct TrangleMesh {
-    _gl GLuint vao, vbo, shader;
-    TrangleMesh(glm::vec3 a, glm::vec3 b, glm::vec3 c) {
-        _gl glGenVertexArrays(1, &vao);
-        _gl glGenBuffers(1, &vbo);
-        _gl glBindVertexArray(vao);
-        std::array<float, 18> data = {
-            a.x, a.y, a.z, 1.0f, 0.0f, 0.0f,  //
-            b.x, b.y, b.z, 0.0f, 1.0f, 0.0f,  //
-            c.x, c.y, c.z, 0.0f, 0.0f, 1.0f,  //
-        };
-        _gl glBindBuffer(_gl GL_ARRAY_BUFFER, vbo);
-        _gl glBufferData(_gl GL_ARRAY_BUFFER, data.size() * sizeof(float),
-                         data.data(), _gl GL_STATIC_DRAW);
-        _gl glEnableVertexAttribArray(0);
-        _gl glVertexAttribPointer(0, 3, _gl GL_FLOAT, _gl GL_FALSE,
-                                  6 * sizeof(float), (void*)0);
-        _gl glEnableVertexAttribArray(1);
-        _gl glVertexAttribPointer(1, 3, _gl GL_FLOAT, _gl GL_FALSE,
-                                  6 * sizeof(float),
-                                  (void*)(3 * sizeof(float)));
-        std::print("Trangle init\n");
-    }
-    void draw() {
-        _gl glBindVertexArray(vao);
-        _gl glDrawArrays(_gl GL_TRIANGLES, 0, 3);
-    }
-    xc::xcal::render::opengl::MeshComponent mesh_component() {
-        return {
-            .vao_id = vao,
-            .vbo_id = vbo,
-            .ebo_id = 0,
-            .draw_count = 3,
-            .draw_offset = 0,
-        };
-    }
-};
 void SceneWindow::render() {
     _gl glClear(_gl GL_COLOR_BUFFER_BIT);
     update_world_();
@@ -121,26 +86,15 @@ void SceneWindow::init_world_() {
     using namespace xc::xcal::render::opengl;
     world_.add_resource<EventLoop>(loop())
         .add_resource<ecs::EventBus>(&event_bus_)
-        .add_resource<ecs::ResourceTable>();
-    world_.use_plugin<Application>().use_plugin<Render>();
+        .use_plugin<Application>()
+        .use_plugin<Render>();
 }
 void SceneWindow::create_trangle_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
-    auto mesh =
-        TrangleMesh(glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(-0.5f, -0.5f, 0.0f),
-                    glm::vec3(0.5f, -0.5f, 0.0f));
-    auto shdaer = world_.resource<ecs::ResourceTable>()
-                      .create_or_get<Shader, TrangleMesh>("./res/line.vs",
-                                                          "./res/line.fs");
-
-    auto shader_component = ShaderComponent{.program_id = shdaer->program};
-    auto mesh_comp = mesh.mesh_component();
-    auto& transform_component = ui_editor_cacher_->transform_component;
-    transform_component.state = xc::xcal::transform::TransformState::Dirty;
-    world_.submit().create_entity(
-        transform_component, shader_component, mesh_comp,
-        xc::xcal::transform::TransformMatrixComponent{});
+    world_.plugin<Render>().add_mesh(
+        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
+        ui_editor_cacher_->transform_component);
 };
 void SceneWindow::update_world_() {
     world_.run_plugin<xc::xcal::Application>()

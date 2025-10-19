@@ -2,7 +2,7 @@
 #include <print>
 #include <ui/SceneWindow.hpp>
 
-void editor_fn(std::string name, int value) {
+static void editor_fn(std::string name, int value) {
     std::println("editor_fn called with name: {}, value: {}", name, value);
 }
 

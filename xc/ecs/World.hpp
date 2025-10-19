@@ -1,6 +1,7 @@
 #pragma once
 #include <IdGenerator.hpp>
 #include <SparseList.hpp>
+#include <TypeMap.hpp>
 #include <functional>
 #include <print>
 #include <xc_assert.hpp>
@@ -12,6 +13,7 @@
 #include "./Querier.hpp"
 #include "./Resource.hpp"
 #include "./utils/traits.hpp"
+
 namespace ecs {
 
 using component_t = uint32_t;
@@ -68,6 +70,8 @@ class World {
     SparseList<component_t, uint32_t, 32> component2pool_map_{};
     std::vector<std::vector<Cell>> pools_{};
     CommandSubmit command_submit_;
+    std::vector<std::unique_ptr<void, std::function<void(void *)>>> plugins_;
+    TypeMap<uint32_t> plugins_id_map_{uint32_t(-1)};
     bool quit_{false};
 
    protected:
@@ -100,12 +104,30 @@ class World {
 
     template <typename Plugin, typename... Args>
     World &use_plugin(Args &&...args) {
-        return Plugin::install(*this, std::forward<Args>(args)...);
+        if constexpr (std::is_invocable_r_v<Plugin*, decltype(Plugin::install),
+                                            World &, Args...>) {
+            plugins_.emplace_back(
+                Plugin::install(*this, std::forward<Args>(args)...),
+                [this](void *ptr) { Plugin::uninstall(*this,(Plugin *)ptr); });
+            plugins_id_map_.data<Plugin>() = plugins_.size() - 1;
+            std::println("use plugin: {} , id:{}", typeid(Plugin).name(),
+                         plugins_id_map_.data<Plugin>());
+        } else {
+            Plugin::install(*this, std::forward<Args>(args)...);
+        }
+        return *this;
     }
 
     template <typename... Plugin>
     World &run_plugin() {
         return (Plugin::run(*this), ...);
+    }
+
+    template <typename Plugin>
+    Plugin &plugin() {
+        auto index = plugins_id_map_.data<Plugin>();
+        XC_ASSERT(index != uint32_t(-1));
+        return *(static_cast<Plugin *>(plugins_[index].get()));
     }
 
     World();

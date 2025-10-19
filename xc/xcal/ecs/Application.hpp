@@ -8,7 +8,7 @@ namespace xc::xcal {
 
 class Application {
    public:
-    static ecs::World &install(ecs::World &world);
+    static void install(ecs::World &world);
 
     static ecs::World &run(ecs::World &world);
 };
