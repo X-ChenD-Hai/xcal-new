@@ -12,17 +12,11 @@
 #include <array>
 #include <format>
 #include <vector>
+#include <reflectionrecord.hpp>
 namespace flags {
 template <class _Type, bool _IsEnum = std::is_enum_v<_Type>>
 struct type_meta_info {
-    static constexpr std::string_view name = []() {
-        constexpr std::string_view s{__PRETTY_FUNCTION__};
-        constexpr std::string_view first = "[_Type = ";
-        constexpr std::string_view mid = ", _IsEnum = ";
-        constexpr auto si = s.find(first) + first.size();
-        constexpr auto mi = s.find(mid);
-        return s.substr(si, mi - si);
-    }();
+    static constexpr std::string_view name = type_string<_Type>();
     static constexpr size_t size = sizeof(_Type);
     static constexpr size_t is_enum = std::is_enum_v<_Type>;
 };
@@ -30,17 +24,7 @@ template <class _Type>
 struct type_meta_info<_Type, true> : public type_meta_info<_Type, false> {
     template <_Type _Val>
     struct value {
-        static constexpr std::string_view name = []() {
-            constexpr std::string_view s{__PRETTY_FUNCTION__};
-            constexpr std::string_view mid = "_Val = ";
-            constexpr auto mi = s.rfind(mid);
-            constexpr auto el_ = s.rfind("::");
-            if constexpr (el_ != std::string_view::npos && el_ > mi) {
-                return s.substr(el_ + 2, s.size() - el_ - 3);
-            } else {
-                return "";
-            }
-        }();
+        static constexpr std::string_view name = enum_value_name<_Type, _Val>();
     };
 };
 

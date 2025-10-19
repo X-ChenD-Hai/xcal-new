@@ -4,7 +4,7 @@
 #include "./AbsWindow.hpp"
 #include "./Editor.hpp"
 #include "./GlfwWindowLoader.hpp"
-#include "./event.h"
+#include "./Event.h"
 
 class GlfwImguiWindow : public AbsWindow {
    public:

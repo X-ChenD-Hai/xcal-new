@@ -4,8 +4,8 @@
 
 #include <xc_assert.hpp>
 
+#include "./Event.h"
 #include "./KeyCode.hpp"
-#include "./event.h"
 
 static Key glfwToKey(int glfwKeycode) {
     // GLFW_KEYl-+*_C
