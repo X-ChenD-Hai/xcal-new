@@ -33,9 +33,10 @@ void xc::xcal::render::opengl::VertexAttribute::dump() const {
                               normalized ? _gl GL_TRUE : _gl GL_FALSE, stride,
                               (void *)((size_t)offset));
 }
-     std::unordered_map<xc::xcal::render::opengl::VertexLayout, uint32_t> xc::xcal::render::opengl::VertexArrayObject:: vaos{};
+std::unordered_map<xc::xcal::render::opengl::VertexLayout, uint32_t>
+    xc::xcal::render::opengl::VertexArrayObject::vaos{};
 
-xc::xcal::render::opengl::VertexArrayObject::   VertexArrayObject(
+xc::xcal::render::opengl::VertexArrayObject::VertexArrayObject(
     const VertexLayout &layout) {
     auto it = vaos.find(layout);
     if (it != vaos.end()) {
@@ -60,10 +61,10 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
                 _gl glGetUniformLocation(s.program_id, "model"), 1,
                 _gl GL_FALSE, &t.matrix.T()[0][0]);
             _gl glBindVertexArray(m.vao_id);
-            if (m.ebo_id == 0)
+            if (m.ebo_id == 0) {
                 _gl glDrawArrays(MeshType2Glenum[(uint32_t)m.type],
                                  m.draw_offset, m.draw_count);
-            else {
+            } else {
                 _gl glDrawElements(MeshType2Glenum[(uint32_t)m.type],
                                    m.draw_count, _gl GL_UNSIGNED_INT,
                                    (const void *)((size_t)m.draw_offset));

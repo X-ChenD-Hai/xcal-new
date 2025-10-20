@@ -23,7 +23,7 @@ class Render {
     Render(ecs::World &world) : world_(world) {}
 
    public:
-    void add_mesh(const Trangle &trangle,
+    void add_mesh(const Mesh &mesh,
                   xc::xcal::transform::TransformComponent transform_component =
                       xc::xcal::transform::TransformComponent{});
 };
