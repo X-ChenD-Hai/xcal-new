@@ -4,28 +4,9 @@
 #include <xcmath/xcmath.hpp>
 
 namespace xc::xcal::render::opengl {
-struct Mesh {
-    virtual VertexLayout layout() const = 0;
-    virtual uint32_t vbo() const = 0;
-    virtual uint32_t ebo() const { return 0; };
-    virtual uint32_t draw_count()  const= 0;
-    virtual MeshType draw_type() const = 0;
-    virtual uint32_t draw_offset() const { return 0; };
-    virtual uint32_t shader() const { return 0; };
-    virtual xc::xcal::render::opengl::MeshComponent mesh_component() const {
-        return {
-            .vao_id = VertexArrayObject(layout()).id,
-            .vbo_id = vbo(),
-            .ebo_id = ebo(),
-            .type = draw_type(),
-            .draw_count = draw_count(),
-            .draw_offset = draw_offset(),
-        };
-    }
-};
 
 struct Trangle : public Mesh {
-    uint32_t vbo_, shader;
+    uint32_t vbo_;
     Trangle(xcmath::vec3f a, xcmath::vec3f b, xcmath::vec3f c);
     VertexLayout layout() const override {
         return {{{
@@ -52,7 +33,6 @@ struct Trangle : public Mesh {
 struct TranglePath : public Trangle {
     using Trangle::Trangle;
     MeshType draw_type() const override {
-        std::cout << "draw_type" << std::endl;
         return MeshType::LINE_LOOP;
     }
 };

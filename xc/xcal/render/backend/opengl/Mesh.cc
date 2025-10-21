@@ -71,3 +71,14 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
             }
         });
 }
+xc::xcal::render::opengl::MeshComponent
+xc::xcal::render::opengl::Mesh::mesh_component() const {
+    return {
+        .vao_id = VertexArrayObject(layout()).id,
+        .vbo_id = vbo(),
+        .ebo_id = ebo(),
+        .type = draw_type(),
+        .draw_count = draw_count(),
+        .draw_offset = draw_offset(),
+    };
+}

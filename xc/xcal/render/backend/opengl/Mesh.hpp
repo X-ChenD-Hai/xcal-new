@@ -53,6 +53,18 @@ struct VertexArrayObject {
     static std::unordered_map<VertexLayout, uint32_t> vaos;
     VertexArrayObject(const VertexLayout& layout);
 };
+
+struct Mesh {
+    virtual VertexLayout layout() const = 0;
+    virtual uint32_t vbo() const = 0;
+    virtual uint32_t ebo() const { return 0; };
+    virtual uint32_t draw_count()  const= 0;
+    virtual MeshType draw_type() const = 0;
+    virtual uint32_t draw_offset() const { return 0; };
+    virtual uint32_t shader() const { return 0; };
+    virtual xc::xcal::render::opengl::MeshComponent mesh_component() const;
+};
+
 void render_mesh(ecs::Querier q, ecs::ComponentAccessor a);
 }  // namespace xc::xcal::render::opengl
 
