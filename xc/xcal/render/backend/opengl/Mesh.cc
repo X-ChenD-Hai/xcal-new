@@ -1,10 +1,12 @@
 #include "./Mesh.hpp"
 
+#include <ecs/ResourceTable.hpp>
 #include <ecs/World.hpp>
 #include <xcal/transform/transform.hpp>
 
 #include "./Shader.hpp"
 #include "./openglloader.h"
+
 static constexpr _gl GLenum MeshType2Glenum[] = {
     _gl GL_LINE_STRIP,      // LINE_STRIP
     _gl GL_LINE_LOOP,       // LINE_LOOP
@@ -24,62 +26,102 @@ static constexpr _gl GLenum VertexType2Glenum[] = {
     _gl GL_UNSIGNED_INT,
 };
 void xc::xcal::render::opengl::VertexLayout::dump() const {
-    for (const auto &attribute : attributes) {
-        attribute.dump();
+    for (size_t i = 0; i < attributes.size(); ++i) {
+        attributes[i].dump(i);
     }
 }
-void xc::xcal::render::opengl::VertexAttribute::dump() const {
-    _gl glEnableVertexAttribArray(location);
+void xc::xcal::render::opengl::VertexAttribute::dump(uint32_t location) const {
+    _gl glBindBuffer(_gl GL_ARRAY_BUFFER, vbo_id);
     _gl glVertexAttribPointer(location, size, VertexType2Glenum[(uint8_t)type],
                               normalized ? _gl GL_TRUE : _gl GL_FALSE, stride,
                               (void *)((size_t)offset));
+    _gl glEnableVertexAttribArray(location);
 }
-std::unordered_map<xc::xcal::render::opengl::VertexLayout, uint32_t>
-    xc::xcal::render::opengl::VertexArrayObject::vaos{};
 
 xc::xcal::render::opengl::VertexArrayObject::VertexArrayObject(
     const VertexLayout &layout) {
-    auto it = vaos.find(layout);
-    if (it != vaos.end()) {
-        id = it->second;
-        return;
-    }
     _gl glGenVertexArrays(1, &id);
     _gl glBindVertexArray(id);
     layout.dump();
     std::print("VAO init {}\n", id);
-    vaos[layout] = id;
 }
 
 void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
-                                           ecs::ComponentAccessor a) {
+                                           ecs::ComponentAccessor a,
+                                           ecs::ResourceTable &resources) {
     using namespace xc::xcal;
-
-    a.each<transform::TransformMatrixComponent, ShaderComponent, MeshComponent>(
-        [](auto &t, auto &s, auto &m) {
-            _gl glUseProgram(s.program_id);
-            _gl glUniformMatrix4fv(
-                _gl glGetUniformLocation(s.program_id, "model"), 1,
-                _gl GL_FALSE, &t.matrix.T()[0][0]);
+    auto shader = resources.create_or_get<Shader, SingleColorShaderComponent>(
+        "res/single_color.vs", "res/single_color.fs");
+    _gl glUseProgram(shader->program);
+    auto model_location = _gl glGetUniformLocation(shader->program, "model");
+    auto color_location = _gl glGetUniformLocation(shader->program, "color");
+    // std::println("start render------------");
+    a.each<transform::TransformMatrixComponent, SingleColorShaderComponent,
+           MeshComponent>(
+        [](auto &t, auto &s, auto &m, auto model_location,
+           auto color_location) {
+            _gl glUniformMatrix4fv(model_location, 1, _gl GL_FALSE,
+                                   &t.matrix.T()[0][0]);
+            _gl glUniform4fv(color_location, 1, &s.color[0]);
             _gl glBindVertexArray(m.vao_id);
-            if (m.ebo_id == 0) {
-                _gl glDrawArrays(MeshType2Glenum[(uint32_t)m.type],
-                                 m.draw_offset, m.draw_count);
-            } else {
+            if (m.use_element_buffer) {
+                // std::println("draw element type {} count {}, offset {}",
+                // m.type,
+                //              m.draw_count, m.draw_offset);
                 _gl glDrawElements(MeshType2Glenum[(uint32_t)m.type],
                                    m.draw_count, _gl GL_UNSIGNED_INT,
                                    (const void *)((size_t)m.draw_offset));
+            } else {
+                // std::println("draw array type {} count {}, offset {}",
+                // m.type,
+                //              m.draw_count, m.draw_offset);
+                _gl glDrawArrays(MeshType2Glenum[(uint32_t)m.type],
+                                 m.draw_offset, m.draw_count);
             }
-        });
+        },
+        model_location, color_location);
+    shader = resources.create_or_get<Shader, VertexColorShaderComponent>(
+        "res/vertex_color.vs", "res/vertex_color.fs");
+    _gl glUseProgram(shader->program);
+    model_location = _gl glGetUniformLocation(shader->program, "model");
+    a.each<transform::TransformMatrixComponent, VertexColorShaderComponent,
+           MeshComponent>(
+        [](auto &t, auto &s, auto &m, auto model_location) {
+            _gl glUniformMatrix4fv(model_location, 1, _gl GL_FALSE,
+                                   &t.matrix.T()[0][0]);
+            _gl glBindVertexArray(m.vao_id);
+            if (m.use_element_buffer) {
+                // std::println("draw element type {} count {}, offset {}",
+                // m.type,
+                //              m.draw_count, m.draw_offset);
+                _gl glDrawElements(MeshType2Glenum[(uint32_t)m.type],
+                                   m.draw_count, _gl GL_UNSIGNED_INT,
+                                   (const void *)((size_t)m.draw_offset));
+            } else {
+                // std::println("draw array type {} count {}, offset {}",
+                // m.type,
+                //              m.draw_count, m.draw_offset);
+                _gl glDrawArrays(MeshType2Glenum[(uint32_t)m.type],
+                                 m.draw_offset, m.draw_count);
+            }
+        },
+        model_location);
 }
 xc::xcal::render::opengl::MeshComponent
 xc::xcal::render::opengl::Mesh::mesh_component() const {
+    auto id = VertexArrayObject(layout()).id;
+    std::print("VAO {} for mesh\n", id);
     return {
-        .vao_id = VertexArrayObject(layout()).id,
-        .vbo_id = vbo(),
-        .ebo_id = ebo(),
+        .vao_id = id,
+        .use_element_buffer = ebo() != 0,
         .type = draw_type(),
         .draw_count = draw_count(),
         .draw_offset = draw_offset(),
     };
 }
+void xc::xcal::render::opengl::Mesh::set_color(const xcmath::vec4f &color) {
+    shader_program = SingleColorShaderComponent{color};
+}
+void xc::xcal::render::opengl::Mesh::use_vertex_color() {
+    shader_program = VertexColorShaderComponent{};
+};

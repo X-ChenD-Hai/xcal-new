@@ -81,6 +81,13 @@ class World {
    public:
     template <typename Component>
     World &add_component();
+    template <typename Component1, typename Component2, typename... Components>
+    World &add_component() {
+        add_component<Component1>();
+        add_component<Component2>();
+        (add_component<Components>(), ...);
+        return *this;
+    }
 
     template <typename Resource>
     World &add_resource(Resource *resource);
@@ -104,16 +111,19 @@ class World {
 
     template <typename Plugin, typename... Args>
     World &use_plugin(Args &&...args) {
-        if constexpr (std::is_invocable_r_v<Plugin*, decltype(Plugin::install),
+        std::println("installing plugin: {}", typeid(Plugin).name());
+        if constexpr (std::is_invocable_r_v<Plugin *, decltype(Plugin::install),
                                             World &, Args...>) {
             plugins_.emplace_back(
                 Plugin::install(*this, std::forward<Args>(args)...),
-                [this](void *ptr) { Plugin::uninstall(*this,(Plugin *)ptr); });
+                [this](void *ptr) { Plugin::uninstall(*this, (Plugin *)ptr); });
             plugins_id_map_.data<Plugin>() = plugins_.size() - 1;
-            std::println("use plugin: {} , id:{}", typeid(Plugin).name(),
+            std::println("installed plugin: {} , id:{}", typeid(Plugin).name(),
                          plugins_id_map_.data<Plugin>());
+
         } else {
             Plugin::install(*this, std::forward<Args>(args)...);
+            std::println("installed plugin: {}", typeid(Plugin).name());
         }
         return *this;
     }
@@ -212,11 +222,13 @@ World &World::add_system() {
 template <typename Resource, typename... Args>
 World &World::add_resource(Args &&...args) {
     resource_manager_.add<Resource>(std::forward<Args>(args)...);
+    std::println("add resource: {} , id:{}", typeid(Resource).name(),resource_manager_.id<Resource>());
     return *this;
 };
 template <typename Resource>
 World &World::add_resource(Resource *resource) {
     resource_manager_.add<Resource>(resource);
+    std::println("add resource: {} , id:{}", typeid(Resource).name(),resource_manager_.id<Resource>());
     return *this;
 };
 
@@ -224,6 +236,8 @@ template <typename Component>
 World &World::add_component() {
     XC_ASSERT(
         !component2pool_map_.has_value(ComponentIdGenerator<Component>::get()));
+    std::println("add component: {} , id:{}", typeid(Component).name(),
+                 pools_.size());
     auto pool_index = component_infos_.size();
     pools_.emplace_back();
     component_infos_.emplace_back(pool_index, [=](void *ptr) {
@@ -314,9 +328,9 @@ World &ObjectSystemBuilder<T, BindObj>::build_system() {
     return world_;
 }
 
-template <typename... Component, typename Fn>
-    requires std::is_invocable_v<Fn, Component &...>
-inline void ComponentAccessor::each(Fn &&fn) {
+template <typename... Component, typename Fn, typename... Args>
+    requires std::is_invocable_v<Fn, Component &..., Args...>
+inline void ComponentAccessor::each(Fn &&fn, Args &&...args) {
     std::array<size_t, sizeof...(Component)> component_info_index_{
         world_.component2pool_map_.get_index(
             ComponentIdGenerator<Component>::get())...};
@@ -329,7 +343,7 @@ inline void ComponentAccessor::each(Fn &&fn) {
                    world_.component_infos_[b].entities_.size();
         });
     XC_ASSERT(it != component_info_index_.end());
-    XC_ASSERT(*it < component_info_index_.size());
+    XC_ASSERT(*it < world_.component_infos_.size());
     auto &component_info = world_.component_infos_[*it];
     [&]<size_t... I>(std::index_sequence<I...>) {
         for (auto entity : component_info.entities_) {
@@ -342,7 +356,8 @@ inline void ComponentAccessor::each(Fn &&fn) {
                                  .pool_index_]
                             [world_.component_infos_[component_info_index_[I]]
                                  .cell_index(Entity(entity, 0))]
-                        .get()...);
+                        .get()...,
+                   std::forward<Args>(args)...);
         }
     }(std::make_index_sequence<sizeof...(Component)>());
 }

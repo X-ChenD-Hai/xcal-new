@@ -15,12 +15,9 @@ class ComponentAccessor {
         requires(sizeof...(Component) > 1)
     std::tuple<Component *...> data(Entity entity);
     void *data(Entity entity, component_t component_id);
-    template <typename... Component, typename Fn>
-        requires std::is_invocable_v<Fn, Component& ...>
-    void each(Fn &&fn);
-    // template <typename Fn, typename... Component>
-    //     requires std::is_invocable_v<Fn, Component &...>
-    // void each(Fn &&fn);
+    template <typename... Component, typename Fn,typename ...Args>
+        requires std::is_invocable_v<Fn, Component& ..., Args...>
+    void each(Fn &&fn, Args &&...args);
 };
 
 template <typename Component>

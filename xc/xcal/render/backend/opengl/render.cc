@@ -9,10 +9,15 @@
 
 xc::xcal::render::opengl::Render *xc::xcal::render::opengl::Render::install(
     ecs::World &world) {
-    std::println("Installing render system");
-    world.add_component<ShaderComponent>().add_component<MeshComponent>();
     if (!world.resource_manager().has<ecs::ResourceTable>())
         world.add_resource<ecs::ResourceTable>();
+    world.add_component<SingleColorShaderComponent>()
+        .add_component<LinearGradientShaderComponent>()
+        .add_component<RadialGradientShaderComponent>()
+        .add_component<VertexColorShaderComponent>()
+        .add_component<Texture2dShaderComponent>()
+        .add_component<Texture3dShaderComponent>()
+        .add_component<MeshComponent>();
     return new Render(world);
 }
 ecs::World &xc::xcal::render::opengl::Render::run(ecs::World &world) {
@@ -25,15 +30,18 @@ void xc::xcal::render::opengl::Render::uninstall(ecs::World &world,
 void xc::xcal::render::opengl::Render::add_mesh(
     const Mesh &mesh,
     xc::xcal::transform::TransformComponent transform_component) {
-    auto shdaer =
-        world_.resource<ecs::ResourceTable>().create_or_get<Shader, Trangle>(
-            mesh.vertex_shader_path(), mesh.fragment_shader_path());
+    // auto shdaer =
+    //     world_.resource<ecs::ResourceTable>().create_or_get<Shader, Trangle>(
+    //         mesh.vertex_shader_path(), mesh.fragment_shader_path());
 
-    auto shader_component = ShaderComponent{.program_id = shdaer->program};
     auto mesh_comp = mesh.mesh_component();
-    std::println("Adding mesh {}",mesh_comp.type);
+    std::println("Adding mesh {}", mesh_comp.type);
     transform_component.state = xc::xcal::transform::TransformState::Dirty;
-    world_.submit().create_entity(
-        transform_component, shader_component, mesh_comp,
-        xc::xcal::transform::TransformMatrixComponent{});
+    std::visit(
+        [&](auto &&shader) {
+            world_.submit().create_entity(
+                transform_component, mesh_comp, shader,
+                xc::xcal::transform::TransformMatrixComponent{});
+        },
+        mesh.shader_program);
 }

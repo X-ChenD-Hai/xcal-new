@@ -14,8 +14,6 @@ xc::xcal::render::opengl::Trangle::Trangle(xcmath::vec3f a, xcmath::vec3f b,
     _gl glBindBuffer(_gl GL_ARRAY_BUFFER, vbo_);
     _gl glBufferData(_gl GL_ARRAY_BUFFER, data.size() * sizeof(xcmath::vec3f),
                      data.data(), _gl GL_STATIC_DRAW);
+    use_vertex_color();
 }
 
-uint32_t xc::xcal::render::opengl::Trangle::vbo() const {
-    return vbo_;
-};

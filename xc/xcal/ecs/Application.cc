@@ -9,16 +9,15 @@
 void xc::xcal::handle_event(ecs::EventBus &bus) {}
 
 void xc::xcal::Application::install(ecs::World &world) {
-    std::cout << "Installing Application" << std::endl;
-    world.add_component<transform::TransformComponent>()
-        .add_component<transform::TransformMatrixComponent>();
     if (!world.resource_manager().has<ecs::EventBus>())
         world.add_resource<ecs::EventBus>();
     world.add_resource<camera::ViewConfig>()
-        .add_resource<camera::ProjectionConfig>();
-    world.add_resource<camera::FpsCameraControler>(
-        &world.resource<camera::ViewConfig>(),
-        &world.resource<ecs::EventBus>());
+        .add_resource<camera::ProjectionConfig>()
+        .add_resource<camera::FpsCameraControler>(
+            &world.resource<camera::ViewConfig>(),
+            &world.resource<ecs::EventBus>());
+    world.add_component<transform::TransformComponent>()
+        .add_component<transform::TransformMatrixComponent>();
 }
 ecs::World &xc::xcal::Application::run(ecs::World &world) {
     return world.run_system<handle_event>()

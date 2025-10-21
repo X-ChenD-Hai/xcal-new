@@ -6,14 +6,13 @@
 #include <ecs/ResourceTable.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <render/backend/opengl/Mesh.hpp>
+#include <render/backend/opengl/mesh/axis.hpp>
+#include <render/backend/opengl/mesh/trangle.hpp>
 #include <xcal/camera/Camera.hpp>
 #include <xcal/event/events.hpp>
 #include <xcal/render/backend/opengl/Render.hpp>
 #include <xcal/render/backend/opengl/Shader.hpp>
 #include <xcal/transform/transform.hpp>
-
-#include <render/backend/opengl/mesh/trangle.hpp>
-#include <render/backend/opengl/mesh/axis.hpp>
 
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
@@ -93,11 +92,18 @@ void SceneWindow::init_world_() {
 void SceneWindow::create_trangle_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
-    // world_.plugin<Render>().add_mesh(
-    //     TranglePath({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
-    //     ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(
-        Line({1.0f, 0.f, 0.0f}),
+        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f,
+        0.0f}), ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(Line({1.0f, 0.f, 0.0f}),
+                                     ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(
+        ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
+                        0.0f, 1.0f, 1},
+        ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(
+        ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
+                        0.0f, 1.0f, 100},
         ui_editor_cacher_->transform_component);
 };
 void SceneWindow::update_world_() {
