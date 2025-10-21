@@ -93,8 +93,8 @@ void SceneWindow::create_trangle_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
     world_.plugin<Render>().add_mesh(
-        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f,
-        0.0f}), ui_editor_cacher_->transform_component);
+        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
+        ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(Line({1.0f, 0.f, 0.0f}),
                                      ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(

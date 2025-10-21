@@ -68,11 +68,11 @@ struct Mesh {
     void use_vertex_color();
 
     virtual VertexLayout layout() const = 0;
-    virtual uint32_t ebo() const { return 0; };
+    virtual uint32_t ebo() const { return 0; }
     virtual uint32_t draw_count() const = 0;
     virtual MeshType draw_type() const = 0;
-    virtual uint32_t draw_offset() const { return 0; };
-    virtual uint32_t shader() const { return 0; };
+    virtual uint32_t draw_offset() const { return 0; }
+    virtual uint32_t shader() const { return 0; }
     virtual xc::xcal::render::opengl::MeshComponent mesh_component() const;
 };
 

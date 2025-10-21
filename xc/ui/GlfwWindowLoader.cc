@@ -5,7 +5,9 @@
 #include <xc_assert.hpp>
 
 #include "./Event.h"
+#include "./GlfwDarkHeaderSupport.h"
 #include "./KeyCode.hpp"
+
 
 static Key glfwToKey(int glfwKeycode) {
     // GLFW_KEYl-+*_C
@@ -250,6 +252,7 @@ void GlfwWindowLoader::init_() {
     }
     glfwMakeContextCurrent(window_);
     glfwSetWindowUserPointer(window_, this);
+    enable_window_dark_titlebar(window_);
     init_callbacks_();
 };
 GlfwWindowLoader::~GlfwWindowLoader() {

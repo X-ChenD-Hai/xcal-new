@@ -16,4 +16,3 @@ xc::xcal::render::opengl::Trangle::Trangle(xcmath::vec3f a, xcmath::vec3f b,
                      data.data(), _gl GL_STATIC_DRAW);
     use_vertex_color();
 }
-
