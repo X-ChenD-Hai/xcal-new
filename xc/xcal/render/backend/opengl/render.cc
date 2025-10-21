@@ -27,7 +27,7 @@ void xc::xcal::render::opengl::Render::add_mesh(
     xc::xcal::transform::TransformComponent transform_component) {
     auto shdaer =
         world_.resource<ecs::ResourceTable>().create_or_get<Shader, Trangle>(
-            "./res/line.vs", "./res/line.fs");
+            mesh.vertex_shader_path(), mesh.fragment_shader_path());
 
     auto shader_component = ShaderComponent{.program_id = shdaer->program};
     auto mesh_comp = mesh.mesh_component();

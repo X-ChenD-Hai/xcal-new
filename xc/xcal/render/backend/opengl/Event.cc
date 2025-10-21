@@ -16,7 +16,7 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
     });
     if (bus.any_exist<event::CameraProjectionChanged,
                       event::CameraViewChanged>()) {
-        std::println("camera view changed");
+        // std::println("camera view changed");
         auto uniform =
             table.create_or_get<xcal::render::opengl::UniformBuffer>();
         uniform->update((resources.get<camera::ProjectionConfig>().as_mat4() ^

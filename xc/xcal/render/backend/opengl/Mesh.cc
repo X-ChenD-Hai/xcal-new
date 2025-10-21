@@ -8,6 +8,7 @@
 static constexpr _gl GLenum MeshType2Glenum[] = {
     _gl GL_LINE_STRIP,      // LINE_STRIP
     _gl GL_LINE_LOOP,       // LINE_LOOP
+    _gl GL_LINES,           // LINES
     _gl GL_POINTS,          // POINTS
     _gl GL_TRIANGLES,       // TRIANGLES
     _gl GL_TRIANGLE_STRIP,  // TRIANGLE_STRIP

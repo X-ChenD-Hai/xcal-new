@@ -42,7 +42,7 @@ class CommandSubmit {
 template <typename... Components>
 CommandSubmit &CommandSubmit::create_entity(const Components &...components) {
     auto command = std::make_unique<CreateEntityCommand>();
-    std::println("CreateEntityCommand size: {}",sizeof...(components));
+    // std::println("CreateEntityCommand size: {}",sizeof...(components));
     command->action_ = CommandAction::CreateEntity;
     (
         [&]() {
@@ -50,8 +50,8 @@ CommandSubmit &CommandSubmit::create_entity(const Components &...components) {
             command->components_.emplace_back(
                 ComponentIdGenerator<Com>::get(),
                 new Com(components));
-            std::printf("CreateEntityCommand: %d\n",
-                        ComponentIdGenerator<Com>::get());
+            // std::printf("CreateEntityCommand: %d\n",
+            //             ComponentIdGenerator<Com>::get());
         }(),
         ...);
     commands_.push_back(std::move(command));

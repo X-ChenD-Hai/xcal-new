@@ -12,7 +12,8 @@
 #include <xcal/render/backend/opengl/Shader.hpp>
 #include <xcal/transform/transform.hpp>
 
-#include "render/backend/opengl/mesh/trangle.hpp"
+#include <render/backend/opengl/mesh/trangle.hpp>
+#include <render/backend/opengl/mesh/axis.hpp>
 
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
@@ -92,8 +93,11 @@ void SceneWindow::init_world_() {
 void SceneWindow::create_trangle_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
+    // world_.plugin<Render>().add_mesh(
+    //     TranglePath({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
+    //     ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(
-        TranglePath({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
+        Line({1.0f, 0.f, 0.0f}),
         ui_editor_cacher_->transform_component);
 };
 void SceneWindow::update_world_() {
@@ -119,21 +123,21 @@ bool SceneWindow::key_event(KeyEvent* e) {
     using namespace xc::xcal::camera;
     static constexpr float speed = .01f;
     if (e->action() == KeyActions::Press || e->action() == KeyActions::Repeat) {
-        std::println("key event {} {}", e->action(), (int)e->key());
+        // std::println("key event {} {}", e->action(), (int)e->key());
         if (e->key() == Key::W) {
-            std::print("key event: W\n");
+            // std::print("key event: W\n");
             world_.resource<FpsCameraControler>().move(
                 FpsCameraControler::Direction::FORWARD, speed);
         } else if (e->key() == Key::S) {
-            std::print("key event: S\n");
+            // std::print("key event: S\n");
             world_.resource<FpsCameraControler>().move(
                 FpsCameraControler::Direction::BACKWARD, speed);
         } else if (e->key() == Key::A) {
-            std::print("key event: A\n");
+            // std::print("key event: A\n");
             world_.resource<FpsCameraControler>().move(
                 FpsCameraControler::Direction::LEFT, speed);
         } else if (e->key() == Key::D) {
-            std::print("key event: D\n");
+            // std::print("key event: D\n");
             world_.resource<FpsCameraControler>().move(
                 FpsCameraControler::Direction::RIGHT, speed);
         } else if (e->key() == Key::Q) {
@@ -156,7 +160,7 @@ bool SceneWindow::mouse_move_event(MouseMoveEvent* e) {
         auto y_offset = e->y_pos() - last_mouse_pos_.y_pos;
         world_.resource<xc::xcal::camera::FpsCameraControler>().rotate(
             x_offset, -y_offset);
-        std::println("x {}, y {}", x_offset, y_offset);
+        // std::println("x {}, y {}", x_offset, y_offset);
         last_mouse_pos_.x_pos = e->x_pos();
         last_mouse_pos_.y_pos = e->y_pos();
     }

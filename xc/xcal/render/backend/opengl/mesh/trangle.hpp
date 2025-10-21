@@ -29,6 +29,8 @@ struct Trangle : public Mesh {
     uint32_t vbo() const override;
     uint32_t draw_count() const override { return 3; };
     MeshType draw_type() const override { return MeshType::TRIANGLES; }
+    std::string vertex_shader_path() const override { return "./res/vertex_color.vs"; }
+    std::string fragment_shader_path() const override { return "./res/vertex_color.fs"; }
 };
 struct TranglePath : public Trangle {
     using Trangle::Trangle;
