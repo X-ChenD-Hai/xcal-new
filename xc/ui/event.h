@@ -3,7 +3,7 @@
 #include <event/timer.hpp>
 #include <flags.hpp>
 
-#include "./KeyCode.hpp"
+#include "./key_code.hpp"
 
 using namespace std;
 

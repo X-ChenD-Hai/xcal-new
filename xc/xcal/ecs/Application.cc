@@ -1,9 +1,9 @@
-#include "./Application.hpp"
+#include "./application.hpp"
 
-#include <ecs/EventBus.hpp>
-#include <ecs/World.hpp>
+#include <ecs/event_bus.hpp>
+#include <ecs/world.hpp>
 
-#include "camera/Camera.hpp"
+#include "camera/camera.hpp"
 #include "transform/transform.hpp"
 
 void xc::xcal::handle_event(ecs::EventBus &bus) {}

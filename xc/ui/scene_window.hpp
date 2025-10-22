@@ -1,9 +1,9 @@
 #pragma once
-#include <ecs/World.hpp>
+#include <ecs/world.hpp>
 #include <glm/glm.hpp>
 
-#include "./GlfwImguiWindow.hpp"
-#include "ecs/EventBus.hpp"
+#include "./glfw_imgui_window.hpp"
+#include "ecs/event_bus.hpp"
 namespace ecs {
 class ResourceTable;
 }
@@ -42,6 +42,6 @@ class SceneWindow : public GlfwImguiWindow {
     void init_();
     void init_editors_();
     void init_world_();
-    void create_trangle_entity_();
+    void create_entity_();
     void update_world_();
 };

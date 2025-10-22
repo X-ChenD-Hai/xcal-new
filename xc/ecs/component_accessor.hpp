@@ -1,6 +1,6 @@
 #pragma once
-#include "./ComponentInfo.hpp"
-#include "./Entity.hpp"
+#include "./component_info.hpp"
+#include "./entity.hpp"
 namespace ecs {
 class World;
 class Entity;

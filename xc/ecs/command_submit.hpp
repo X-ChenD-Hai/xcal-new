@@ -2,7 +2,7 @@
 #include <print>
 #include <vector>
 
-#include "./Entity.hpp"
+#include "./entity.hpp"
 #include "./utils/traits.hpp"
 
 namespace ecs {

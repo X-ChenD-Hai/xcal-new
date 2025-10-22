@@ -1,4 +1,4 @@
-#include "./GlfwImguiWindow.hpp"
+#include "./glfw_imgui_window.hpp"
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>

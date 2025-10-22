@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <ecs/Resource.hpp>
+#include <ecs/resource.hpp>
 using namespace ecs;
 TEST(ResourceManagerTest, Test1) {
     ResourceManager rm;

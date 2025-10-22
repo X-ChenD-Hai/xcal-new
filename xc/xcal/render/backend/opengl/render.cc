@@ -1,11 +1,11 @@
-#include "./Render.hpp"
+#include "./render.hpp"
 
-#include <ecs/World.hpp>
+#include <ecs/world.hpp>
 #include <xcal/transform/transform.hpp>
 
-#include "./Event.hpp"
-#include "./Mesh.hpp"
-#include "./Shader.hpp"
+#include "./event.hpp"
+#include "./mesh.hpp"
+#include "./shader.hpp"
 
 xc::xcal::render::opengl::Render *xc::xcal::render::opengl::Render::install(
     ecs::World &world) {

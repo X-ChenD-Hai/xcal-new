@@ -1,8 +1,8 @@
-#include "./Camera.hpp"
+#include "./camera.hpp"
 
-#include <ecs/EventBus.hpp>
-#include <ecs/Resource.hpp>
-#include <ecs/ResourceTable.hpp>
+#include <ecs/event_bus.hpp>
+#include <ecs/resource.hpp>
+#include <ecs/resource_table.hpp>
 #include <print>
 
 #include "../event/events.hpp"

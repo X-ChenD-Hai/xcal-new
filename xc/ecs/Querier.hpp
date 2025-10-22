@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 #include <print>
-#include "./ComponentInfo.hpp"
-#include "./Entity.hpp"
+#include "./component_info.hpp"
+#include "./entity.hpp"
 #include "./utils/traits.hpp"
 
 namespace ecs {

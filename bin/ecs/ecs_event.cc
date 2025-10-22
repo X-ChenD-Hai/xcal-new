@@ -1,13 +1,13 @@
-#include <ui/Event.h>
+#include <ui/event.h>
 
-#include <IdGenerator.hpp>
-#include <SparseList.hpp>
-#include <ecs/CommandSubmit.hpp>
-#include <ecs/ComponentAccessor.hpp>
-#include <ecs/Querier.hpp>
-#include <ecs/World.hpp>
+#include <ecs/command_submit.hpp>
+#include <ecs/component_accessor.hpp>
+#include <ecs/querier.hpp>
+#include <ecs/world.hpp>
 #include <event/event.hpp>
+#include <id_generator.hpp>
 #include <print>
+#include <sparse_list.hpp>
 #include <xc_assert.hpp>
 
 using Loop = std::unique_ptr<EventLoop>;

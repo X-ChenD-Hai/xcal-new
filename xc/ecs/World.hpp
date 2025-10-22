@@ -1,17 +1,17 @@
 #pragma once
-#include <IdGenerator.hpp>
-#include <SparseList.hpp>
-#include <TypeMap.hpp>
+#include <id_generator.hpp>
+#include <sparse_list.hpp>
+#include <type_map.hpp>
 #include <functional>
 #include <print>
 #include <xc_assert.hpp>
 
-#include "./CommandSubmit.hpp"
-#include "./ComponentAccessor.hpp"
-#include "./ComponentInfo.hpp"
-#include "./Entity.hpp"
-#include "./Querier.hpp"
-#include "./Resource.hpp"
+#include "./command_submit.hpp"
+#include "./component_accessor.hpp"
+#include "./component_info.hpp"
+#include "./entity.hpp"
+#include "./querier.hpp"
+#include "./resource.hpp"
 #include "./utils/traits.hpp"
 
 namespace ecs {

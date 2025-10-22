@@ -1,6 +1,6 @@
 #pragma once
 #include <event/event.hpp>
-#include "./AbsWindow.hpp"
+#include "./abs_window.hpp"
 struct GLFWwindow;
 using ProcAddress = void (*(*)(const char*))(void);
 class GlfwWindowLoader : EventPublisher {

@@ -1,8 +1,8 @@
-#include "./Querier.hpp"
+#include "./querier.hpp"
 
 #include <print>
 
-#include "./World.hpp"
+#include "./world.hpp"
 
 std::vector<ecs::Entity> ecs::Querier::entities() const {
     if (component_info_index_.empty()) return std::vector<Entity>();

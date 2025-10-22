@@ -1,6 +1,6 @@
-#include "./ComponentAccessor.hpp"
+#include "./component_accessor.hpp"
 
-#include "./World.hpp"
+#include "./world.hpp"
 
 void *ecs::ComponentAccessor::data(Entity entity, component_t component_id) {
     auto &info = world_.component_infos_[world_.component2pool_map_.get_index(

@@ -1,6 +1,6 @@
 #include <event/event.hpp>
 #include <print>
-#include <ui/SceneWindow.hpp>
+#include <ui/scene_window.hpp>
 
 static void editor_fn(std::string name, int value) {
     std::println("editor_fn called with name: {}, value: {}", name, value);

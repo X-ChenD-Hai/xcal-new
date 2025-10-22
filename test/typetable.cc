@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <UniqueTypeTable.hpp>
+#include <unique_type_table.hpp>
 
 // 定义一些空类作为测试用的类型标签
 struct TestClassA {};

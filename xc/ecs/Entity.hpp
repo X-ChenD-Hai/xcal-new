@@ -1,6 +1,6 @@
 #pragma once
-#include <IdGenerator.hpp>
-#include <SparseList.hpp>
+#include <id_generator.hpp>
+#include <sparse_list.hpp>
 #include <xc_assert.hpp>
 namespace ecs {
 

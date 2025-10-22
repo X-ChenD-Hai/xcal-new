@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <SparseList.hpp>
 #include <print>
+#include <sparse_list.hpp>
 
 TEST(SparseList, Basic) {
     SparseList<uint32_t, uint32_t, 1024> list;

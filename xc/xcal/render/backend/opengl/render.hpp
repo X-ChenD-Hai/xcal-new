@@ -1,5 +1,5 @@
 #pragma once
-#include <ecs/Querier.hpp>
+#include <ecs/querier.hpp>
 #include <xcal/transform/transform.hpp>
 
 #include "./mesh/trangle.hpp"

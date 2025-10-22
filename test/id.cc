@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <IdGenerator.hpp>
+#include <id_generator.hpp>
 #include <print>
 namespace category {
 class Component;

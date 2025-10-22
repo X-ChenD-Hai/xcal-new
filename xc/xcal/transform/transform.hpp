@@ -2,8 +2,8 @@
 #include <cstdint>
 #include <flags.hpp>
 #include <xcmath/xcmath.hpp>
-#include <ecs/Querier.hpp>
-#include <ecs/ComponentAccessor.hpp>
+#include <ecs/querier.hpp>
+#include <ecs/component_accessor.hpp>
 
 namespace xc::xcal::transform {
 enum class TransformState : uint8_t {

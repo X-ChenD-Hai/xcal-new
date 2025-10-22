@@ -1,11 +1,11 @@
-#include "./Mesh.hpp"
+#include "./mesh.hpp"
 
-#include <ecs/ResourceTable.hpp>
-#include <ecs/World.hpp>
+#include <ecs/resource_table.hpp>
+#include <ecs/world.hpp>
 #include <xcal/transform/transform.hpp>
 
-#include "./Shader.hpp"
 #include "./openglloader.h"
+#include "./shader.hpp"
 
 static constexpr _gl GLenum MeshType2Glenum[] = {
     _gl GL_LINE_STRIP,      // LINE_STRIP

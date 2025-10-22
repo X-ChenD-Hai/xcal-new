@@ -1,5 +1,5 @@
 #pragma once
-#include "./Event.h"
+#include "./event.h"
 
 enum class CursorMode { Normal, Hidden, Locked, Disabled };
 

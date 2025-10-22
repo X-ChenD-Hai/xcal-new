@@ -1,8 +1,8 @@
-#include "./World.hpp"
+#include "./world.hpp"
 
-#include "./CommandSubmit.hpp"
-#include "./ComponentAccessor.hpp"
-#include "./Querier.hpp"
+#include "./command_submit.hpp"
+#include "./component_accessor.hpp"
+#include "./querier.hpp"
 
 ecs::Querier ecs::World::queryer() const noexcept { return {*this, {}}; }
 ecs::ComponentAccessor ecs::World::accessor() noexcept { return {*this}; }

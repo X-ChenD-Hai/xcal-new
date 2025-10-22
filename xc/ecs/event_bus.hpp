@@ -2,7 +2,7 @@
 #include <malloc.h>
 #include <vcruntime_typeinfo.h>
 
-#include <TypeMap.hpp>
+#include <type_map.hpp>
 #include <array>
 #include <cstdlib>
 #include <ranges>

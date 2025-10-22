@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include <SparseList.hpp>
-#include <TypeMap.hpp>
 #include <chrono>
 #include <print>
+#include <sparse_list.hpp>
+#include <type_map.hpp>
 #include <unordered_map>
 
 // t[tid][cid]=data

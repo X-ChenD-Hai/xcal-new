@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdint>
-#include <ecs/ComponentAccessor.hpp>
+#include <ecs/component_accessor.hpp>
 #include <string>
 
-#include "./Shader.hpp"
+#include "./shader.hpp"
 
 namespace ecs {
 class ResourceTable;

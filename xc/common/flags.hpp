@@ -1,12 +1,12 @@
 /**
- * @file enum.hpp
+ * @file flags.hpp
  * @author X_Chen D_Hai (illuminatestar@foxmail.com)
- * @brief
+ * @brief 
  * @version 0.1
- * @date 2025-10-01
- *
+ * @date 2025-10-22
+ * 
  * @copyright Copyright (c) 2025
- *
+ * 
  */
 #pragma once
 #include <array>

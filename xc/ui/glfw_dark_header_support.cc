@@ -1,4 +1,4 @@
-#include "./GlfwDarkHeaderSupport.h"
+#include "./glfw_dark_header_support.h"
 // 平台检测宏
 #if defined(_WIN32) || defined(_WIN64)
 #define XC_PLATFORM_WINDOWS 1
@@ -34,7 +34,7 @@
  * @param window GLFW 窗口指针
  * @return 成功返回 true，失败或平台不支持返回 false
  */
- bool enable_window_dark_titlebar(GLFWwindow* window) {
+bool enable_window_dark_titlebar(GLFWwindow* window) {
     if (!window) return false;
 
 #if defined(XC_PLATFORM_WINDOWS)
@@ -96,7 +96,7 @@
  * @param window GLFW 窗口指针
  * @return 成功返回 true，失败或平台不支持返回 false
  */
- bool disable_window_dark_titlebar(GLFWwindow* window) {
+bool disable_window_dark_titlebar(GLFWwindow* window) {
     if (!window) return false;
 
 #if defined(XC_PLATFORM_WINDOWS)

@@ -1,4 +1,4 @@
-#include "./Uniform.hpp"
+#include "./uniform.hpp"
 
 #include "./openglloader.h"
 

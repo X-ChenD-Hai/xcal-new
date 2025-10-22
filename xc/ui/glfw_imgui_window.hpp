@@ -1,10 +1,10 @@
 #pragma once
 #include <chrono>
 
-#include "./AbsWindow.hpp"
-#include "./Editor.hpp"
-#include "./GlfwWindowLoader.hpp"
-#include "./Event.h"
+#include "./abs_window.hpp"
+#include "./editor.hpp"
+#include "./glfw_window_loader.hpp"
+#include "./event.h"
 
 class GlfwImguiWindow : public AbsWindow {
    public:

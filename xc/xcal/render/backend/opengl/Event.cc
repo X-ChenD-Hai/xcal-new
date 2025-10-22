@@ -1,11 +1,11 @@
-#include "./Event.hpp"
+#include "./event.hpp"
 
 #include <print>
-#include <xcal/camera/Camera.hpp>
+#include <xcal/camera/camera.hpp>
 #include <xcal/event/events.hpp>
 
-#include "./Uniform.hpp"
 #include "./openglloader.h"
+#include "./uniform.hpp"
 
 void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
                                             ecs::EventBus& bus,

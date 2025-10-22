@@ -1,17 +1,17 @@
 
-#include <ecs/CommandSubmit.hpp>
-#include <ecs/EventBus.hpp>
-#include <ecs/Querier.hpp>
-#include <ecs/Resource.hpp>
-#include <ecs/ResourceTable.hpp>
+#include <ecs/command_submit.hpp>
+#include <ecs/event_bus.hpp>
+#include <ecs/querier.hpp>
+#include <ecs/resource.hpp>
+#include <ecs/resource_table.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <render/backend/opengl/Mesh.hpp>
+#include <render/backend/opengl/mesh.hpp>
 #include <render/backend/opengl/mesh/axis.hpp>
 #include <render/backend/opengl/mesh/trangle.hpp>
-#include <xcal/camera/Camera.hpp>
+#include <xcal/camera/camera.hpp>
 #include <xcal/event/events.hpp>
-#include <xcal/render/backend/opengl/Render.hpp>
-#include <xcal/render/backend/opengl/Shader.hpp>
+#include <xcal/render/backend/opengl/render.hpp>
+#include <xcal/render/backend/opengl/shader.hpp>
 #include <xcal/transform/transform.hpp>
 
 #ifdef USE_GLBINDING
@@ -24,11 +24,11 @@
 #include <glad/glad.h>
 #define _gl
 #endif
-#include <ecs/Application.hpp>
+#include <ecs/application.hpp>
 #include <print>
 #include <xcmath/xcmath.hpp>
 
-#include "./SceneWindow.hpp"
+#include "./scene_window.hpp"
 
 struct UiEditorCacher {
     xc::xcal::transform::TransformComponent transform_component;
@@ -76,7 +76,7 @@ void SceneWindow::init_editors_() {
         },
         "clear color", true, "r", 0.3f, "g", 0.3f, "b", 0.3f);
 
-    add_button([this]() { create_trangle_entity_(); }, "add component");
+    add_button([this]() { create_entity_(); }, "add component");
     add_editor(
         [this](float x, float y, float z) {
             auto& transform_component = ui_editor_cacher_->transform_component;
@@ -93,12 +93,12 @@ void SceneWindow::init_world_() {
         .use_plugin<Application>()
         .use_plugin<Render>();
 }
-void SceneWindow::create_trangle_entity_() {
+void SceneWindow::create_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
     world_.plugin<Render>().add_mesh(
-        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f,
-        0.0f}), ui_editor_cacher_->transform_component);
+        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
+        ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(Line({2.0f, 0.f, 0.0f}),
                                      ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(Line({.0f, 2.f, 0.0f}),

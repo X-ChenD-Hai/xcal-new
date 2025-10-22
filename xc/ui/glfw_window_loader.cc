@@ -1,13 +1,12 @@
-#include "./GlfwWindowLoader.hpp"
+#include "./glfw_window_loader.hpp"
 
 #include <GLFW/glfw3.h>
 
 #include <xc_assert.hpp>
 
-#include "./Event.h"
-#include "./GlfwDarkHeaderSupport.h"
-#include "./KeyCode.hpp"
-
+#include "./event.h"
+#include "./glfw_dark_header_support.h"
+#include "./key_code.hpp"
 
 static Key glfwToKey(int glfwKeycode) {
     // GLFW_KEYl-+*_C

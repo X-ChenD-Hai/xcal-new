@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 
-#include "./Entity.hpp"
+#include "./entity.hpp"
 
 namespace ecs {
 using component_t = uint32_t;

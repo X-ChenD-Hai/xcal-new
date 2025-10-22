@@ -1,14 +1,14 @@
-#include <IdGenerator.hpp>
-#include <Overload.hpp>
-#include <SparseList.hpp>
 #include <chrono>
-#include <ecs/CommandSubmit.hpp>
-#include <ecs/ComponentAccessor.hpp>
-#include <ecs/EventBus.hpp>
-#include <ecs/Querier.hpp>
-#include <ecs/ResourceTable.hpp>
-#include <ecs/World.hpp>
+#include <ecs/command_submit.hpp>
+#include <ecs/component_accessor.hpp>
+#include <ecs/event_bus.hpp>
+#include <ecs/querier.hpp>
+#include <ecs/resource_table.hpp>
+#include <ecs/world.hpp>
+#include <id_generator.hpp>
+#include <overload.hpp>
 #include <print>
+#include <sparse_list.hpp>
 #include <xc_assert.hpp>
 
 using namespace ecs;
@@ -49,7 +49,7 @@ void show_name(World &world, Querier querier, ComponentAccessor cmps,
     if (timer.time == 1) {
         for (size_t i = 0; i < 100; i++) {
             submit.submit<CreateEntity>(EntityName(std::format("Alice {}", i)),
-                                 EntityUserId{1});
+                                        EntityUserId{1});
         }
     }
     if (timer.time >= 5) {
