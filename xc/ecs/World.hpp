@@ -68,7 +68,7 @@ class World {
     ResourceManager resource_manager_;
     std::vector<SystemInfo> system_infos_{};
     SparseList<component_t, uint32_t, 32> component2pool_map_{};
-    std::vector<std::vector<Cell>> pools_{};
+    std::vector<std::vector<Cell_>> pools_{};
     CommandSubmit command_submit_;
     std::vector<std::unique_ptr<void, std::function<void(void *)>>> plugins_;
     TypeMap<uint32_t> plugins_id_map_{uint32_t(-1)};
@@ -88,7 +88,6 @@ class World {
         (add_component<Components>(), ...);
         return *this;
     }
-
     template <typename Resource>
     World &add_resource(Resource *resource);
     ResourceManager &resource_manager() { return resource_manager_; }
@@ -108,7 +107,6 @@ class World {
     World &run_system(BindObj *obj);
     template <auto System>
     ObjectSystemBuilder<System> add_setup_system() {};
-
     template <typename Plugin, typename... Args>
     World &use_plugin(Args &&...args) {
         std::println("installing plugin: {}", typeid(Plugin).name());
@@ -127,12 +125,10 @@ class World {
         }
         return *this;
     }
-
     template <typename... Plugin>
     World &run_plugin() {
         return (Plugin::run(*this), ...);
     }
-
     template <typename Plugin>
     Plugin &plugin() {
         auto index = plugins_id_map_.data<Plugin>();
@@ -145,6 +141,38 @@ class World {
     bool should_quit() const { return quit_; }
     void quit() { quit_ = true; }
     void start() { quit_ = false; }
+    inline Entity create_entity() {
+        return entities_.emplace_back(entities_.size(), 0);
+    }
+    inline bool has_component(component_t comp) const noexcept {
+        return component2pool_map_.has_value(comp);
+    }
+    inline size_t pool_index_of_component(component_t comp) const noexcept {
+        return component2pool_map_.get_index(comp);
+    }
+    inline const ComponentInfo &component_info(
+        component_t comp) const noexcept {
+        XC_ASSERT(has_component(comp));
+        return component_infos_[pool_index_of_component(comp)];
+    }
+    inline ComponentInfo &component_info(component_t comp) noexcept {
+        XC_ASSERT(has_component(comp));
+        return component_infos_[pool_index_of_component(comp)];
+    }
+    inline void attach_component(component_t comp, Entity e, void *data) {
+        auto &info = component_info(comp);
+        XC_ASSERT(!info.has_entity(e));
+        auto pool_index = info.pool_index();
+        pools_[pool_index].emplace_back(data, info.deleter_);
+        info.add_entity(e);
+    }
+    inline void detach_component(component_t comp, Entity e) {
+        auto &info = component_info(comp);
+        XC_ASSERT(info.has_entity(e));
+        pools_[info.pool_index()][info.cell_index(e)].reset();
+        info.remove_entity(e);
+    }
+
     CommandSubmit &submit();
     ComponentAccessor accessor() noexcept;
     Querier queryer() const noexcept;
@@ -157,11 +185,11 @@ class World {
         std::println("__________________end update");
     }
     World &execute_commands() {
-        command_submit_.execute(*this);
+        command_submit_.execute_then_clear(*this);
         return *this;
     }
     World &execute_commands(CommandSubmit *submit) {
-        submit->execute(*this);
+        submit->execute_then_clear(*this);
         return *this;
     }
 };
@@ -222,13 +250,15 @@ World &World::add_system() {
 template <typename Resource, typename... Args>
 World &World::add_resource(Args &&...args) {
     resource_manager_.add<Resource>(std::forward<Args>(args)...);
-    std::println("add resource: {} , id:{}", typeid(Resource).name(),resource_manager_.id<Resource>());
+    std::println("add resource: {} , id:{}", typeid(Resource).name(),
+                 resource_manager_.id<Resource>());
     return *this;
 };
 template <typename Resource>
 World &World::add_resource(Resource *resource) {
     resource_manager_.add<Resource>(resource);
-    std::println("add resource: {} , id:{}", typeid(Resource).name(),resource_manager_.id<Resource>());
+    std::println("add resource: {} , id:{}", typeid(Resource).name(),
+                 resource_manager_.id<Resource>());
     return *this;
 };
 

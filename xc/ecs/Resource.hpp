@@ -5,14 +5,14 @@
 #include <memory>
 #include <xc_assert.hpp>
 
-
 namespace ecs {
-using Cell = std::unique_ptr<void, std::function<void(void *)>>;
+using Cell_ = std::unique_ptr<void, std::function<void(void *)>>;
+class Cell {};
 
 class ResourceManager {
     static constexpr uint32_t INVALID_RESOURCE_ID = uint32_t(-1);
     TypeMap<uint32_t> resource_id_map_{INVALID_RESOURCE_ID};
-    std::vector<Cell> resources_{};
+    std::vector<Cell_> resources_{};
 
    public:
     template <typename Resource, typename... Args>
