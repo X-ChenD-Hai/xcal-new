@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <render/backend/opengl/mesh.hpp>
+#include <xcal/render/backend/opengl/mesh.hpp>
 #include <xcmath/xcmath.hpp>
 
 namespace xc::xcal::render::opengl {

@@ -3,8 +3,8 @@
 #include <ecs/event_bus.hpp>
 #include <ecs/world.hpp>
 
-#include "camera/camera.hpp"
-#include "transform/transform.hpp"
+#include "../camera/camera.hpp"
+#include "../transform/transform.hpp"
 
 void xc::xcal::handle_event(ecs::EventBus &bus) {}
 

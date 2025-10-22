@@ -1,17 +1,11 @@
-
-#include <ecs/command_submit.hpp>
 #include <ecs/event_bus.hpp>
-#include <ecs/querier.hpp>
 #include <ecs/resource.hpp>
-#include <ecs/resource_table.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <render/backend/opengl/mesh.hpp>
-#include <render/backend/opengl/mesh/axis.hpp>
-#include <render/backend/opengl/mesh/trangle.hpp>
 #include <xcal/camera/camera.hpp>
 #include <xcal/event/events.hpp>
+#include <xcal/render/backend/opengl/mesh.hpp>
+#include <xcal/render/backend/opengl/mesh/axis.hpp>
+#include <xcal/render/backend/opengl/mesh/trangle.hpp>
 #include <xcal/render/backend/opengl/render.hpp>
-#include <xcal/render/backend/opengl/shader.hpp>
 #include <xcal/transform/transform.hpp>
 
 #ifdef USE_GLBINDING
@@ -24,8 +18,8 @@
 #include <glad/glad.h>
 #define _gl
 #endif
-#include <ecs/application.hpp>
 #include <print>
+#include <xcal/ecs/application.hpp>
 #include <xcmath/xcmath.hpp>
 
 #include "./scene_window.hpp"
