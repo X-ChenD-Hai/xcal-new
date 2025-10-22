@@ -7,7 +7,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
-
+#include <memory>
 
 using CompMask = std::bitset<64>;
 template <typename _Event, typename _EventType, _EventType _TimeOut,

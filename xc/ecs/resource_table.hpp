@@ -1,11 +1,12 @@
 #pragma once
-#include <unique_type_table.hpp>
 #include <cstddef>
 #include <functional>
 #include <type_traits>
+#include <unique_type_table.hpp>
 #include <unordered_map>
 #include <vector>
 #include <xc_assert.hpp>
+
 namespace ecs {
 class ResourceTable {
     struct ResourceDescribtor {
@@ -112,9 +113,7 @@ class ResourceTable {
         XC_ASSERT(id < resources_.size());
         if (resources_[id] == nullptr) return;
         auto &describtor = describtors_[id];
-        if (describtor.is_trivially_destructible) {
-            std::destroy_at(resources_[describtor.id]);
-        } else {
+        if (!describtor.is_trivially_destructible) {
             register_types_destroy_callbacks_[describtor.type_id](
                 resources_[describtor.id]);
         }
@@ -156,9 +155,7 @@ class ResourceTable {
                 resources_[describtor.id] == nullptr)
                 continue;
             XC_ASSERT(describtor.id < resources_.size());
-            if (describtor.is_trivially_destructible) {
-                std::destroy_at(resources_[describtor.id]);
-            } else {
+            if (!describtor.is_trivially_destructible) {
                 register_types_destroy_callbacks_[describtor.type_id](
                     resources_[describtor.id]);
             }

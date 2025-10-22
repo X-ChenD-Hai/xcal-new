@@ -1,6 +1,7 @@
 #pragma once
 #include <malloc.h>
-#include <vcruntime_typeinfo.h>
+
+// #include <vcruntime_typeinfo.h>
 
 #include <type_map.hpp>
 #include <array>
@@ -36,7 +37,8 @@ class EventBus {
 
    public:
     EventBus() {
-        for (auto [idx, event_ptr] : std::views::enumerate(events_)) {
+        for (size_t idx=0;idx < events_.size();idx++) {
+		auto&event_ptr = events_[idx];
             const auto alignment = (0x02 << idx);
             // std::println("insert size : {} ,index : {} ", alignment, idx);
 #ifdef _MSC_VER
@@ -152,6 +154,14 @@ class EventBus {
         }
         memcpy(chunk, events_[index], chunk_size[index] * alignment);
         _aligned_free(events_[index]);
+#else
+        auto chunk = (std::byte *)std::aligned_alloc(
+            alignment * chunk_size[index] * 2, alignment);
+        if (chunk == nullptr) {
+            throw std::bad_alloc();
+        }
+        memcpy(chunk, events_[index], chunk_size[index] * alignment);
+        std::free(events_[index]);
 #endif
         auto nsize = chunk_size[index] * 2;
         events_[index] = chunk;

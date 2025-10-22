@@ -31,7 +31,7 @@ void xc::xcal::render::opengl::Render::add_mesh(
     const Mesh &mesh,
     xc::xcal::transform::TransformComponent transform_component) {
     auto mesh_comp = mesh.mesh_component();
-    std::println("Adding mesh {}", mesh_comp.type);
+    // std::println("Adding mesh {}", mesh_comp.type);
     transform_component.state = xc::xcal::transform::TransformState::Dirty;
     std::visit(
         [&](auto &&shader) {

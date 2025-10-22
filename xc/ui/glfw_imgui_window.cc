@@ -47,7 +47,8 @@ static void render_editor(GlfwImguiWindow::editor_list& editors) {
         auto item_width = width / editor->fields().size();
 
         ImGui::PushItemWidth(item_width);
-        for (auto [idx, field] : std::views::enumerate(editor->fields())) {
+        for (size_t idx = 0; idx < editor->fields().size(); idx++) {
+            auto& field = editor->fields()[idx];
             if (render_editor_field(field)) editor->update();
             if (idx != editor->fields().size() - 1) {
                 if (editors[i].second) {
@@ -156,7 +157,11 @@ GlfwImguiWindow::GlfwImguiWindow(const std::string& title, int width,
       loader_(std::make_unique<GlfwWindowLoader>(loop(), title.c_str(), width,
                                                  height)) {
     loader_->make_current();
+#ifdef USE_GLBINDING
     glbinding::initialize(loader_->get_proc_address(), false);
+#elif defined(USE_GLAD)
+    gladLoadGLLoader((GLADloadproc)loader_->get_proc_address());
+#endif
     ImGui::CreateContext();
     auto io = &ImGui::GetIO();
     ImGui_ImplGlfw_InitForOpenGL(loader_->glfw_window_raw_ptr(), true);

@@ -222,7 +222,7 @@ struct std::formatter<flags::Flags<T>> {
 template <class T>
     requires std::is_enum_v<T>
 struct std::formatter<T> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+    consteval auto parse(format_parse_context &ctx) { return ctx.begin(); }
     auto format(T v, format_context &ctx) const {
         return format_to(ctx.out(), "{}", flags::enum_value_name<T>(v));
     }

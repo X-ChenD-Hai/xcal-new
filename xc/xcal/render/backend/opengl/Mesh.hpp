@@ -7,6 +7,7 @@
 
 namespace ecs {
 class ResourceTable;
+class Querier;
 }
 
 namespace xc::xcal::render::opengl {
