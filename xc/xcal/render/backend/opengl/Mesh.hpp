@@ -5,7 +5,6 @@
 
 #include "./Shader.hpp"
 
-
 namespace ecs {
 class ResourceTable;
 }
@@ -58,7 +57,7 @@ struct VertexLayout {
 struct VertexArrayObject {
     uint32_t id;
 
-    VertexArrayObject(const VertexLayout& layout);
+    VertexArrayObject(const VertexLayout& layout, uint32_t ebo = 0);
 };
 struct ShaderProgram;
 struct Mesh {

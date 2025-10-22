@@ -38,15 +38,22 @@ class FpsCameraControler {
     };
 
    private:
-    ViewConfig* camera_{nullptr};
     ecs::EventBus* event_bus_{nullptr};
+    ViewConfig* camera_{nullptr};
+    ProjectionConfig* projection_{nullptr};
 
     float yaw_{270.0f};
     float pitch_{0.0f};
 
+    float zoon_{1.0f};
+    float fov_{45.0f};
+
    public:
-    explicit FpsCameraControler(ViewConfig* camera, ecs::EventBus* event_bus)
-        : camera_(camera), event_bus_(event_bus) {}
+    explicit FpsCameraControler(ecs::EventBus* event_bus, ViewConfig* camera,
+                                ProjectionConfig* projection = nullptr)
+        : event_bus_(event_bus), camera_(camera), projection_(projection) {
+        if (projection_) fov_ = projection_->fov;
+    }
 
    public:
     void set_camera(ViewConfig* camera) {
@@ -67,6 +74,7 @@ class FpsCameraControler {
     void move(Direction direction, float distance);
 
     void rotate(float dyaw, float dpitch);
+    void zoom(float dzoom);
 };
 void update_camera(ecs::ResourceManager& mgr, ecs::EventBus& event_bus);
 };  // namespace xc::xcal::camera

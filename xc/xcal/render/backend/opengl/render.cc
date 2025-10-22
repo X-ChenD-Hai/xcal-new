@@ -30,10 +30,6 @@ void xc::xcal::render::opengl::Render::uninstall(ecs::World &world,
 void xc::xcal::render::opengl::Render::add_mesh(
     const Mesh &mesh,
     xc::xcal::transform::TransformComponent transform_component) {
-    // auto shdaer =
-    //     world_.resource<ecs::ResourceTable>().create_or_get<Shader, Trangle>(
-    //         mesh.vertex_shader_path(), mesh.fragment_shader_path());
-
     auto mesh_comp = mesh.mesh_component();
     std::println("Adding mesh {}", mesh_comp.type);
     transform_component.state = xc::xcal::transform::TransformState::Dirty;

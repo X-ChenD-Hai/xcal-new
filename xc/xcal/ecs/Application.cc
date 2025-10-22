@@ -14,8 +14,9 @@ void xc::xcal::Application::install(ecs::World &world) {
     world.add_resource<camera::ViewConfig>()
         .add_resource<camera::ProjectionConfig>()
         .add_resource<camera::FpsCameraControler>(
+            &world.resource<ecs::EventBus>(),
             &world.resource<camera::ViewConfig>(),
-            &world.resource<ecs::EventBus>());
+            &world.resource<camera::ProjectionConfig>());
     world.add_component<transform::TransformComponent>()
         .add_component<transform::TransformMatrixComponent>();
 }

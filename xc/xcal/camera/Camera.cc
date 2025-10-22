@@ -110,3 +110,9 @@ void xc::xcal::camera::FpsCameraControler::rotate(float dyaw, float dpitch) {
     camera_->direction = forward.normalize();
     event_bus_->publish<event::CameraViewChanged>();
 }
+void xc::xcal::camera::FpsCameraControler::zoom(float dzoom) {
+    zoon_ += dzoom;
+    projection_->fov = std::clamp(fov_ * zoon_, 1.0f, 179.0f);
+    zoon_ = projection_->fov / fov_;
+    event_bus_->publish<event::CameraProjectionChanged>();
+}

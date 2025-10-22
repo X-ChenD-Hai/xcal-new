@@ -39,10 +39,11 @@ void xc::xcal::render::opengl::VertexAttribute::dump(uint32_t location) const {
 }
 
 xc::xcal::render::opengl::VertexArrayObject::VertexArrayObject(
-    const VertexLayout &layout) {
+    const VertexLayout &layout, uint32_t ebo) {
     _gl glGenVertexArrays(1, &id);
     _gl glBindVertexArray(id);
     layout.dump();
+    _gl glBindBuffer(_gl GL_ELEMENT_ARRAY_BUFFER, ebo);
     std::print("VAO init {}\n", id);
 }
 
@@ -109,7 +110,7 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
 }
 xc::xcal::render::opengl::MeshComponent
 xc::xcal::render::opengl::Mesh::mesh_component() const {
-    auto id = VertexArrayObject(layout()).id;
+    auto id = VertexArrayObject(layout(), ebo()).id;
     std::print("VAO {} for mesh\n", id);
     return {
         .vao_id = id,

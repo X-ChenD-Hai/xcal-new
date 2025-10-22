@@ -42,12 +42,16 @@ SceneWindow::SceneWindow(const std::string& name, int width, int height,
 SceneWindow::SceneWindow() : GlfwImguiWindow() { init_(); }
 
 void SceneWindow::render() {
-    _gl glClear(_gl GL_COLOR_BUFFER_BIT);
+    _gl glClear(_gl GL_COLOR_BUFFER_BIT | _gl GL_DEPTH_BUFFER_BIT);
     update_world_();
 }
 
 void SceneWindow::init_() {
     init_editors_();
+    _gl glEnable(_gl GL_DEPTH_TEST);
+    _gl glDepthFunc(_gl GL_LESS);
+    _gl glEnable(_gl GL_BLEND);
+    _gl glBlendFunc(_gl GL_SRC_ALPHA, _gl GL_ONE_MINUS_SRC_ALPHA);
     init_world_();
 };
 bool SceneWindow::event(AbsEvent* event) {
@@ -93,9 +97,13 @@ void SceneWindow::create_trangle_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
     world_.plugin<Render>().add_mesh(
-        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
-        ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(Line({1.0f, 0.f, 0.0f}),
+        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f,
+        0.0f}), ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(Line({2.0f, 0.f, 0.0f}),
+                                     ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(Line({.0f, 2.f, 0.0f}),
+                                     ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(Line({.0f, 0.f, 2.0f}),
                                      ui_editor_cacher_->transform_component);
     world_.plugin<Render>().add_mesh(
         ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
@@ -104,6 +112,18 @@ void SceneWindow::create_trangle_entity_() {
     world_.plugin<Render>().add_mesh(
         ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
                         0.0f, 1.0f, 100},
+        ui_editor_cacher_->transform_component);
+    world_.plugin<Render>().add_mesh(
+        ParametricSurface(
+            [](auto u, auto v) {  // u=θ∈[0,2π], v=φ∈[0,π]
+                float r = .3f;    // 球半径
+                float sin_v = std::sin(v);
+                return xcmath::vec3f{r * std::cos(u) * sin_v,
+                                     r * std::sin(u) * sin_v, r * std::cos(v)};
+            },
+            0.0f, xcmath::PI * 2, 20,  // θ 方向
+            0.0f, xcmath::PI, 20       // φ 方向
+            ),
         ui_editor_cacher_->transform_component);
 };
 void SceneWindow::update_world_() {
@@ -158,6 +178,9 @@ bool SceneWindow::key_event(KeyEvent* e) {
     return GlfwImguiWindow::key_event(e);
 }
 bool SceneWindow::wheel_event(WheelEvent* e) {
+    static constexpr float zoom_speed = .05f;
+    world_.resource<xc::xcal::camera::FpsCameraControler>().zoom(
+        -e->y_offset() * zoom_speed);
     return GlfwImguiWindow::wheel_event(e);
 }
 bool SceneWindow::mouse_move_event(MouseMoveEvent* e) {
@@ -173,14 +196,16 @@ bool SceneWindow::mouse_move_event(MouseMoveEvent* e) {
     return GlfwImguiWindow::mouse_move_event(e);
 }
 bool SceneWindow::mouse_button_event(MouseButtonEvent* e) {
-    if (e->action() == KeyAction::Press) {
-        set_cursor_mode(CursorMode::Disabled);
-        moving = true;
-        last_mouse_pos_.x_pos = e->x_pos();
-        last_mouse_pos_.y_pos = e->y_pos();
-    } else if (e->action() == KeyAction::Release) {
-        set_cursor_mode(CursorMode::Normal);
-        moving = false;
+    if (e->button() == MouseButtons::Left) {
+        if (e->action() == KeyAction::Press) {
+            set_cursor_mode(CursorMode::Disabled);
+            moving = true;
+            last_mouse_pos_.x_pos = e->x_pos();
+            last_mouse_pos_.y_pos = e->y_pos();
+        } else if (e->action() == KeyAction::Release) {
+            set_cursor_mode(CursorMode::Normal);
+            moving = false;
+        }
     }
     return GlfwImguiWindow::mouse_button_event(e);
 }

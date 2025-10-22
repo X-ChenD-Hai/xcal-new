@@ -176,6 +176,7 @@ class Flags final {
     std::string to_string() const { return flag_value_list_str<T>(data_); }
 
     constexpr explicit operator T() const { return static_cast<T>(data_); }
+    bool operator==(T flag) const { return data_ == static_cast<data_t>(flag); }
 };
 
 template <class T>
