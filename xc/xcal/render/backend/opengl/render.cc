@@ -35,7 +35,8 @@ void xc::xcal::render::opengl::Render::add_mesh(
     transform_component.state = xc::xcal::transform::TransformState::Dirty;
     std::visit(
         [&](auto &&shader) {
-            world_.submit().create_entity(
+            world_.submit().submit<ecs::CreateEntity>(
+                [](auto e) { std::println("created {}", e.id()); },
                 transform_component, mesh_comp, shader,
                 xc::xcal::transform::TransformMatrixComponent{});
         },

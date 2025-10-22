@@ -7,7 +7,9 @@
 
 namespace ecs {
 using Cell_ = std::unique_ptr<void, std::function<void(void *)>>;
-class Cell {};
+class Cell {
+    
+};
 
 class ResourceManager {
     static constexpr uint32_t INVALID_RESOURCE_ID = uint32_t(-1);

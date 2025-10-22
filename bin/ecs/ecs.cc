@@ -48,7 +48,7 @@ void show_name(World &world, Querier querier, ComponentAccessor cmps,
                CommandSubmit &submit, AppName &name, const Timer &timer) {
     if (timer.time == 1) {
         for (size_t i = 0; i < 100; i++) {
-            submit.create_entity(EntityName(std::format("Alice {}", i)),
+            submit.submit<CreateEntity>(EntityName(std::format("Alice {}", i)),
                                  EntityUserId{1});
         }
     }

@@ -172,6 +172,12 @@ class World {
         pools_[info.pool_index()][info.cell_index(e)].reset();
         info.remove_entity(e);
     }
+    inline void modify_component(component_t comp, Entity e, void *data) {
+        auto &info = component_info(comp);
+        XC_ASSERT(info.has_entity(e));
+        pools_[info.pool_index()][info.cell_index(e)] =
+            Cell_(data, info.deleter_);
+    }
 
     CommandSubmit &submit();
     ComponentAccessor accessor() noexcept;
