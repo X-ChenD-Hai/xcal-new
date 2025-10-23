@@ -23,36 +23,6 @@ class ComponentInfo;
 class CommandSubmit;
 class Querier;
 
-template <auto System, typename BindObj = void>
-class ObjectSystemBuilder;
-struct SystemInfo;
-
-struct SystemInfo {
-    std::vector<size_t> resources_ids_;
-    void (*callback_)(World &, void *);
-    void *callback_obj_{nullptr};
-};
-template <auto System, typename BindObj>
-class ObjectSystemBuilder {
-    using Self = ObjectSystemBuilder<System, BindObj>;
-    World &world_;
-    SystemInfo system_info_;
-    bool finished_{false};
-
-   public:
-    explicit ObjectSystemBuilder(World &world) : world_(world) {}
-    explicit ObjectSystemBuilder(World &world, BindObj *obj) : world_(world) {
-        system_info_.callback_obj_ = obj;
-    }
-
-    World &build_system();
-
-    template <typename... Resource>
-    Self &use_resources();
-    World &operator->() { return build_system(); }
-    ~ObjectSystemBuilder() { build_system(); }
-};
-
 class World {
     friend class CommandSubmit;
     friend class Querier;
@@ -66,13 +36,11 @@ class World {
     std::vector<Entity> entities_{};
     std::vector<ComponentInfo> component_infos_{};
     ResourceManager resource_manager_;
-    std::vector<SystemInfo> system_infos_{};
     SparseList<component_t, uint32_t, 32> component2pool_map_{};
     std::vector<std::vector<Cell_>> pools_{};
     CommandSubmit command_submit_;
     std::vector<std::unique_ptr<void, std::function<void(void *)>>> plugins_;
     TypeMap<uint32_t> plugins_id_map_{uint32_t(-1)};
-    bool quit_{false};
 
    protected:
     template <class Arg>
@@ -95,18 +63,10 @@ class World {
     Resource &resource();
     template <typename Resource, typename... Args>
     World &add_resource(Args &&...args);
-    template <auto System, typename BindObj>
-    ObjectSystemBuilder<System, BindObj> with_system();
-    template <auto System>
-    World &add_system();
-    template <auto System, typename BindObj>
-    World &add_system(BindObj *obj);
     template <auto System>
     World &run_system();
     template <auto System, typename BindObj>
     World &run_system(BindObj *obj);
-    template <auto System>
-    ObjectSystemBuilder<System> add_setup_system() {};
     template <typename Plugin, typename... Args>
     World &use_plugin(Args &&...args) {
         std::println("installing plugin: {}", typeid(Plugin).name());
@@ -138,9 +98,6 @@ class World {
 
     World();
     ~World();
-    bool should_quit() const { return quit_; }
-    void quit() { quit_ = true; }
-    void start() { quit_ = false; }
     inline Entity create_entity() {
         return entities_.emplace_back(entities_.size(), 0);
     }
@@ -182,14 +139,6 @@ class World {
     CommandSubmit &submit();
     ComponentAccessor accessor() noexcept;
     Querier queryer() const noexcept;
-    void update() {
-        std::println("start update__________________");
-        for (auto &system_info : system_infos_) {
-            system_info.callback_(*this, system_info.callback_obj_);
-        }
-        execute_commands();
-        std::println("__________________end update");
-    }
     World &execute_commands() {
         command_submit_.execute_then_clear(*this);
         return *this;
@@ -228,30 +177,6 @@ inline World &World::run_system() {
     return *this;
 }
 
-template <auto System, typename BindObj>
-World &World::add_system(BindObj *obj) {
-    using args = func_traits<System>::args_vec;
-    using purges = tvector<World, Querier, ComponentAccessor, CommandSubmit>;
-    using c_ = tvector<const World, const Querier, const ComponentAccessor,
-                       const CommandSubmit>;
-    using refs =
-        tvector<World &, Querier &, ComponentAccessor &, CommandSubmit &>;
-    using c_refs = tvector<const World &, const Querier &,
-                           const ComponentAccessor &, const CommandSubmit &>;
-    using ppnter = tvector<CommandSubmit *>;
-    using real = typename args::template remove_all_from_lists<purges, c_, refs,
-                                                               c_refs, ppnter>;
-    [this, obj]<typename... Args>(tvector<Args...> *) {
-        ObjectSystemBuilder<System, BindObj>{*this, obj}
-            .template use_resources<
-                std::remove_pointer_t<std::remove_reference_t<Args>>...>();
-    }((real *)0);
-    return *this;
-};
-template <auto System>
-World &World::add_system() {
-    return add_system<System, void>(nullptr);
-};
 
 template <typename Resource, typename... Args>
 World &World::add_resource(Args &&...args) {
@@ -282,10 +207,6 @@ World &World::add_component() {
     component2pool_map_.insert(ComponentIdGenerator<Component>::get());
     return *this;
 }
-template <auto System, typename BindObj>
-ObjectSystemBuilder<System, BindObj> World::with_system() {
-    return ObjectSystemBuilder<System>{*this};
-};
 
 template <class Arg>
 decltype(auto) World::fatch_args(World &world) noexcept {
@@ -335,34 +256,7 @@ decltype(auto) World::fatch_args(World &world) noexcept {
         static_assert(false, "not support this type");
     }
 }
-template <auto System, typename BindObj>
-template <typename... Resource>
-typename ObjectSystemBuilder<System, BindObj>::Self &
-ObjectSystemBuilder<System, BindObj>::use_resources() {
-    (
-        [&]() {
-            auto id = world_.resource_manager_.id<Resource>();
-            XC_ASSERT(id < world_.resource_manager_.size());
-            system_info_.resources_ids_.push_back(id);
-        }(),
-        ...);
-    if constexpr (std::is_member_function_pointer_v<decltype(System)>)
-        system_info_.callback_ = [](World &world, void *obj) {
-            world.run_system<System, BindObj>(static_cast<BindObj *>(obj));
-        };
-    else
-        system_info_.callback_ = [](World &world, void *obj) {
-            world.run_system<System>();
-        };
-    return *this;
-}
-template <auto T, typename BindObj>
-World &ObjectSystemBuilder<T, BindObj>::build_system() {
-    if (finished_) return world_;
-    finished_ = true;
-    world_.system_infos_.emplace_back(system_info_);
-    return world_;
-}
+
 
 template <typename... Component, typename Fn, typename... Args>
     requires std::is_invocable_v<Fn, Component &..., Args...>
