@@ -1,9 +1,9 @@
 #pragma once
+#include <functional>
 #include <id_generator.hpp>
+#include <print>
 #include <sparse_list.hpp>
 #include <type_map.hpp>
-#include <functional>
-#include <print>
 #include <xc_assert.hpp>
 
 #include "./command_submit.hpp"
@@ -85,9 +85,25 @@ class World {
         }
         return *this;
     }
-    template <typename... Plugin>
-    World &run_plugin() {
-        return (Plugin::run(*this), ...);
+    template <typename Plugin>
+    inline constexpr World &run_plugin() {
+        if constexpr (std::is_member_function_pointer_v<
+                          decltype(&Plugin::run)>) {
+            XC_ASSERT(plugins_id_map_.data<Plugin>() != uint32_t(-1));
+            (static_cast<Plugin *>(
+                 plugins_[plugins_id_map_.data<Plugin>()].get()))
+                ->run(*this);
+        } else {
+            Plugin::run(*this);
+        }
+        return *this;
+    }
+    template <typename Plugin1, typename Plugin2, typename... Plugins>
+    inline constexpr World &run_plugin() {
+        run_plugin<Plugin1>();
+        run_plugin<Plugin2>();
+        (run_plugin<Plugins>(), ...);
+        return *this;
     }
     template <typename Plugin>
     Plugin &plugin() {
@@ -99,7 +115,7 @@ class World {
     World();
     ~World();
     inline Entity create_entity() {
-        return entities_.emplace_back(entities_.size(), 0);
+        return entities_.emplace_back(entities_.size() + 1, 0);
     }
     inline bool has_component(component_t comp) const noexcept {
         return component2pool_map_.has_value(comp);
@@ -176,7 +192,6 @@ inline World &World::run_system() {
     }((args *)nullptr, *this);
     return *this;
 }
-
 
 template <typename Resource, typename... Args>
 World &World::add_resource(Args &&...args) {
@@ -256,7 +271,6 @@ decltype(auto) World::fatch_args(World &world) noexcept {
         static_assert(false, "not support this type");
     }
 }
-
 
 template <typename... Component, typename Fn, typename... Args>
     requires std::is_invocable_v<Fn, Component &..., Args...>

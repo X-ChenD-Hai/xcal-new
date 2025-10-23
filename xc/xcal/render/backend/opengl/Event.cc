@@ -1,22 +1,44 @@
 #include "./event.hpp"
 
+#include <ecs/command_submit.hpp>
+#include <ecs/event_bus.hpp>
+#include <ecs/resource_table.hpp>
+#include <ecs/world.hpp>
 #include <print>
 #include <xcal/camera/camera.hpp>
 #include <xcal/event/events.hpp>
+#include <xcal/object/line.hpp>
+#include <xcal/object/object.hpp>
+#include <xcal/transform/transform.hpp>
 
+#include "./mesh.hpp"
+#include "./mesh/axis.hpp"
 #include "./openglloader.h"
 #include "./uniform.hpp"
 
+
+static void add_mesh(ecs::CommandSubmit& submit, ecs::Entity entity,
+                     const xc::xcal::render::opengl::Mesh& mesh) {
+    auto mesh_comp = mesh.mesh_component();
+    xc::xcal::transform::TransformComponent transform;
+    std::visit(
+        [&](auto&& shader) {
+            submit.submit<ecs::AttachComponents>(
+                entity, transform, mesh_comp, shader,
+                xc::xcal::transform::TransformMatrixComponent{});
+        },
+        mesh.shader_program);
+}
 void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
                                             ecs::EventBus& bus,
-                                            ecs::ResourceTable& table) {
+                                            ecs::ResourceTable& table,
+                                            ecs::CommandSubmit& submit) {
     bus.each<xcal::event::FrameResize>([](auto& e) {
         std::println("frame resize");
         _gl glViewport(0, 0, e.width, e.height);
     });
     if (bus.any_exist<event::CameraProjectionChanged,
                       event::CameraViewChanged>()) {
-        // std::println("camera view changed");
         auto uniform =
             table.create_or_get<xcal::render::opengl::UniformBuffer>();
         uniform->update((resources.get<camera::ProjectionConfig>().as_mat4() ^
@@ -24,4 +46,11 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
                             .T());
         uniform->bind();
     }
+    bus.each<object::CreateObject<object::Line>>(
+        [](auto& e, auto& submit) {
+            std::println("create line id {} direction {}", e.entity.id(),
+                         e.config.direction);
+            add_mesh(submit, e.entity, Line{e.config.direction});
+        },
+        submit);
 }

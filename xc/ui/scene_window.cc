@@ -2,11 +2,13 @@
 #include <ecs/resource.hpp>
 #include <xcal/camera/camera.hpp>
 #include <xcal/event/events.hpp>
+#include <xcal/object/line.hpp>
 #include <xcal/render/backend/opengl/mesh.hpp>
 #include <xcal/render/backend/opengl/mesh/axis.hpp>
 #include <xcal/render/backend/opengl/mesh/trangle.hpp>
 #include <xcal/render/backend/opengl/render.hpp>
 #include <xcal/transform/transform.hpp>
+
 
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
@@ -90,35 +92,39 @@ void SceneWindow::init_world_() {
 void SceneWindow::create_entity_() {
     using namespace xc::xcal;
     using namespace xc::xcal::render::opengl;
-    world_.plugin<Render>().add_mesh(
-        Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}),
-        ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(Line({2.0f, 0.f, 0.0f}),
-                                     ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(Line({.0f, 2.f, 0.0f}),
-                                     ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(Line({.0f, 0.f, 2.0f}),
-                                     ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(
-        ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
-                        0.0f, 1.0f, 1},
-        ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(
-        ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
-                        0.0f, 1.0f, 100},
-        ui_editor_cacher_->transform_component);
-    world_.plugin<Render>().add_mesh(
-        ParametricSurface(
-            [](auto u, auto v) {  // u=θ∈[0,2π], v=φ∈[0,π]
-                float r = .3f;    // 球半径
-                float sin_v = std::sin(v);
-                return xcmath::vec3f{r * std::cos(u) * sin_v,
-                                     r * std::sin(u) * sin_v, r * std::cos(v)};
-            },
-            0.0f, xcmath::PI * 2, 20,  // θ 方向
-            0.0f, xcmath::PI, 20       // φ 方向
-            ),
-        ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(
+    //     Trangle({0.0f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {-0.5f, -0.5f,
+    //     0.0f}), ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(Line({2.0f, 0.f, 0.0f}),
+    //                                  ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(Line({.0f, 2.f, 0.0f}),
+    //                                  ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(Line({.0f, 0.f, 2.0f}),
+    //                                  ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(
+    //     ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
+    //                     0.0f, 1.0f, 1},
+    //     ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(
+    //     ParametricCurve{[](auto t) { return xcmath::vec3f{t, t * t, 0.f}; },
+    //                     0.0f, 1.0f, 100},
+    //     ui_editor_cacher_->transform_component);
+    // world_.plugin<Render>().add_mesh(
+    //     ParametricSurface(
+    //         [](auto u, auto v) {  // u=θ∈[0,2π], v=φ∈[0,π]
+    //             float r = .3f;    // 球半径
+    //             float sin_v = std::sin(v);
+    //             return xcmath::vec3f{r * std::cos(u) * sin_v,
+    //                                  r * std::sin(u) * sin_v, r *
+    //                                  std::cos(v)};
+    //         },
+    //         0.0f, xcmath::PI * 2, 20,  // θ 方向
+    //         0.0f, xcmath::PI, 20       // φ 方向
+    //         ),
+    //     ui_editor_cacher_->transform_component);
+
+    // world_.plugin<Xcal>().add<object::Line>(xcmath::vec3f{0.0f, 0.5f, 0.0f});
+    world_.plugin<Xcal>().add(object::Line{{0.5f, 0.5f, 0.0f}});
 };
 void SceneWindow::update_world_() {
     world_.run_plugin<xc::xcal::Xcal>()

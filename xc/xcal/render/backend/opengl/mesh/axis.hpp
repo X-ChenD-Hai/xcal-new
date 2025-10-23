@@ -21,7 +21,6 @@ struct Line : public Mesh {
     uint32_t draw_count() const override { return 2; };
     MeshType draw_type() const override { return MeshType::LINES; }
 };
-
 struct ParametricCurve : public Mesh {
     uint32_t vbo_, count_;
     ParametricCurve(const std::function<xcmath::vec3f(float)>& f, float start,
