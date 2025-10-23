@@ -40,16 +40,18 @@ struct AppName {
     }
     ~AppName() { std::println("App name destroyed"); }
 };
-
+struct Quit {};
 void update_timer(Timer &timer) {
     std::println(" Current time: {}", timer.time++);
 }
 void show_name(World &world, Querier querier, ComponentAccessor cmps,
-               CommandSubmit &submit, AppName &name, const Timer &timer) {
+               CommandSubmit &submit, EventBus &bus, AppName &name,
+               const Timer &timer) {
     if (timer.time == 1) {
         for (size_t i = 0; i < 100; i++) {
-            submit.submit<AttachComponents>(EntityName(std::format("Alice {}", i)),
-                                        EntityUserId{1});
+            submit.submit<AttachComponents>(
+                world.create_entity(), EntityName(std::format("Alice {}", i)),
+                EntityUserId{1});
         }
     }
     if (timer.time >= 5) {
@@ -60,7 +62,7 @@ void show_name(World &world, Querier querier, ComponentAccessor cmps,
                 std::println("{}", name->name());
             }
         }
-        world.quit();
+        bus.publish<Quit>();
     }
 }
 class MySystem {
@@ -135,7 +137,7 @@ void update_epoch(World &world, EventBus &bus, Timer &timer) {
         bus.publish<ReadyToExit>();
     } else if (timer.time == LOOP_COUNT) {
         bus.clear<ReadyToExit>();
-        world.quit();
+        bus.publish<Quit>();
     }
 }
 void do_async_create_resource(ResourceTable &table) {
@@ -151,16 +153,14 @@ int main(int argc, char *argv[]) {
         .add_resource<AppName>("Hello, world!")
         .add_resource<ResourceTable>()
         .add_resource<EventBus>()
-        .add_resource<Timer>(0)
-        .add_system<update_epoch>()
-        .add_system<read_resource>()
-        .add_system<do_async_create_resource>();
+        .add_resource<Timer>(0);
     ;
     auto start = std::chrono::high_resolution_clock::now();
-    while (!world.should_quit()) {
-        // world.update();
-
-        world.update();
+    while (!world.resource<EventBus>().exist<Quit>()) {
+        world.resource<EventBus>().clear_all();
+        world.run_system<update_epoch>()
+            .run_system<read_resource>()
+            .run_system<do_async_create_resource>();
     }
     auto end = std::chrono::high_resolution_clock::now();
 

@@ -5,7 +5,6 @@
 
 #include "../transform/transform.hpp"
 
-
 void xc::xcal::animation::update_translate(ecs::ComponentAccessor accessor,
                                            const ecs::EventBus &event_bus) {
     event_bus.each<Update>(
