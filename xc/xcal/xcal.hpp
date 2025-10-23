@@ -6,7 +6,7 @@ class EventBus;
 
 namespace xc::xcal {
 
-class Application {
+class Xcal {
    public:
     static void install(ecs::World &world);
 

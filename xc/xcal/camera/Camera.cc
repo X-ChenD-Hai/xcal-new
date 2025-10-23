@@ -3,6 +3,7 @@
 #include <ecs/event_bus.hpp>
 #include <ecs/resource.hpp>
 #include <ecs/resource_table.hpp>
+#include <ecs/world.hpp>
 #include <print>
 
 #include "../event/events.hpp"
@@ -115,4 +116,16 @@ void xc::xcal::camera::FpsCameraControler::zoom(float dzoom) {
     projection_->fov = std::clamp(fov_ * zoon_, 1.0f, 179.0f);
     zoon_ = projection_->fov / fov_;
     event_bus_->publish<event::CameraProjectionChanged>();
+}
+void xc::xcal::camera::details::setup(ecs::World& world) {
+    std::println("camera setup");
+    XC_ASSERT(world.resource_manager().has<ecs::EventBus>());
+    world.add_resource<ViewConfig>()
+        .add_resource<ProjectionConfig>()
+        .add_resource<FpsCameraControler>(&world.resource<ecs::EventBus>(),
+                                          &world.resource<ViewConfig>(),
+                                          &world.resource<ProjectionConfig>());
+}
+void xc::xcal::camera::details::run(ecs::World& world) {
+    world.run_system<update_camera>();
 }

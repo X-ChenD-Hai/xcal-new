@@ -3,10 +3,11 @@
 
 // #include <vcruntime_typeinfo.h>
 
-#include <type_map.hpp>
 #include <array>
 #include <cstdlib>
 #include <ranges>
+#include <type_map.hpp>
+
 namespace ecs {
 
 namespace internal {
@@ -37,8 +38,8 @@ class EventBus {
 
    public:
     EventBus() {
-        for (size_t idx=0;idx < events_.size();idx++) {
-		auto&event_ptr = events_[idx];
+        for (size_t idx = 0; idx < events_.size(); idx++) {
+            auto &event_ptr = events_[idx];
             const auto alignment = (0x02 << idx);
             // std::println("insert size : {} ,index : {} ", alignment, idx);
 #ifdef _MSC_VER
@@ -183,7 +184,6 @@ class EventBus {
         static constexpr auto alignment = 0x02 << index;
 
         if (event_map_.data<Event>().empty()) return false;
-        if (event_map_.data<Event>().empty()) return false;
         if constexpr (std::is_invocable_r_v<bool, Fn, Event &, Args &&...> ||
                       std::is_invocable_r_v<bool, Fn, Args &&...>) {
             std::vector<uint16_t> new_indices;
@@ -222,16 +222,35 @@ class EventBus {
         }
         return true;
     }
+
+    template <typename Event, typename Fn, typename... Args>
+        requires(std::is_invocable_v<Fn, Args...> ||
+                 std::is_invocable_v<Fn, const Event &, Args && ...>)
+    bool each(Fn fn, Args &&...args) const noexcept {
+        static constexpr auto index = size2index[sizeof(Event)] - 1;
+        static constexpr auto alignment = 0x02 << index;
+
+        if (event_map_.data<Event>().empty()) return false;
+        for (auto idx : event_map_.data<Event>()) {
+            auto ptr = (Event *)(events_[index] + (idx * alignment));
+            if constexpr (std ::is_invocable_v<Fn, Args &&...>)
+                fn(std::forward<Args>(args)...);
+            else
+                fn(*ptr, std::forward<Args>(args)...);
+        }
+        return true;
+    }
+
     template <typename... Event>
-    bool all_exist() {
+    bool all_exist() const noexcept {
         return (exist<Event>() && ...);
     }
     template <typename... Event>
-    bool any_exist() {
+    bool any_exist() const noexcept {
         return (exist<Event>() || ...);
     }
     template <typename Event>
-    bool exist() {
+    bool exist() const noexcept {
         return event_map_.data<Event>().size();
     }
 
@@ -242,7 +261,7 @@ class EventBus {
     }
     template <typename Event>
         requires(internal::EventTraits<Event>::required)
-    void clear() {
+    void clear() noexcept {
         static constexpr auto index = size2index[sizeof(Event)] - 1;
         static constexpr auto alignment = 0x02 << index;
         auto &indices = event_map_.data<Event>();
@@ -257,7 +276,7 @@ class EventBus {
         next_free_slots_[index] = free_tmp;
         indices.clear();
     }
-    void clear_all() {
+    void clear_all() noexcept {
         for (auto &indices : event_map_) {
             if (indices.empty()) {
                 continue;

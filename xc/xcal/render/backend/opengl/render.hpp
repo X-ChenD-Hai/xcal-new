@@ -2,7 +2,7 @@
 #include <ecs/querier.hpp>
 #include <xcal/transform/transform.hpp>
 
-#include "./mesh/trangle.hpp"
+#include "./mesh.hpp"
 
 namespace ecs {
 class World;

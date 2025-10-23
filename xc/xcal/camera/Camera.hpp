@@ -1,5 +1,4 @@
 #pragma once
-#include <algorithm>
 #include <xcmath/xcmath.hpp>
 namespace ecs {
 class World;
@@ -77,4 +76,8 @@ class FpsCameraControler {
     void zoom(float dzoom);
 };
 void update_camera(ecs::ResourceManager& mgr, ecs::EventBus& event_bus);
+namespace details {
+void setup(ecs::World& world);
+void run(ecs::World& world);
+}
 };  // namespace xc::xcal::camera

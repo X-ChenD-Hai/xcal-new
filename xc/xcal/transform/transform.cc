@@ -1,6 +1,8 @@
 #include "./transform.hpp"
 
+#include <ecs/world.hpp>
 #include <xcmath/utils/show.hpp>
+
 xcmath::mat4f xc::xcal::transform::TransformComponent::transform_matrix()
     const {
     return xcmath::translate(
@@ -24,4 +26,12 @@ void xc::xcal::transform::update_transform_matrix(ecs::Querier q,
             std::println("update transform matrix {}", m->matrix);
         }
     }
+}
+void xc::xcal::transform::details::setup(ecs::World &world) {
+    std::println("transform setup");
+    world.add_component<TransformComponent>()
+        .add_component<TransformMatrixComponent>();
+}
+void xc::xcal::transform::details::run(ecs::World &world) {
+    world.run_system<update_transform_matrix>();
 }

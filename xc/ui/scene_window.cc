@@ -19,7 +19,7 @@
 #define _gl
 #endif
 #include <print>
-#include <xcal/ecs/application.hpp>
+#include <xcal/xcal.hpp>
 #include <xcmath/xcmath.hpp>
 
 #include "./scene_window.hpp"
@@ -84,7 +84,7 @@ void SceneWindow::init_world_() {
     using namespace xc::xcal::render::opengl;
     world_.add_resource<EventLoop>(loop())
         .add_resource<ecs::EventBus>(&event_bus_)
-        .use_plugin<Application>()
+        .use_plugin<Xcal>()
         .use_plugin<Render>();
 }
 void SceneWindow::create_entity_() {
@@ -121,7 +121,7 @@ void SceneWindow::create_entity_() {
         ui_editor_cacher_->transform_component);
 };
 void SceneWindow::update_world_() {
-    world_.run_plugin<xc::xcal::Application>()
+    world_.run_plugin<xc::xcal::Xcal>()
         .run_plugin<xc::xcal::render::opengl::Render>()
         .run_system<[](ecs::EventBus& bus, EventLoop& loop) {
             if (bus.exist<WorldeadyToExitEvent>()) {

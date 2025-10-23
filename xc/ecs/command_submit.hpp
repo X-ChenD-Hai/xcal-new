@@ -9,7 +9,6 @@ namespace ecs {
 class World;
 enum class CommandExecutePriority : uint16_t {
     BEFORE_ALL = 0,
-    APPEND_ENTITIES,
     APPEND_COMPONENTS,
     MODIFY_COMPONENTS,
     DELETE_COMPONENTS,
@@ -42,38 +41,26 @@ class CommandSubmit {
         return *this;
     }
 };
-class CreateEntity : public Command {
-    std::function<void(Entity)> on_created_;
+class AttachComponents : public Command {
+    Entity entity_;
     std::vector<std::pair<component_t, void *>> components_{};
 
    public:
     template <typename... Components>
-        requires((!std::is_constructible_v<std::function<void(Entity)>,
-                                           Components>) &&
-                 ...)
-    CreateEntity(Components &&...components) : on_created_() {
-        (add<Components>(std::forward<Components>(components)), ...);
-    }
-    template <typename... Components>
-        requires((!std::is_constructible_v<std::function<void(Entity)>,
-                                           Components>) &&
-                 ...)
-    CreateEntity(const std::function<void(Entity)> &on_created,
-                 Components &&...components)
-        : on_created_(on_created) {
+    AttachComponents(Entity entity, Components &&...components):entity_(entity) {
         (add<Components>(std::forward<Components>(components)), ...);
     }
 
     template <typename Component, typename... Args>
         requires(std::is_constructible_v<Component, Args...>)
-    CreateEntity &add(Args &&...args) {
+    AttachComponents &add(Args &&...args) {
         using Com = purge_t<Component>;
         components_.emplace_back(ComponentIdGenerator<Com>::get(),
                                  new Com(std::forward<Args>(args)...));
         return *this;
     }
     template <typename Component1, typename Component2, typename... Components>
-    CreateEntity &add(Component1 &&component1, Component2 &&component2,
+    AttachComponents &add(Component1 &&component1, Component2 &&component2,
                       Components &&...components) {
         add<Component1>(component1);
         add<Component2>(component2);
@@ -81,7 +68,7 @@ class CreateEntity : public Command {
         return *this;
     }
     CommandExecutePriority execute_priority() const noexcept override {
-        return CommandExecutePriority::APPEND_ENTITIES;
+        return CommandExecutePriority::APPEND_COMPONENTS;
     };
     void execute(World &world) const override;
 };
