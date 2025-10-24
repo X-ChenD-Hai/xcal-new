@@ -197,7 +197,7 @@ struct EventBus final {
             requires(std::is_invocable_v<Fn, Args...> ||
                      std::is_invocable_v<Fn, Event&, Args...> ||
                      std::is_invocable_v<Fn, const Event&, Args...>)
-        bool each(Fn fn, Args&&... args) const noexcept {
+        bool each(Fn&& fn, Args&&... args) const noexcept {
             if (index_map_.data<Event>() == invalid_index) return false;
             if (event_infos_[index_map_.data<Event>()].cell_indices.empty())
                 return false;
@@ -215,7 +215,7 @@ struct EventBus final {
         template <typename Event, typename Fn, typename... Args>
             requires((std::is_invocable_v<Fn, Args && ...> ||
                       std::is_invocable_v<Fn, Event&, Args && ...>))
-        bool each(Fn fn, Args&&... args) {
+        bool each(Fn&& fn, Args&&... args) {
             if (index_map_.data<Event>() == invalid_index) return false;
             auto& cell_indices =
                 event_infos_[index_map_.data<Event>()].cell_indices;
@@ -386,33 +386,31 @@ struct EventBus final {
     template <typename Event, typename Fn, typename... Args>
         requires((std::is_invocable_v<Fn, Args&...> ||
                   std::is_invocable_v<Fn, Event&, Args&...>))
-    bool each(Fn fn, Args&&... args) {
+    bool each(Fn&& fn, Args&&... args) {
         return std::get<index<Event>>(pools_)->template each<Event>(
-            fn, std::forward<Args>(args)...);
+            std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
     template <typename Event, typename Fn, typename... Args>
         requires(std::is_invocable_v<Fn, Args&...> ||
                  std::is_invocable_v<Fn, const Event&, Args&...>)
-    bool each(Fn fn, Args&&... args) const noexcept {
+    bool each(Fn&& fn, Args&&... args) const noexcept {
         return std::get<index<Event>>(pools_)->template each<Event>(
-            fn, std::forward<Args>(args)...);
+            std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
 
     template <typename Fn, typename... Args>
-        requires(
-            std::is_invocable_v<Fn, first_arg_type_t<Fn>&, Args & ...> ||
-            std::is_invocable_v<Fn, const first_arg_type_t<Fn>&, Args & ...>)
-    inline bool each(Fn fn, Args&&... args) const noexcept {
+        requires(std::is_invocable_v<Fn, first_arg_type_t<Fn>&, Args&...> ||
+                 std::is_invocable_v<Fn, const first_arg_type_t<Fn>&, Args&...>)
+    inline bool each(Fn&& fn, Args&&... args) const noexcept {
         using Event = first_arg_type_of_t<fn>;
-        return each<Event>(fn, std::forward<Args>(args)...);
+        return each<Event>(std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
     template <typename Fn, typename... Args>
-        requires(
-            std::is_invocable_v<Fn, first_arg_type_t<Fn>&, Args & ...> ||
-            std::is_invocable_v<Fn, const first_arg_type_t<Fn>&, Args & ...>)
-    inline bool each(Fn fn, Args&&... args) {
+        requires(std::is_invocable_v<Fn, first_arg_type_t<Fn>&, Args&...> ||
+                 std::is_invocable_v<Fn, const first_arg_type_t<Fn>&, Args&...>)
+    inline bool each(Fn&& fn, Args&&... args) {
         using Event = first_arg_type_of_t<fn>;
-        return each<Event>(fn, std::forward<Args>(args)...);
+        return each<Event>(std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
 
     template <typename... Event>
