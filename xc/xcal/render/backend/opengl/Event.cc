@@ -16,16 +16,17 @@
 #include "./openglloader.h"
 #include "./uniform.hpp"
 
-
 static void add_mesh(ecs::CommandSubmit& submit, ecs::Entity entity,
                      const xc::xcal::render::opengl::Mesh& mesh) {
     auto mesh_comp = mesh.mesh_component();
     xc::xcal::transform::TransformComponent transform;
     std::visit(
         [&](auto&& shader) {
+            std::println("create attach command to {} ", entity.id());
             submit.submit<ecs::AttachComponents>(
                 entity, transform, mesh_comp, shader,
                 xc::xcal::transform::TransformMatrixComponent{});
+            std::println("ok");
         },
         mesh.shader_program);
 }
@@ -46,11 +47,12 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
                             .T());
         uniform->bind();
     }
-    bus.each<object::CreateObject<object::Line>>(
-        [](auto& e, auto& submit) {
-            std::println("create line id {} direction {}", e.entity.id(),
-                         e.config.direction);
-            add_mesh(submit, e.entity, Line{e.config.direction});
-        },
-        submit);
+    ((const ecs::EventBus&)bus)
+        .each<object::CreateObject<object::Line>>(
+            [](auto& e, auto& submit) {
+                std::println("create line id {} direction {}", e.entity.id(),
+                             e.config.direction);
+                // add_mesh(submit, e.entity, Line{e.config.direction});
+            },
+            submit);
 }

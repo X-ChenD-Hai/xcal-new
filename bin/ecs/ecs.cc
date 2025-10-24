@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
     ;
     auto start = std::chrono::high_resolution_clock::now();
     while (!world.resource<EventBus>().exist<Quit>()) {
-        world.resource<EventBus>().clear_all();
+        world.resource<EventBus>().clear();
         world.run_system<update_epoch>()
             .run_system<read_resource>()
             .run_system<do_async_create_resource>();

@@ -15,11 +15,11 @@ class ComponentInfo {
     std::function<void(void *)> deleter_;
 
    public:
-    size_t cell_index(Entity e) { return entities_.get_index(e.entity()); };
-    void add_entity(Entity entity) { entities_.insert(entity.entity()); }
-    void remove_entity(Entity entity) { entities_.remove(entity.entity()); }
+    size_t cell_index(Entity e) { return entities_.get_index(e.id()); };
+    void add_entity(Entity entity) { entities_.insert(entity.id()); }
+    void remove_entity(Entity entity) { entities_.remove(entity.id()); }
     bool has_entity(Entity entity) const {
-        return entities_.has_value(entity.entity());
+        return entities_.has_value(entity.id());
     }
 
     void deallocate(void *ptr) { deleter_(ptr); }

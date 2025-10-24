@@ -24,14 +24,14 @@ template <typename T>
 class TypeMap {
     static inline size_t next_type_id{0};
     const T fill_value_{};
-    std::vector<T> table_;
+    std::vector<T> table_{};
 
    private:
     template <typename Tp>
     static const size_t type_id;
 
    public:
-    TypeMap(const T& fill_value = -1) : fill_value_(fill_value) {}
+    TypeMap(const T& fill_value = -1) : fill_value_(fill_value), table_{} {}
     template <typename Tp>
     T& data() {
         if (table_.size() <= type_id<Tp>)

@@ -9,7 +9,6 @@
 #include <xcal/render/backend/opengl/render.hpp>
 #include <xcal/transform/transform.hpp>
 
-
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
@@ -124,9 +123,14 @@ void SceneWindow::create_entity_() {
     //     ui_editor_cacher_->transform_component);
 
     // world_.plugin<Xcal>().add<object::Line>(xcmath::vec3f{0.0f, 0.5f, 0.0f});
-    world_.plugin<Xcal>().add(object::Line{{0.5f, 0.5f, 0.0f}});
+    auto& xcal = world_.plugin<Xcal>();
+    xcal.add(object::Line{{1.f, 0.f, 0.0f}});
+    xcal.add(object::Line{{0.f, 1.f, 0.0f}});
+    xcal.add(object::Line{{0.f, 1.f, 0.0f}});
+    // xcal.add(object::Line{{1.f, 0.f, 1.0f}});
 };
 void SceneWindow::update_world_() {
+    // std::println("update---------------------------");
     world_.run_plugin<xc::xcal::Xcal>()
         .run_plugin<xc::xcal::render::opengl::Render>()
         .run_system<[](ecs::EventBus& bus, EventLoop& loop) {
@@ -137,7 +141,7 @@ void SceneWindow::update_world_() {
         }>()
         .execute_commands()
         .resource<ecs::EventBus>()
-        .clear_all();
+        .clear();
 };
 
 bool SceneWindow::resize_event(WindowResizeEvent* e) {

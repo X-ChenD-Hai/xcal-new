@@ -1,7 +1,7 @@
 #include "./render.hpp"
 
-#include <ecs/world.hpp>
 #include <ecs/resource_table.hpp>
+#include <ecs/world.hpp>
 #include <xcal/transform/transform.hpp>
 
 #include "./event.hpp"
