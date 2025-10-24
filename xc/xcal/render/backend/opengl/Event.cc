@@ -52,7 +52,7 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
             [](auto& e, auto& submit) {
                 std::println("create line id {} direction {}", e.entity.id(),
                              e.config.direction);
-                // add_mesh(submit, e.entity, Line{e.config.direction});
+                add_mesh(submit, e.entity, Line{e.config.direction});
             },
             submit);
 }

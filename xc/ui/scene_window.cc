@@ -126,7 +126,7 @@ void SceneWindow::create_entity_() {
     auto& xcal = world_.plugin<Xcal>();
     xcal.add(object::Line{{1.f, 0.f, 0.0f}});
     xcal.add(object::Line{{0.f, 1.f, 0.0f}});
-    xcal.add(object::Line{{0.f, 1.f, 0.0f}});
+    xcal.add(object::Line{{0.f, 0.f, 1.0f}});
     // xcal.add(object::Line{{1.f, 0.f, 1.0f}});
 };
 void SceneWindow::update_world_() {
