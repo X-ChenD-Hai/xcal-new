@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <vector>
 #include <xc_assert.hpp>
-
 namespace ecs {
 class ResourceTable {
     struct ResourceDescribtor {

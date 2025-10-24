@@ -1,6 +1,9 @@
 #pragma once
+#include <algorithm>
+#include <array>
 #include <functional>
 #include <id_generator.hpp>
+#include <memory>
 #include <print>
 #include <sparse_list.hpp>
 #include <type_map.hpp>
@@ -154,7 +157,7 @@ class World {
 
     CommandSubmit &submit();
     ComponentAccessor accessor() noexcept;
-    Querier queryer() const noexcept;
+    Querier querier() const noexcept;
     World &execute_commands() {
         command_submit_.execute_then_clear(*this);
         return *this;
@@ -236,7 +239,7 @@ decltype(auto) World::fatch_args(World &world) noexcept {
     } else if constexpr (std::is_same_v<Np, World &>) {
         return &world;
     } else if constexpr (std::is_same_v<Np, Querier>) {
-        return world.queryer();
+        return world.querier();
     } else if constexpr (std::is_same_v<Np, Querier &> ||
                          std::is_same_v<Np, Querier *>) {
         static_assert(false, "not support Querier ref or ptr");

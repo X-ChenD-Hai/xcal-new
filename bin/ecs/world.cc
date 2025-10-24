@@ -32,8 +32,8 @@ int main() {
         .submit<ecs::AttachComponents>(world.create_entity(), name,
                                        EntityUserId{11})
         .submit<ecs::AttachComponents>(world.create_entity(), EntityUserId{22});
-    auto q1 = world.queryer().query<EntityName>();
-    auto q2 = world.queryer().query<EntityUserId>();
+    auto q1 = world.querier().query<EntityName>();
+    auto q2 = world.querier().query<EntityUserId>();
     auto q3 = q1.query<EntityUserId>();
     auto ac = world.accessor();
 

@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
         },
         12);
     std::cout << "size " << event_bus.size<MyEvent>() << std::endl;
-    int s =11;
+    int s = 11;
     event_bus.each(
         [&](MyEvent& event, int& a) {
             std::cout << "MyEvent value: " << event.value + a << std::endl;
