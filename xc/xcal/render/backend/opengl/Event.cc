@@ -47,12 +47,11 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
                             .T());
         uniform->bind();
     }
-    ((const ecs::EventBus&)bus)
-        .each<object::CreateObject<object::Line>>(
-            [](auto& e, auto& submit) {
-                std::println("create line id {} direction {}", e.entity.id(),
-                             e.config.direction);
-                add_mesh(submit, e.entity, Line{e.config.direction});
-            },
-            submit);
+    bus.each(
+        [](object::CreateObject<object::Line>& e, ecs::CommandSubmit& submit) {
+            std::println("create line id {} direction {}", e.entity.id(),
+                         e.config.direction);
+            add_mesh(submit, e.entity, Line{e.config.direction});
+        },
+        submit);
 }

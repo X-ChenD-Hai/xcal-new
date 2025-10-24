@@ -92,8 +92,8 @@ struct tvector {
     }(std::make_index_sequence<End - Start>{}))>::type;
     template <typename Arg, typename... Args>
     struct remove_all_from_lists_helper {
-        using type = remove_all_from_list<
-            Arg>::template remove_all_from_lists<Args...>;
+        using type =
+            remove_all_from_list<Arg>::template remove_all_from_lists<Args...>;
     };
     template <typename Arg>
     struct remove_all_from_lists_helper<Arg> {
@@ -172,10 +172,23 @@ template <typename T, typename Arg, typename... Args>
 struct first_arg_type_of<T(Arg, Args...)> {
     using type = Purge<Arg>::type;
 };
+template <typename T, typename... Args>
+struct first_arg_type_of<T(*)(Args...)> : public first_arg_type_of<T(Args...)> {
+};
 template <typename T>
 struct first_arg_type_of<T(void)> {
     using type = void;
 };
+template <typename C, typename R, typename... Args>
+struct first_arg_type_of<R (C::*)(Args...)>
+    : public first_arg_type_of<R(Args...)> {};
+template <typename C, typename R, typename... Args>
+struct first_arg_type_of<R (C::*)(Args...) const>
+    : public first_arg_type_of<R(Args...)> {};
+template <typename T>
+struct first_arg_type_of : public first_arg_type_of<decltype(&T::operator())> {
+};
+
 template <typename... T>
 struct type_list {
     static constexpr size_t size = sizeof...(T);
@@ -188,7 +201,7 @@ struct func_traits<R(Args...)> {
     using return_type = R;
     using args = std::tuple<Args...>;
     using args_vec = tvector<Args...>;
-    using self = R(*)(Args...);
+    using self = R (*)(Args...);
     static constexpr size_t arity = sizeof...(Args);
     static constexpr bool is_member_function = false;
 };
@@ -204,17 +217,22 @@ struct func_traits<R (C::*)(Args...) const>
     : public func_traits<R (C::*)(Args...)> {};
 
 template <typename T>
-struct func_traits:public func_traits<decltype(&T::operator())>{};
+struct func_traits : public func_traits<decltype(&T::operator())> {};
 
 }  // namespace internal
 template <auto Fn>
 using return_type_of_t = internal::return_type_of<decltype(Fn)>::type;
 template <auto Fn>
 using first_arg_type_of_t = internal::first_arg_type_of<decltype(Fn)>::type;
-// template <auto Fn , typename Args>
+template <typename Fn>
+using return_type_t = internal::return_type_of<Fn>::type;
+template <typename Fn>
+using first_arg_type_t = internal::first_arg_type_of<Fn>::type;
 
 template <auto Fm>
 using func_traits = internal::func_traits<decltype(Fm)>;
+template <typename Fm>
+using func_type_traits = internal::func_traits<Fm>;
 template <typename T>
 using purge_t = typename internal::Purge<T>::type;
 using component_t = uint32_t;
