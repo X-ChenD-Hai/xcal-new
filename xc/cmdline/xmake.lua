@@ -1,0 +1,5 @@
+target("cmdline")
+    set_kind("static")
+    add_files("**.cc")
+    add_deps("libxc")
+    add_includedirs("../",{public=true})
