@@ -124,8 +124,10 @@ void SceneWindow::create_entity_() {
 
     // world_.plugin<Xcal>().add<object::Line>(xcmath::vec3f{0.0f, 0.5f, 0.0f});
     auto& xcal = world_.plugin<Xcal>();
-    xcal.add(object::Line{{1.f, 0.f, 0.0f}});
-    xcal.add(object::Line{{0.f, 1.f, 0.0f}});
+    xcal.add(object::Line{{1.f, 0.f, 0.0f}}).move({1.f, 0.f, 0.0f});
+    xcal.add(object::Line{{0.f, 1.f, 0.0f}})
+        .rotate({0.f, 0.f, 30.0f})
+        .scale({0.5f, 0.5f, 0.5f});
     xcal.add(object::Line{{0.f, 0.f, 1.0f}});
     // xcal.add(object::Line{{1.f, 0.f, 1.0f}});
 };

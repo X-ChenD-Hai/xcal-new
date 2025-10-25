@@ -16,21 +16,8 @@
 #include "./openglloader.h"
 #include "./uniform.hpp"
 
-static void add_mesh(ecs::CommandSubmit& submit, ecs::Entity entity,
-                     const xc::xcal::render::opengl::Mesh& mesh) {
-    auto mesh_comp = mesh.mesh_component();
-    xc::xcal::transform::TransformComponent transform;
-    std::visit(
-        [&](auto&& shader) {
-            std::println("create attach command to {} ", entity.id());
-            submit.submit<ecs::AttachComponents>(
-                entity, transform, mesh_comp, shader,
-                xc::xcal::transform::TransformMatrixComponent{});
-            std::println("ok");
-        },
-        mesh.shader_program);
-}
-void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
+void xc::xcal::render::opengl::handle_event(ecs::World& world,
+                                            ecs::ResourceManager& resources,
                                             ecs::EventBus& bus,
                                             ecs::ResourceTable& table,
                                             ecs::CommandSubmit& submit) {
@@ -48,10 +35,26 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
         uniform->bind();
     }
     bus.each(
-        [](object::CreateObject<object::Line>& e, ecs::CommandSubmit& submit) {
+        [](object::CreateObject<object::Line>& e, ecs::World& world,
+           ecs::CommandSubmit& submit) {
             std::println("create line id {} direction {}", e.entity.id(),
                          e.config.direction);
-            add_mesh(submit, e.entity, Line{e.config.direction});
+            auto mesh = Line(e.config.direction);
+            auto mesh_comp = mesh.mesh_component();
+            auto command = submit.submit<ecs::AttachComponents>(
+                e.entity, mesh.mesh_component());
+            std::visit([&](auto&& shader) { command->add(shader); },
+                       mesh.shader_program);
+            if (!world.component_info<transform::TransformComponent>()
+                     .has_entity(e.entity)) {
+                command->add<transform::TransformComponent>();
+            }
+            if (!world.component_info<transform::TransformMatrixComponent>()
+                     .has_entity(e.entity)) {
+                command->add<transform::TransformMatrixComponent>();
+            }
+            std::println("create attach command to {} ", e.entity.id());
+            std::println("ok");
         },
-        submit);
+        world, submit);
 }

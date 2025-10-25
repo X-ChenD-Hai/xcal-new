@@ -35,10 +35,11 @@ class CommandSubmit {
 
     template <typename Command, typename... Args>
         requires(std::is_constructible_v<Command, Args...>)
-    CommandSubmit &submit(Args &&...args) {
+    Command *submit(Args &&...args) {
         auto cmd = std::make_unique<Command>(std::forward<Args>(args)...);
-        commands_[(uint32_t)cmd->execute_priority()].push_back(std::move(cmd));
-        return *this;
+        return (Command *)commands_[(uint32_t)cmd->execute_priority()]
+            .emplace_back(std::move(cmd))
+            .get();
     }
 };
 class AttachComponents : public Command {
@@ -47,7 +48,8 @@ class AttachComponents : public Command {
 
    public:
     template <typename... Components>
-    AttachComponents(Entity entity, Components &&...components):entity_(entity) {
+    AttachComponents(Entity entity, Components &&...components)
+        : entity_(entity) {
         (add<Components>(std::forward<Components>(components)), ...);
     }
 
@@ -61,12 +63,21 @@ class AttachComponents : public Command {
     }
     template <typename Component1, typename Component2, typename... Components>
     AttachComponents &add(Component1 &&component1, Component2 &&component2,
-                      Components &&...components) {
+                          Components &&...components) {
         add<Component1>(component1);
         add<Component2>(component2);
         (add<Components>(components), ...);
         return *this;
     }
+
+    template <typename Component>
+    AttachComponents &add(Component &&component) {
+        using Com = purge_t<Component>;
+        components_.emplace_back(ComponentIdGenerator<Com>::get(),
+                                 new Com(std::forward<Component>(component)));
+        return *this;
+    }
+
     CommandExecutePriority execute_priority() const noexcept override {
         return CommandExecutePriority::APPEND_COMPONENTS;
     };

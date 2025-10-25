@@ -7,6 +7,7 @@
 #include <print>
 #include <sparse_list.hpp>
 #include <type_map.hpp>
+#include <type_traits>
 #include <xc_assert.hpp>
 
 #include "./command_submit.hpp"
@@ -131,16 +132,25 @@ class World {
         XC_ASSERT(has_component(comp));
         return component_infos_[pool_index_of_component(comp)];
     }
+    template <typename Component>
+    inline const ComponentInfo &component_info() const noexcept {
+        return component_info(component_id<Component>());
+    }
+    template <typename Component>
+    inline ComponentInfo &component_info() noexcept {
+        return component_info(ComponentIdGenerator<Component>::get());
+    }
+
     inline ComponentInfo &component_info(component_t comp) noexcept {
         XC_ASSERT(has_component(comp));
         return component_infos_[pool_index_of_component(comp)];
     }
-    inline void attach_component(component_t comp, Entity e, void *data) {
+    inline void *attach_component(component_t comp, Entity e, void *data) {
         auto &info = component_info(comp);
         XC_ASSERT(!info.has_entity(e));
         auto pool_index = info.pool_index();
-        pools_[pool_index].emplace_back(data, info.deleter_);
         info.add_entity(e);
+        return pools_[pool_index].emplace_back(data, info.deleter_).get();
     }
     inline void detach_component(component_t comp, Entity e) {
         auto &info = component_info(comp);
@@ -148,6 +158,23 @@ class World {
         pools_[info.pool_index()][info.cell_index(e)].reset();
         info.remove_entity(e);
     }
+    template <typename Component, typename... Args>
+    inline Component *attach_component(Entity e, Args &&...args) noexcept {
+        return (Component *)attach_component(
+            ComponentIdGenerator<Component>::get(), e,
+            new Component(std::forward<Args>(args)...));
+    }
+    template <typename Component>
+        requires(std::is_default_constructible_v<Component>)
+    inline Component *get_or_attach_component(Entity entity) noexcept {
+        if (auto &info = component_info<Component>(); info.has_entity(entity)) {
+            return (Component *)
+                pools_[info.pool_index()][info.cell_index(entity)]
+                    .get();
+        }
+        return attach_component<Component>(entity);
+    }
+
     inline void modify_component(component_t comp, Entity e, void *data) {
         auto &info = component_info(comp);
         XC_ASSERT(info.has_entity(e));

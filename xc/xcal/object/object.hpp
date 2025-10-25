@@ -25,6 +25,16 @@ struct DestroyObject {
 class Object {
     friend class xcal::Xcal;
     ecs::Entity entity_{0, 0};
+    ecs::World *world_{nullptr};
+
+   public:
+    // 访问当前对象绑定的实体（只读）
+    inline ecs::Entity entity() const noexcept { return entity_; }
+    // 访问 World（断言已绑定）
+    inline ecs::World &world() const {
+        XC_ASSERT(world_ != nullptr);
+        return *world_;
+    }
 
    public:
     Object() = default;
@@ -51,8 +61,8 @@ inline T &xc::xcal::Xcal::add(Args &&...args) {
 template <typename T>
     requires std::derived_from<T, xc::xcal::object::Object>
 inline T &xc::xcal::Xcal::add(T &&obj_ref) {
-    auto &obj = static_cast<T &>(
-        add_object(std::make_unique<T>(std::move(obj_ref))));
+    auto &obj =
+        static_cast<T &>(add_object(std::make_unique<T>(std::move(obj_ref))));
     world_.resource<ecs::EventBus>().publish<object::CreateObject<T>>(
         obj.entity_, obj.config_);
     return obj;

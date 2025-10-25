@@ -28,6 +28,7 @@ void xc::xcal::Xcal::uninstall(ecs::World &world, Xcal *xcal) { delete xcal; };
 xc::xcal::object::Object &xc::xcal::Xcal::add_object(
     std::unique_ptr<object::Object> &&obj) {
     obj->entity_ = world_.create_entity();
+    obj->world_ = &world_;  // 绑定 world 指针，便于对象内部访问与提交命令
     objects_.emplace_back(std::move(obj));
     return *objects_.back();
 }

@@ -27,11 +27,12 @@ int main() {
     ecs::World world;
     world.add_component<EntityName>().add_component<EntityUserId>();
     EntityName name{"data"};
-    world.submit()
-        .submit<ecs::AttachComponents>(world.create_entity(), name)
-        .submit<ecs::AttachComponents>(world.create_entity(), name,
-                                       EntityUserId{11})
-        .submit<ecs::AttachComponents>(world.create_entity(), EntityUserId{22});
+    auto &submit = world.submit();
+    submit.submit<ecs::AttachComponents>(world.create_entity(), name);
+    submit.submit<ecs::AttachComponents>(world.create_entity(), name,
+                                         EntityUserId{11});
+    submit.submit<ecs::AttachComponents>(world.create_entity(),
+                                         EntityUserId{22});
     auto q1 = world.querier().query<EntityName>();
     auto q2 = world.querier().query<EntityUserId>();
     auto q3 = q1.query<EntityUserId>();
