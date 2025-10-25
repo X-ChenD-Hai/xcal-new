@@ -4,10 +4,14 @@
 #include <ecs/world.hpp>
 
 #include "../xcal.hpp"
+#include "xc_assert.hpp"
 
 namespace xc::xcal {
 class Xcal;
+namespace animation {
+class Animation;
 }
+}  // namespace xc::xcal
 namespace xc::xcal::object {
 template <typename T>
 struct CreateObject {
@@ -24,6 +28,7 @@ struct DestroyObject {
 };
 class Object {
     friend class xcal::Xcal;
+    friend class xcal::animation::Animation;
     ecs::Entity entity_{0, 0};
     ecs::World *world_{nullptr};
 
@@ -36,13 +41,33 @@ class Object {
         return *world_;
     }
 
-   public:
-    Object() = default;
-    Object(const Object &) { XC_ASSERT(entity_.id() == 0); };
+   protected:
+    Object(const Object &) = default;
     Object &operator=(const Object &) {
         XC_ASSERT(entity_.id() == 0);
         return *this;
     };
+
+   public:
+    template <typename Component>
+    inline bool has_component() const noexcept {
+        return world().component_info<Component>().has_entity(entity_);
+    }
+    template <typename Component>
+    inline Component &component() {
+        return *world().get_or_attach_component<Component>(entity_);
+    }
+    template <typename Component>
+    inline const Component &component() const {
+        return world().component<Component>(entity_);
+    }
+    template <typename Component>
+    inline Component &set_component(const Component &component) {
+        return *world().get_or_attach_component<Component>(entity_) = component;
+    }
+
+   public:
+    Object() = default;
     Object(Object &&) = default;
     Object &operator=(Object &&) = default;
     virtual ~Object() = 0;

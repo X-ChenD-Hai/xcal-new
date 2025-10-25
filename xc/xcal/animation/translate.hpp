@@ -6,19 +6,20 @@
 
 #include "./animation.hpp"
 
-
 namespace xc::xcal::animation {
 
-struct TranslateAnimationComponent : public AnimationComponent {
+struct TranslateAnimationComponent {
+    AnimationComponent animation;
     xcmath::vec3f start_pos;
     xcmath::vec3f end_pos;
 
     inline constexpr xcmath::vec3f current_pos() const noexcept {
-        XC_ASSERT(is_valid());
-        return start_pos + (end_pos - start_pos) * coefficient();
+        XC_ASSERT(animation.is_valid());
+        return start_pos + (end_pos - start_pos) * animation.coefficient();
     }
 };
 
-void update_translate(ecs::ComponentAccessor accessor,const ecs::EventBus& event_bus);
+void update_translate(ecs::ComponentAccessor accessor,
+                      ecs::EventBus& event_bus);
 
 };  // namespace xc::xcal::animation

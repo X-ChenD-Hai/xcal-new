@@ -33,3 +33,6 @@ xc::xcal::object::Object &xc::xcal::Xcal::add_object(
     return *objects_.back();
 }
 xc::xcal::Xcal::Xcal(ecs::World &world) : world_(world) {}
+xc::xcal::animation::AnimationManager &xc::xcal::Xcal::animation_manager() {
+    return world_.resource<animation::AnimationManager>();
+}

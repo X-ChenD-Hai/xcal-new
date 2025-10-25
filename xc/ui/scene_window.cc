@@ -1,5 +1,6 @@
 #include <ecs/event_bus.hpp>
 #include <ecs/resource.hpp>
+#include <xcal/animation/animation_manager.hpp>
 #include <xcal/camera/camera.hpp>
 #include <xcal/event/events.hpp>
 #include <xcal/object/line.hpp>
@@ -79,6 +80,18 @@ void SceneWindow::init_editors_() {
             std::print("transform position: {} {} {}\n", x, y, z);
         },
         "transform position", true, "x", 0.0f, "y", 0.0f, "z", 0.0f);
+    add_button(
+        [this]() {
+            auto& xcal = world_.plugin<xc::xcal::Xcal>();
+            if (!xcal.animation_manager().current_time_line())
+                xcal.animation_manager().create_time_line().play();
+            auto time_line = xcal.animation_manager().current_time_line();
+            if (time_line->is_playing())
+                time_line->stop();
+            else
+                time_line->play();
+        },
+        "start time line");
 }
 void SceneWindow::init_world_() {
     using namespace xc::xcal;
@@ -128,7 +141,9 @@ void SceneWindow::create_entity_() {
     xcal.add(object::Line{{0.f, 1.f, 0.0f}})
         .rotate({0.f, 0.f, 30.0f})
         .scale({0.5f, 0.5f, 0.5f});
-    xcal.add(object::Line{{0.f, 0.f, 1.0f}});
+    xcal.add(object::Line{{0.f, 0.f, 1.0f}})
+        .animation(11, 21)
+        .move({0.f, 0.f, 1.0f});
     // xcal.add(object::Line{{1.f, 0.f, 1.0f}});
 };
 void SceneWindow::update_world_() {

@@ -7,6 +7,10 @@ class EventBus;
 };  // namespace ecs
 
 namespace xc::xcal {
+namespace animation {
+class AnimationManager;
+class TimeLine;
+}  // namespace animation
 namespace object {
 class Object;
 }
@@ -36,6 +40,7 @@ class Xcal {
     template <typename T>
         requires std::derived_from<T, xc::xcal::object::Object>
     T &add(T &&obj);
+    animation::AnimationManager &animation_manager();
 };
 void handle_event(ecs::EventBus &bus);
 }  // namespace xc::xcal

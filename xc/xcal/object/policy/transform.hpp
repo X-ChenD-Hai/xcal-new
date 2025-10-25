@@ -4,40 +4,37 @@
 #include <xcal/transform/transform.hpp>
 #include <xcmath/xcmath.hpp>
 
+#include "xcal/object/object.hpp"
+
 namespace xc::xcal::object::policy {
 struct Transform {
-    static inline transform::TransformComponent* ensure_transform(
-        ecs::World& w, ecs::Entity e) {
-        return w
-            .template get_or_attach_component<transform::TransformComponent>(e);
+    static inline void set_pos(Object& o, const xcmath::vec3f& p) {
+        auto& t = o.component<transform::TransformComponent>();
+        t.position = p;
+        t.state.add(transform::TransformState::Dirty);
     }
-    static inline void set_pos(ecs::World& w, ecs::Entity e,
-                               const xcmath::vec3f& p) {
-        auto* t = ensure_transform(w, e);
-        t->position = p;
-        t->state.add(transform::TransformState::Dirty);
+    static inline void set_rotation(Object& o, const xcmath::vec3f& r) {
+        auto& t = o.component<transform::TransformComponent>();
+        t.rotation = r;
+        t.state.add(transform::TransformState::Dirty);
     }
-    static inline void set_rotation(ecs::World& w, ecs::Entity e,
-                                    const xcmath::vec3f& r) {
-        auto* t = ensure_transform(w, e);
-        t->rotation = r;
-        t->state.add(transform::TransformState::Dirty);
+    static inline void set_scale(Object& o, const xcmath::vec3f& s) {
+        auto& t = o.component<transform::TransformComponent>();
+        t.scale = s;
+        t.state.add(transform::TransformState::Dirty);
     }
-    static inline void set_scale(ecs::World& w, ecs::Entity e,
-                                 const xcmath::vec3f& s) {
-        auto* t = ensure_transform(w, e);
-        t->scale = s;
-        t->state.add(transform::TransformState::Dirty);
-    }
-    static inline void set_transform(ecs::World& w, ecs::Entity e,
+    static inline void set_transform(Object& o,
                                      const transform::TransformComponent& t) {
-        auto c = ensure_transform(w, e);
-        *c = t;
-        c->state.add(transform::TransformState::Dirty);
+        auto& c = o.component<transform::TransformComponent>();
+        c = t;
+        c.state.add(transform::TransformState::Dirty);
     }
     static inline const transform::TransformComponent& transform(
-        ecs::World& w, ecs::Entity e) {
-        return *ensure_transform(w, e);
+        const Object& o) {
+        static transform::TransformComponent default_transform;
+        if (!o.has_component<transform::TransformComponent>())
+            return default_transform;
+        return o.component<transform::TransformComponent>();
     }
 };
 

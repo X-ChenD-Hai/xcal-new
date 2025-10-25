@@ -10,21 +10,21 @@ class Transformable : public CrtpBase<Derived> {
 
    public:
     inline const xcmath::vec3f& position() const {
-        return Policy::transform(self().world(), self().entity()).position;
+        return Policy::transform(self()).position;
     }
     inline const xcmath::vec3f& rotation() const {
-        return Policy::transform(self().world(), self().entity()).rotation;
+        return Policy::transform(self()).rotation;
     }
     inline const xcmath::vec3f& scale() const {
-        return Policy::transform(self().world(), self().entity()).scale;
+        return Policy::transform(self()).scale;
     }
 
     inline auto& set_position(const xcmath::vec3f& p) {
-        Policy::set_pos(self().world(), self().entity(), p);
+        Policy::set_pos(self(), p);
         return self();
     }
     inline auto& move(const xcmath::vec3f& delta) {
-        Policy::set_pos(self().world(), self().entity(), position() + delta);
+        Policy::set_pos(self(), position() + delta);
         return self();
     }
     inline auto& set_position(float x, float y, float z) {
@@ -36,12 +36,11 @@ class Transformable : public CrtpBase<Derived> {
 
     // 旋转相关（单位：弧度）
     inline auto& set_rotation(const xcmath::vec3f& r) {
-        Policy::set_rotation(self().world(), self().entity(), r);
+        Policy::set_rotation(self(), r);
         return self();
     }
     inline auto& rotate(const xcmath::vec3f& delta) {
-        Policy::set_rotation(self().world(), self().entity(),
-                             rotation() + delta);
+        Policy::set_rotation(self(), rotation() + delta);
         return self();
     }
     inline auto& set_rotation(float rx, float ry, float rz) {
@@ -53,11 +52,11 @@ class Transformable : public CrtpBase<Derived> {
 
     // 缩放相关
     inline auto& set_scale(const xcmath::vec3f& s) {
-        Policy::set_scale(self().world(), self().entity(), s);
+        Policy::set_scale(self(), s);
         return self();
     }
     inline auto& scale(const xcmath::vec3f& factor) {
-        Policy::set_scale(self().world(), self().entity(), scale() * factor);
+        Policy::set_scale(self(), scale() * factor);
         return self();
     }
     inline auto& set_scale(float sx, float sy, float sz) {

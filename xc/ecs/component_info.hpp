@@ -15,17 +15,20 @@ class ComponentInfo {
     std::function<void(void *)> deleter_;
 
    public:
-    size_t cell_index(Entity e) { return entities_.get_index(e.id()); };
-    void add_entity(Entity entity) { entities_.insert(entity.id()); }
-    void remove_entity(Entity entity) { entities_.remove(entity.id()); }
-    bool has_entity(Entity entity) const {
+    inline size_t cell_index(Entity e) const noexcept {
+        return entities_.get_index(e.id());
+    };
+    inline void add_entity(Entity entity) { entities_.insert(entity.id()); }
+    inline void remove_entity(Entity entity) { entities_.remove(entity.id()); }
+    inline bool has_entity(Entity entity) const {
         return entities_.has_value(entity.id());
     }
 
-    void deallocate(void *ptr) { deleter_(ptr); }
+    inline void deallocate(void *ptr) { deleter_(ptr); }
     inline uint32_t pool_index() const noexcept { return pool_index_; }
 
-    ComponentInfo(uint32_t pool_index, std::function<void(void *)> deleter)
+    inline ComponentInfo(uint32_t pool_index,
+                         std::function<void(void *)> deleter)
         : pool_index_(pool_index), deleter_(deleter) {}
 };
 }  // namespace ecs

@@ -134,7 +134,7 @@ class World {
     }
     template <typename Component>
     inline const ComponentInfo &component_info() const noexcept {
-        return component_info(component_id<Component>());
+        return component_info(ComponentIdGenerator<Component>::get());
     }
     template <typename Component>
     inline ComponentInfo &component_info() noexcept {
@@ -180,6 +180,12 @@ class World {
         XC_ASSERT(info.has_entity(e));
         pools_[info.pool_index()][info.cell_index(e)] =
             Cell_(data, info.deleter_);
+    }
+    template <typename Component>
+    inline const Component &component(Entity e) const {
+        return *(Component *)pools_[component_info<Component>().pool_index()]
+                                   [component_info<Component>().cell_index(e)]
+                                       .get();
     }
 
     CommandSubmit &submit();
