@@ -76,19 +76,18 @@ inline Object::~Object() = default;
 }  // namespace xc::xcal::object
 template <typename T, typename... Args>
     requires std::derived_from<T, xc::xcal::object::Object>
-inline T &xc::xcal::Xcal::add(Args &&...args) {
-    auto &obj = static_cast<T &>(
-        add_object(std::make_unique<T>(std::forward<Args>(args)...)));
+inline T xc::xcal::Xcal::add(Args &&...args) {
+    auto obj = T(std::forward<Args>(args)...);
+    setup_object(obj);
     world_.resource<ecs::EventBus>().publish<object::CreateObject<T>>(
         obj.entity_, obj.config_);
     return obj;
 }
 template <typename T>
     requires std::derived_from<T, xc::xcal::object::Object>
-inline T &xc::xcal::Xcal::add(T &&obj_ref) {
-    auto &obj =
-        static_cast<T &>(add_object(std::make_unique<T>(std::move(obj_ref))));
+inline T xc::xcal::Xcal::add(T &&obj_ref) {
+    setup_object(obj_ref);
     world_.resource<ecs::EventBus>().publish<object::CreateObject<T>>(
-        obj.entity_, obj.config_);
-    return obj;
+        obj_ref.entity_, obj_ref.config_);
+    return obj_ref;
 }
