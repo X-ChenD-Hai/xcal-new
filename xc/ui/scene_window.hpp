@@ -12,21 +12,23 @@ struct WorldeadyToExitEvent {};
 class UiEditorCacher;
 class SceneWindow : public GlfwImguiWindow {
    private:
-    std::string name_ = "Scene Window";
+    std::string name_{"Scene Window"};
     std::array<float, 3> color_;
     ecs::World world_;
     bool world_ready_stop_ = false;
     ecs::EventBus event_bus_;
     std::unique_ptr<UiEditorCacher> ui_editor_cacher_;
     struct {
-       double x_pos = 0.0;
-       double y_pos = 0.0;
+        double x_pos = 0.0;
+        double y_pos = 0.0;
     } last_mouse_pos_;
     bool moving = false;
 
    public:
     SceneWindow();
     SceneWindow(const std::string& name, int width, int height, int fps);
+
+   public:
     ~SceneWindow() override;
     bool event(AbsEvent* event) override;
     bool resize_event(WindowResizeEvent*) override;
