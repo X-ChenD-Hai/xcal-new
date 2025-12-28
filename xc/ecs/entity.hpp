@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <id_generator.hpp>
 #include <sparse_list.hpp>
 #include <xc_assert.hpp>
@@ -35,10 +36,10 @@ class Entity final {
     }
 
    public:
-    Entity(const Entity &) = default;
-    Entity(Entity &&) = default;
-    Entity &operator=(const Entity &) = default;
-    Entity &operator=(Entity &&) = default;
+    Entity(const Entity&) = default;
+    Entity(Entity&&) = default;
+    Entity& operator=(const Entity&) = default;
+    Entity& operator=(Entity&&) = default;
 };
 class ComponentInfo;
 template <typename Component_>
@@ -47,4 +48,10 @@ using ComponentIdGenerator =
                                    uint32_t>::Generator<Component_>;
 using ComponentCounter =
     ThreadSaftyIdGeneratorTemplate<ComponentInfo, uint32_t>;
+
+template <typename Component>
+inline uint32_t get_component_id() {
+    return ComponentIdGenerator<Component>::get();
+}
+
 }  // namespace ecs

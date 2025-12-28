@@ -8,8 +8,3 @@ void ecs::CommandSubmit::execute_then_clear(World &world) {
         commands.clear();
     }
 }
-void ecs::AttachComponents::execute(World &world) const {
-    for (auto &component : components_) {
-        world.attach_component(component.first, entity_, component.second);
-    }
-};

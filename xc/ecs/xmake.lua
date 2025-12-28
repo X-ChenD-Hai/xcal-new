@@ -1,5 +1,6 @@
 target("ecs")
     set_kind("static")
     add_files("*.cc")
+    add_files("command/*.cc")
     add_includedirs("../",{public=true})
     add_deps("libxc")
