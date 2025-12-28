@@ -32,8 +32,8 @@ class AttachComponents : public Command {
         (add<Components>(components), ...);
         return *this;
     }
-    CommandExecutePriority execute_priority() const noexcept override {
-        return CommandExecutePriority::APPEND_COMPONENTS;
+    ExecutePriority execute_priority() const noexcept override {
+        return ExecutePriority::APPEND_COMPONENTS;
     };
     void execute(World& world) const override;
 };

@@ -14,8 +14,8 @@ class DetachComponents : public Command {
         (components_.emplace_back(get_component_id<Component>()), ...);
         return *this;
     }
-    CommandExecutePriority execute_priority() const noexcept override {
-        return CommandExecutePriority::DELETE_COMPONENTS;
+    ExecutePriority execute_priority() const noexcept override {
+        return ExecutePriority::DELETE_COMPONENTS;
     };
     void execute(World& world) const override;
 

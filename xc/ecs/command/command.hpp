@@ -3,7 +3,7 @@
 namespace ecs {
 class World;
 namespace command {
-enum class CommandExecutePriority : uint16_t {
+enum class ExecutePriority : uint16_t {
     BEFORE_ALL = 0,
     APPEND_COMPONENTS,
     MODIFY_COMPONENTS,
@@ -13,7 +13,7 @@ enum class CommandExecutePriority : uint16_t {
 };
 
 struct Command {
-    virtual CommandExecutePriority execute_priority() const noexcept = 0;
+    virtual ExecutePriority execute_priority() const noexcept = 0;
     virtual void execute(World& world) const = 0;
     virtual ~Command() {}
 };

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <ecs/command/attach_components.hpp>
 #include <ecs/command_submit.hpp>
 #include <ecs/component_accessor.hpp>
 #include <ecs/event_bus.hpp>
@@ -10,7 +11,6 @@
 #include <print>
 #include <sparse_list.hpp>
 #include <xc_assert.hpp>
-#include <ecs/command/attach_components.hpp>
 using namespace ecs;
 class EntityName {
     std::string name_;

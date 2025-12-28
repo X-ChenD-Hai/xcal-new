@@ -31,8 +31,8 @@ class UpdateComponents : public Command {
     }
 
    protected:
-    CommandExecutePriority execute_priority() const noexcept override {
-        return CommandExecutePriority::MODIFY_COMPONENTS;
+    ExecutePriority execute_priority() const noexcept override {
+        return ExecutePriority::MODIFY_COMPONENTS;
     };
     void execute(World& world) const override;
 
