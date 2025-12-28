@@ -50,7 +50,7 @@ inline T &xc::xcal::Xcal::add(Args &&...args) {
 }
 template <typename T>
     requires std::derived_from<T, xc::xcal::object::Object>
-inline T &xc::xcal::Xcal::add(T &&obj_ref) {
+inline T &xc::xcal::Xcal::  add(T &&obj_ref) {
     auto &obj = static_cast<T &>(
         add_object(std::make_unique<T>(std::move(obj_ref))));
     world_.resource<ecs::EventBus>().publish<object::CreateObject<T>>(

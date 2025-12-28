@@ -23,6 +23,16 @@ inline std::string offset_print_string(std::string_view str, size_t offset,
     assert(limit > 0);
     int pos = 0;
     while (pos < result.length()) {
+        if (pos < result.length() && pos != 0) {
+            auto c = (uint8_t)result[pos];
+            if ((c & (uint8_t)(0x01 << 7)) != 0) {
+                while ((c & (uint8_t)(0x11 << 6)) != (0x11 << 6)) {
+                    pos++;
+                    if (pos >= result.length()) break;
+                    c = (uint8_t)result[pos];
+                }
+            }
+        }
         result.insert(pos, offset_str);
         if (pos != 0) result.insert(pos, "\n");
         pos += offset_str.length() + limit;

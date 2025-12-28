@@ -1,3 +1,4 @@
+#include <ecs/command/attach_components.hpp>
 #include <ecs/command_submit.hpp>
 #include <ecs/component_accessor.hpp>
 #include <ecs/querier.hpp>
@@ -6,18 +7,17 @@
 #include <print>
 #include <sparse_list.hpp>
 #include <xc_assert.hpp>
-
 class EntityName {
     std::string name_;
     size_t copy_count_ = 0;
 
    public:
-    EntityName(const std::string &name) : name_(name), copy_count_(0) {}
+    EntityName(const std::string& name) : name_(name), copy_count_(0) {}
     ~EntityName() {}
-    EntityName(const EntityName &o) : EntityName(o.name_) {
+    EntityName(const EntityName& o) : EntityName(o.name_) {
         copy_count_ = o.copy_count_ + 1;
     }
-    std::string &name() { return name_; }
+    std::string& name() { return name_; }
 };
 struct EntityUserId {
     size_t id;
@@ -28,10 +28,11 @@ int main() {
     world.add_component<EntityName>().add_component<EntityUserId>();
     EntityName name{"data"};
     world.submit()
-        .submit<ecs::AttachComponents>(world.create_entity(), name)
-        .submit<ecs::AttachComponents>(world.create_entity(), name,
-                                       EntityUserId{11})
-        .submit<ecs::AttachComponents>(world.create_entity(), EntityUserId{22});
+        .submit<ecs::command::AttachComponents>(world.create_entity(), name)
+        .submit<ecs::command::AttachComponents>(world.create_entity(), name,
+                                                ::EntityUserId{11})
+        .submit<ecs::command::AttachComponents>(world.create_entity(),
+                                                EntityUserId{22});
     auto q1 = world.querier().query<EntityName>();
     auto q2 = world.querier().query<EntityUserId>();
     auto q3 = q1.query<EntityUserId>();

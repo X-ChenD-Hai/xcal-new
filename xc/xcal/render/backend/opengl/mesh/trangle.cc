@@ -1,7 +1,5 @@
 #include "./trangle.hpp"
 
-#include <print>
-
 #include "../openglloader.h"
 xc::xcal::render::opengl::Trangle::Trangle(xcmath::vec3f a, xcmath::vec3f b,
                                            xcmath::vec3f c) {

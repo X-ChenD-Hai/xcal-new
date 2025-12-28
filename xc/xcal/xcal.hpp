@@ -22,6 +22,8 @@ class Xcal {
     Xcal(Xcal &&) = delete;
     Xcal &operator=(Xcal &&) = delete;
     ~Xcal() = default;
+
+   protected:
     static Xcal *install(ecs::World &world);
     static void uninstall(ecs::World &world, Xcal *xcal);
     ecs::World &run(ecs::World &world);

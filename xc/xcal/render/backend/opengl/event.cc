@@ -1,5 +1,6 @@
 #include "./event.hpp"
 
+#include <ecs/command/attach_components.hpp>
 #include <ecs/command_submit.hpp>
 #include <ecs/event_bus.hpp>
 #include <ecs/resource_table.hpp>
@@ -23,7 +24,7 @@ static void add_mesh(ecs::CommandSubmit& submit, ecs::Entity entity,
     std::visit(
         [&](auto&& shader) {
             std::println("create attach command to {} ", entity.id());
-            submit.submit<ecs::AttachComponents>(
+            submit.submit<ecs::command::AttachComponents>(
                 entity, transform, mesh_comp, shader,
                 xc::xcal::transform::TransformMatrixComponent{});
             std::println("ok");

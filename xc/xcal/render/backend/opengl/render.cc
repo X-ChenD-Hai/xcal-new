@@ -1,5 +1,6 @@
 #include "./render.hpp"
 
+#include <ecs/command/attach_components.hpp>
 #include <ecs/resource_table.hpp>
 #include <ecs/world.hpp>
 #include <xcal/transform/transform.hpp>
@@ -36,7 +37,7 @@ void xc::xcal::render::opengl::Render::add_mesh(
     std::visit(
         [&](auto &&shader) {
             auto entity = world_.create_entity();
-            world_.submit().submit<ecs::AttachComponents>(
+            world_.submit().submit<ecs::command::AttachComponents>(
                 entity, transform_component, mesh_comp, shader,
                 xc::xcal::transform::TransformMatrixComponent{});
         },
