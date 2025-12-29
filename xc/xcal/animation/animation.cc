@@ -6,7 +6,7 @@
 
 void xc::xcal::animation::details::setup(ecs::World &world) {
     std::println("setup animation");
-    world.add_component<TranslateAnimationComponent>();
+    world.regist_component<TranslateAnimationComponent>();
 };
 void xc::xcal::animation::details::run(ecs::World &world) {
     world.run_system<update_translate>();

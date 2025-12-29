@@ -29,8 +29,8 @@ void xc::xcal::transform::update_transform_matrix(ecs::Querier q,
 }
 void xc::xcal::transform::details::setup(ecs::World &world) {
     std::println("transform setup");
-    world.add_component<TransformComponent>()
-        .add_component<TransformMatrixComponent>();
+    world.regist_component<TransformComponent>()
+        .regist_component<TransformMatrixComponent>();
 }
 void xc::xcal::transform::details::run(ecs::World &world) {
     world.run_system<update_transform_matrix>();

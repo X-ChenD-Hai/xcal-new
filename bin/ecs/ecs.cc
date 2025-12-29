@@ -148,8 +148,8 @@ void do_async_create_resource(ResourceTable& table) {
 int main(int argc, char* argv[]) {
     MySystem my_system;
     World world;
-    world.add_component<EntityName>()
-        .add_component<EntityUserId>()
+    world.regist_component<EntityName>()
+        .regist_component<EntityUserId>()
         .add_resource<AppName>("Hello, world!")
         .add_resource<ResourceTable>()
         .add_resource<EventBus>()

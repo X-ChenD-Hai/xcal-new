@@ -13,13 +13,13 @@ xc::xcal::render::opengl::Render *xc::xcal::render::opengl::Render::install(
     ecs::World &world) {
     if (!world.resource_manager().has<ecs::ResourceTable>())
         world.add_resource<ecs::ResourceTable>();
-    world.add_component<SingleColorShaderComponent>()
-        .add_component<LinearGradientShaderComponent>()
-        .add_component<RadialGradientShaderComponent>()
-        .add_component<VertexColorShaderComponent>()
-        .add_component<Texture2dShaderComponent>()
-        .add_component<Texture3dShaderComponent>()
-        .add_component<MeshComponent>();
+    world.regist_component<SingleColorShaderComponent>()
+        .regist_component<LinearGradientShaderComponent>()
+        .regist_component<RadialGradientShaderComponent>()
+        .regist_component<VertexColorShaderComponent>()
+        .regist_component<Texture2dShaderComponent>()
+        .regist_component<Texture3dShaderComponent>()
+        .regist_component<MeshComponent>();
     return new Render(world);
 }
 ecs::World &xc::xcal::render::opengl::Render::run(ecs::World &world) {

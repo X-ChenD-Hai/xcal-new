@@ -2,10 +2,9 @@
 #include <malloc.h>
 
 #include <cstdlib>
+#include <ecs/utils/traits.hpp>
 #include <type_map.hpp>
 #include <xc_assert.hpp>
-
-#include "./utils/traits.hpp"
 
 namespace ecs {
 namespace details {

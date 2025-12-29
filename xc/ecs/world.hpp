@@ -35,28 +35,18 @@ class World {
     template <auto System, typename BindObj>
     friend class ObjectSystemBuilder;
 
-   private:
-    std::vector<Entity> entities_{};
-    std::vector<ComponentInfo> component_infos_{};
-    ResourceManager resource_manager_;
-    SparseList<component_t, uint32_t, 32> component2pool_map_{};
-    std::vector<std::vector<Cell_>> pools_{};
-    CommandSubmit command_submit_;
-    std::vector<std::unique_ptr<void, std::function<void(void*)>>> plugins_;
-    TypeMap<uint32_t> plugins_id_map_{uint32_t(-1)};
-
    protected:
     template <class Arg>
     static decltype(auto) fatch_args(World& world) noexcept;
 
    public:
     template <typename Component>
-    World& add_component();
+    World& regist_component();
     template <typename Component1, typename Component2, typename... Components>
-    World& add_component() {
-        add_component<Component1>();
-        add_component<Component2>();
-        (add_component<Components>(), ...);
+    World& regist_component() {
+        regist_component<Component1>();
+        regist_component<Component2>();
+        (regist_component<Components>(), ...);
         return *this;
     }
     template <typename Resource>
@@ -75,9 +65,11 @@ class World {
         std::println("installing plugin: {}", typeid(Plugin).name());
         if constexpr (std::is_invocable_r_v<Plugin*, decltype(Plugin::install),
                                             World&, Args...>) {
-            plugins_.emplace_back(
-                Plugin::install(*this, std::forward<Args>(args)...),
-                [this](void* ptr) { Plugin::uninstall(*this, (Plugin*)ptr); });
+            auto pligin = Plugin::install(*this, std::forward<Args>(args)...);
+            plugins_.emplace_back(pligin, [this](void* ptr) {
+                Plugin::uninstall(*this, (Plugin*)ptr);
+            });
+            add_resource<Plugin>(pligin);
             plugins_id_map_.data<Plugin>() = plugins_.size() - 1;
             std::println("installed plugin: {} , id:{}", typeid(Plugin).name(),
                          plugins_id_map_.data<Plugin>());
@@ -93,11 +85,10 @@ class World {
         if constexpr (std::is_member_function_pointer_v<
                           decltype(&Plugin::run)>) {
             XC_ASSERT(plugins_id_map_.data<Plugin>() != uint32_t(-1));
-            (static_cast<Plugin*>(
-                 plugins_[plugins_id_map_.data<Plugin>()].get()))
-                ->run(*this);
+            run_system<&Plugin::run>((static_cast<Plugin*>(
+                plugins_[plugins_id_map_.data<Plugin>()].get())));
         } else {
-            Plugin::run(*this);
+            run_system<Plugin::run>();
         }
         return *this;
     }
@@ -152,6 +143,16 @@ class World {
         submit->execute_then_clear(*this);
         return *this;
     }
+
+   private:
+    std::vector<Entity> entities_{};
+    std::vector<ComponentInfo> component_infos_{};
+    ResourceManager resource_manager_;
+    SparseList<component_t, uint32_t, 32> component2pool_map_{};
+    std::vector<std::vector<Cell_>> pools_{};
+    CommandSubmit command_submit_;
+    std::vector<std::unique_ptr<void, std::function<void(void*)>>> plugins_;
+    TypeMap<uint32_t> plugins_id_map_{uint32_t(-1)};
 };
 template <typename Resource>
 inline Resource& World::resource() {
@@ -197,7 +198,7 @@ World& World::add_resource(Resource* resource) {
 };
 
 template <typename Component>
-World& World::add_component() {
+World& World::regist_component() {
     XC_ASSERT(!component2pool_map_.has_value(get_component_id<Component>()));
     std::println("add component: {} , id:{}", typeid(Component).name(),
                  pools_.size());
@@ -248,11 +249,9 @@ decltype(auto) World::fatch_args(World& world) noexcept {
         return std::ref(world.resource<Pt>());
     } else if constexpr (std::is_same_v<Np, const Pt&>) {
         return std::cref(world.resource<Pt>());
-    } else if constexpr (std::is_same_v<Np, const Pt*> ||
-                         std::is_same_v<Np, const Pt*>) {
+    } else if constexpr (std::is_same_v<Np, const Pt*>) {
         return (const Pt*)&world.resource<Pt>();
-    } else if constexpr (std::is_same_v<Np, Pt*> ||
-                         std::is_same_v<Np, const Pt*>) {
+    } else if constexpr (std::is_same_v<Np, Pt*>) {
         return (Pt*)&world.resource<Pt>();
     } else {
         static_assert(false, "not support this type");

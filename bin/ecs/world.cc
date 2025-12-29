@@ -25,7 +25,7 @@ struct EntityUserId {
 
 int main() {
     ecs::World world;
-    world.add_component<EntityName>().add_component<EntityUserId>();
+    world.regist_component<EntityName>().regist_component<EntityUserId>();
     EntityName name{"data"};
     world.submit()
         .submit<ecs::command::AttachComponents>(world.create_entity(), name)
