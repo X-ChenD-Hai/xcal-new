@@ -60,14 +60,14 @@ void update_app(AppHandler& app, ecs::core::Clock& clock) {
 void AppHandler::init(ecs::World& world) {
     using namespace ecs;
     world.resource<ecs::core::Clock>().run_for(
-        1, std::make_unique<
+        5, std::make_unique<
                command::System<[](AppHandler& app) { app.run_flag = 0; }>>());
     world.add_resource<AppHandler>(AppHandler{10});
     world.regist_component<Posion, Speed>();
     auto& submit = world.submit();
     auto e = world.create_entity();
     submit.submit<command::AttachComponents>(e, Posion{0.1, 0.1},
-                                             Speed{0.1, 0.1});
+                                             Speed{0.5, 0.5});
 }
 
 TEST(Sort, sort) {}

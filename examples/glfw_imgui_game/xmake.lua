@@ -1,0 +1,5 @@
+target("ex-game")
+    set_kind("binary")
+    add_files("*.cc")
+    add_deps("ecs")
+    add_packages("glfw","imgui","glbinding")
