@@ -1,9 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <array>
 #include <chrono>
 #include <ecs/event_bus.hpp>
-#include <print>
 #include <type_map.hpp>
 #include <xc_assert.hpp>
 using namespace ecs;
@@ -53,12 +51,12 @@ TEST(EventBusTest, Test1) {
     // for (auto& e : bus.each<Event>()) {
     //     std::cout << e.name_ << std::endl;
     // }
-    bus.each<Event>([](auto& e) {
+    bus.each([](Event& e) {
         std::cout << e.name_ << std::endl;
         return true;
     });
     std::cout << "size " << bus.size() << std::endl;
-    bus.each<Event>([](auto& e) { std::cout << e.name_ << std::endl; });
+    bus.each([](Event& e) { std::cout << e.name_ << std::endl; });
 
     bus.clear<Event>();
 
@@ -100,7 +98,7 @@ TEST(EventBusTest, swap) {
     bus1.publish<Event>("e 3");
     bus1.publish<Event>("e 3");
     int a = 0;
-    bus1.each<Event>([&]() { return a++ > 3; });
+    bus1.each([&](Event&) { return a++ > 3; });
     std::cout << "size " << bus1.size() << " pool size "
               << bus1.pool_of<Event>().pool_size() << std::endl;
     bus1.shrink();
@@ -121,7 +119,7 @@ TEST(EventBusTest, BasicPublishAndIteration) {
 
     // 使用lambda遍历
     int count = 0;
-    bus.each<Event>([&count](const Event& e) {
+    bus.each([&count](const Event& e) {
         count++;
         EXPECT_TRUE(e.name_.find("event") != std::string::npos);
     });
@@ -168,8 +166,7 @@ TEST(EventBusTest, MemoryPoolExpansion) {
 
     // 验证所有事件都可访问
     std::set<std::string> event_names;
-    bus.each<Event>(
-        [&event_names](const Event& e) { event_names.insert(e.name_); });
+    bus.each([&event_names](const Event& e) { event_names.insert(e.name_); });
 
     EXPECT_EQ(event_names.size(), num_events);
 }
@@ -188,7 +185,7 @@ TEST(EventBusTest, MemoryPoolShrinking) {
 
     // 清除大部分事件，只保留少量
     int kept = 0;
-    bus.each<Event>([&kept](Event& e) {
+    bus.each([&kept](Event& e) {
         if (kept < 5) {
             kept++;
             return false;  // 保留
@@ -267,8 +264,8 @@ TEST(EventBusTest, EmptyBusAndClearOperations) {
 
     // 对空总线调用each应该返回false
     bool callback_called = false;
-    bool result = bus.each<Event>(
-        [&callback_called](const Event&) { callback_called = true; });
+    bool result =
+        bus.each([&callback_called](const Event&) { callback_called = true; });
     EXPECT_FALSE(result);
     EXPECT_FALSE(callback_called);
 
@@ -320,7 +317,7 @@ TEST(EventBusTest, LargeNumberOfEvents) {
 
     // 验证所有事件都可访问
     std::vector<int> found_indices(num_events, 0);
-    bus.each<Event>([&found_indices](const Event& e) {
+    bus.each([&found_indices](const Event& e) {
         size_t pos = e.name_.find("_");
         if (pos != std::string::npos) {
             int index = std::stoi(e.name_.substr(pos + 1));
@@ -343,7 +340,7 @@ TEST(EventBusTest, MoveSemantics) {
     bus.publish<Event>(std::move(original_name));
 
     // original_name 可能被移动（标准未指定但通常为空）
-    bus.each<Event>([](const Event& e) { EXPECT_EQ(e.name_, "original"); });
+    bus.each([](const Event& e) { EXPECT_EQ(e.name_, "original"); });
 }
 
 TEST(EventBusTest, RealWorldScenario) {
@@ -465,7 +462,7 @@ TEST(PerformanceTest, EventBusVsNewDelete) {
 
         BENCHMARK_SCOPE("EventBus-Iterate");
         int sum = 0;
-        bus.each<SimpleEvent>([&sum](const SimpleEvent& e) { sum += e.id; });
+        bus.each([&sum](const SimpleEvent& e) { sum += e.id; });
     }
 
     {

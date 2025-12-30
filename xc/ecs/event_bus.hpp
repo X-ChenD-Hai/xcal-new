@@ -383,15 +383,13 @@ struct EventBus final {
                        .cell_indices);
     }
     template <typename Event, typename Fn, typename... Args>
-        requires((std::is_invocable_v<Fn, Args&...> ||
-                  std::is_invocable_v<Fn, Event&, Args&...>))
+        requires((std::is_invocable_v<Fn, Event&, Args&...>))
     bool each(Fn&& fn, Args&&... args) {
         return std::get<index<Event>>(pools_)->template each<Event>(
             std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
     template <typename Event, typename Fn, typename... Args>
-        requires(std::is_invocable_v<Fn, Args&...> ||
-                 std::is_invocable_v<Fn, const Event&, Args&...>)
+        requires(std::is_invocable_v<Fn, const Event&, Args&...>)
     bool each(Fn&& fn, Args&&... args) const noexcept {
         return std::get<index<Event>>(pools_)->template each<Event>(
             std::forward<Fn>(fn), std::forward<Args>(args)...);
@@ -401,15 +399,17 @@ struct EventBus final {
         requires(std::is_invocable_v<Fn, first_arg_type_t<Fn>&, Args&...> ||
                  std::is_invocable_v<Fn, const first_arg_type_t<Fn>&, Args&...>)
     inline bool each(Fn&& fn, Args&&... args) const noexcept {
-        using Event = first_arg_type_of_t<fn>;
-        return each<Event>(std::forward<Fn>(fn), std::forward<Args>(args)...);
+        using Event = first_arg_type_t<Fn>;
+        return std::get<index<Event>>(pools_)->template each<Event>(
+            std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
     template <typename Fn, typename... Args>
         requires(std::is_invocable_v<Fn, first_arg_type_t<Fn>&, Args&...> ||
                  std::is_invocable_v<Fn, const first_arg_type_t<Fn>&, Args&...>)
     inline bool each(Fn&& fn, Args&&... args) {
-        using Event = first_arg_type_of_t<fn>;
-        return each<Event>(std::forward<Fn>(fn), std::forward<Args>(args)...);
+        using Event = first_arg_type_t<Fn>;
+        return std::get<index<Event>>(pools_)->template each<Event>(
+            std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
 
     template <typename... Event>
