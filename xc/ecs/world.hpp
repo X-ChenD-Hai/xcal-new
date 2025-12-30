@@ -177,7 +177,12 @@ inline World& World::run_system() {
     using trait = func_traits<System>;
     using args = trait::args;
     []<typename... Args>(std::tuple<Args...>*, World& world) -> decltype(auto) {
-        System(World::fatch_args<Args>(world)...);
+        if constexpr (std::is_member_function_pointer_v<decltype(System)>) {
+            ((typename trait::Class&)fatch_args<typename trait::Class&>(world).*
+             System)(World::fatch_args<Args>(world)...);
+        } else {
+            System(World::fatch_args<Args>(world)...);
+        }
     }((args*)nullptr, *this);
     return *this;
 }
