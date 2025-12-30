@@ -7,10 +7,16 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include "ecs/event_bus.hpp"
+
+static inline AppContext* ctx_ptr(GLFWwindow* w) {
+    return (AppContext*)glfwGetWindowUserPointer(w);
+}
+
 AppContext* AppContext::install(ecs::World& world) {
     if (!world.resource_manager().has<ecs::EventBus>())
         world.add_resource<ecs::EventBus>();
-    auto p = new AppContext();
+    auto p = new AppContext(world);
     p->initialize();
     return p;
 }
@@ -79,11 +85,15 @@ bool AppContext::init_glfw_window() {
     glfwMakeContextCurrent(window_);
     glfwSwapInterval(1);  // Enable vsync
 
+    glfwSetWindowUserPointer(window_, this);
+
     // Set window resize callback
-    glfwSetWindowSizeCallback(window_,
-                              [](GLFWwindow* window, int width, int height) {
-                                  gl::glViewport(0, 0, width, height);
-                              });
+    glfwSetWindowSizeCallback(
+        window_, [](GLFWwindow* window, int width, int height) {
+            ctx_ptr(window)
+                ->world_.resource<ecs::EventBus>()
+                .publish<AppContext::FrameResizeEvent>(width, height);
+        });
 
     return true;
 }

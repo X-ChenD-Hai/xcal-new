@@ -9,8 +9,11 @@ class AppContext {
     friend class ecs::World;
 
    public:
-    class CloseRequestEvent {};
-    AppContext() : window_(nullptr) {}
+    struct CloseRequestEvent {};
+    struct FrameResizeEvent {
+        float width;
+        float height;
+    };
     ~AppContext() { cleanup(); }
 
     static AppContext* install(ecs::World& world);
@@ -21,6 +24,8 @@ class AppContext {
     void end_frame(ecs::EventBus& bus) const;
 
    protected:
+    AppContext(ecs::World& world) : window_(nullptr), world_(world) {}
+
     bool initialize();
 
     bool init_glfw();
@@ -33,4 +38,5 @@ class AppContext {
 
    private:
     GLFWwindow* window_;
+    ecs::World& world_;
 };
