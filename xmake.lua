@@ -24,7 +24,6 @@ rule("opengl")
 rule_end()
 
 includes("third_party")
-includes("third_party/xcmath")
 includes("xc")
 includes("bin")
 includes("test")
