@@ -1,5 +1,6 @@
 #include <glbinding/gl/gl.h>
 #include <imgui.h>
+#include <imgui_node_editor.h>
 
 #include <cstdint>
 #include <print>
@@ -10,6 +11,8 @@
 #include "ecs/world.hpp"
 #include "glbinding/gl/functions.h"
 using namespace gl;
+using namespace ax;
+using namespace ax::NodeEditor;
 
 // 顶点着色器源码
 const char* vertexShaderSource = R"(
@@ -75,14 +78,165 @@ struct WindowHandle {
     void update(ecs::World& world) {
         if (!show) return;
         using namespace ImGui;
-        Begin("aa", &show);
+        ImGui::Begin("aa", &show);
         SetWindowFontScale(2.f);
         Text("Hello world");
-        End();
+        ImGui::End();
     }
 
    public:
     bool show{true};
+};
+
+struct MyNodeEditor {
+    static void init(ecs::World& world) { world.add_resource<MyNodeEditor>(); }
+    
+    MyNodeEditor() {
+        // 创建节点编辑器上下文
+        m_EditorContext = ax::NodeEditor::CreateEditor();
+        
+        // 设置节点和连接的初始状态
+        m_NextNodeId = 100;
+        m_NextLinkId = 1000;
+    }
+    
+    ~MyNodeEditor() {
+        // 销毁节点编辑器上下文
+        ax::NodeEditor::DestroyEditor(m_EditorContext);
+    }
+    
+    void update(ecs::World& world) {
+        using namespace ImGui;
+        
+        // 设置当前编辑器上下文
+        ax::NodeEditor::SetCurrentEditor(m_EditorContext);
+        
+        // 开始节点编辑器
+        ax::NodeEditor::Begin("Node Editor");
+        
+        // 创建一些示例节点
+        draw_nodes();
+        
+        // 结束节点编辑器
+        ax::NodeEditor::End();
+        
+        // 重置当前编辑器上下文
+        ax::NodeEditor::SetCurrentEditor(nullptr);
+    }
+    
+    void draw_nodes() {
+        using namespace ImGui;
+        
+        // 创建节点
+        for (auto& node : m_Nodes) {
+            ax::NodeEditor::BeginNode(node.id);
+            
+            // 节点标题
+            ImGui::Text("Node %llu", reinterpret_cast<uintptr_t>(node.id.AsPointer()));
+            
+            // 输入引脚
+            ax::NodeEditor::PinId inputPinId = ax::NodeEditor::PinId{reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(node.id.AsPointer()) + 1)};
+            ax::NodeEditor::BeginPin(inputPinId, ax::NodeEditor::PinKind::Input);
+            ImGui::Text("Input");
+            ax::NodeEditor::EndPin();
+            
+            // 节点内容
+            ImGui::BeginGroup();
+            ImGui::Text("Node Content");
+            ImGui::EndGroup();
+            
+            // 输出引脚
+            ax::NodeEditor::PinId outputPinId = ax::NodeEditor::PinId{reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(node.id.AsPointer()) + 2)};
+            ax::NodeEditor::BeginPin(outputPinId, ax::NodeEditor::PinKind::Output);
+            ImGui::Text("Output");
+            ax::NodeEditor::EndPin();
+            
+            ax::NodeEditor::EndNode();
+        }
+        
+        // 创建连接
+        for (auto& link : m_Links) {
+            ax::NodeEditor::Link(link.id, link.inputPinId, link.outputPinId);
+        }
+        
+        // 处理新的连接
+        HandleCreateLink();
+        
+        // 处理删除连接
+        HandleDeleteLink();
+    }
+    
+    void HandleCreateLink() {
+        // 开始连接
+        if (ax::NodeEditor::BeginCreate()) {
+            ax::NodeEditor::PinId inputPinId, outputPinId;
+            if (ax::NodeEditor::QueryNewLink(&inputPinId, &outputPinId)) {
+                // 验证连接
+                if (inputPinId && outputPinId) {
+                    // 接受连接
+                    ax::NodeEditor::AcceptNewItem(ImColor(255, 255, 255));
+                    
+                    // 添加新连接
+                    ax::NodeEditor::LinkId newLinkId = ax::NodeEditor::LinkId{reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_NextLinkId.AsPointer()) + 1)};
+                    m_Links.push_back({
+                        newLinkId,
+                        inputPinId, 
+                        outputPinId
+                    });
+                    m_NextLinkId = newLinkId;
+                }
+            }
+        }
+        ax::NodeEditor::EndCreate();
+    }
+    
+    void HandleDeleteLink() {
+        // 处理删除连接
+        if (ax::NodeEditor::BeginDelete()) {
+            ax::NodeEditor::LinkId deletedLinkId;
+            while (ax::NodeEditor::QueryDeletedLink(&deletedLinkId)) {
+                // 从连接列表中删除
+                m_Links.erase(
+                    std::remove_if(m_Links.begin(), m_Links.end(), 
+                        [deletedLinkId](const Link& link) { return link.id == deletedLinkId; }),
+                    m_Links.end());
+            }
+        }
+        ax::NodeEditor::EndDelete();
+    }
+    
+    // 节点定义
+    struct Node {
+        ax::NodeEditor::NodeId id;
+        ImVec2 position;
+    };
+    
+    // 连接定义
+    struct Link {
+        ax::NodeEditor::LinkId id;
+        ax::NodeEditor::PinId inputPinId;
+        ax::NodeEditor::PinId outputPinId;
+    };
+    
+   public:
+    bool show{true};
+    
+   private:
+    ax::NodeEditor::EditorContext* m_EditorContext{nullptr};
+    
+    std::vector<Node> m_Nodes{
+        {ax::NodeEditor::NodeId{reinterpret_cast<void*>(static_cast<uintptr_t>(1))}, ImVec2(100, 100)},
+        {ax::NodeEditor::NodeId{reinterpret_cast<void*>(static_cast<uintptr_t>(2))}, ImVec2(400, 200)}
+    };
+    
+    std::vector<Link> m_Links{
+        {ax::NodeEditor::LinkId{reinterpret_cast<void*>(static_cast<uintptr_t>(100))}, 
+         ax::NodeEditor::PinId{reinterpret_cast<void*>(static_cast<uintptr_t>(2))}, 
+         ax::NodeEditor::PinId{reinterpret_cast<void*>(static_cast<uintptr_t>(3))}} // 连接节点1的输出到节点2的输入
+    };
+    
+    ax::NodeEditor::NodeId m_NextNodeId{reinterpret_cast<void*>(static_cast<uintptr_t>(100))};
+    ax::NodeEditor::LinkId m_NextLinkId{reinterpret_cast<void*>(static_cast<uintptr_t>(1000))};
 };
 
 struct DrawDriver {
@@ -173,6 +327,7 @@ class App {
         world.use_plugin<AppContext>()
             .run_system<WindowHandle::init>()
             .run_system<DrawDriver::init>()
+            .run_system<MyNodeEditor::init>()
             .add_resource<App>();
     }
     void run(ecs::World& world, const AppContext& context, ecs::EventBus& bus) {
@@ -182,7 +337,8 @@ class App {
             context.begin_frame();
             glClear(GL_COLOR_BUFFER_BIT);
             world.run_system<&DrawDriver::update>()
-                .run_system<&WindowHandle::update>();
+                .run_system<&WindowHandle::update>()
+                .run_system<&MyNodeEditor::update>();
             bus.each([](AppContext::FrameResizeEvent& e) {
                 glViewport(0, 0, e.width, e.height);
                 std::println("FrameResizeEvent");

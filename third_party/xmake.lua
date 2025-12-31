@@ -1,0 +1,8 @@
+target("imgui-node-editor")
+    set_kind("static")
+    add_files("imgui-node-editor/crude_json.cpp")
+    add_files("imgui-node-editor/imgui_canvas.cpp")
+    add_files("imgui-node-editor/imgui_node_editor.cpp")
+    add_files("imgui-node-editor/imgui_node_editor_api.cpp")
+    add_includedirs("imgui-node-editor")
+    add_packages("imgui")
