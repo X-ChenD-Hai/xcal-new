@@ -25,6 +25,7 @@ rule_end()
 
 includes("third_party")
 includes("xc")
+includes("plugins")
 includes("bin")
 includes("test")
 includes("examples")

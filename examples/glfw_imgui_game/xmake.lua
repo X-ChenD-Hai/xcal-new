@@ -1,5 +1,5 @@
 target("ex-game")
     set_kind("binary")
-    add_files("*.cc")
+    add_files("./*.cc")
+    add_packages("glbinding","glfw","imgui")
     add_deps("ecs", "imgui-node-editor")
-    add_packages("glfw","imgui","glbinding")

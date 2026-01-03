@@ -1,0 +1,6 @@
+target("xc-glfw-support")
+    set_kind("static")
+    add_files("*.cc")
+    add_packages("glfw")
+    add_includedirs(".", { public = true })
+    add_deps("ecs")

@@ -8,6 +8,7 @@
 !xc/
 !test/
 !bin/
+!plugins
 !examples/
 !res
 !third_party/
