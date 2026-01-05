@@ -18,7 +18,18 @@ struct NodeEditor {
 
     void update(ecs::World& world);
 
-    void draw_nodes();
+    // 连接定义
+    struct Link {
+        ax::NodeEditor::PinId input_pin_id;
+        ax::NodeEditor::PinId output_pin_id;
+    };
+
+   protected:
+    void draw_node(node::Node*node);
+    void draw_node_header(node::Node*node);
+    void draw_input_adapter(const node::PinAdapter* pin_adapter,ax::NodeEditor::NodeId node_id);
+    void draw_node_properties(node::Node* node);
+    void draw_output_adapter(const node::PinAdapter* pin_adapter,ax::NodeEditor::NodeId node_id);
 
     void handle_create_link();
     void handle_delete_link();
@@ -32,58 +43,23 @@ struct NodeEditor {
     void popup_pin_context();
 
 
-    // 节点定义
-    struct Pin {
-        std::string name{};
-    };
-    struct Node {
-        std::vector<std::unique_ptr<Pin>> input_pins;
-        std::vector<std::unique_ptr<Pin>> output_pins;
-        template <class... Args>
-        Pin* create_pin(ax::NodeEditor::PinKind kind, Args... args) {
-            if (kind == ax::NodeEditor::PinKind::Input)
-                return input_pins.emplace_back(new Pin{std::forward(args)...})
-                    .get();
 
-            return output_pins.emplace_back(new Pin{std::forward(args)...})
-                .get();
-        };
-    };
 
-    // 连接定义
-    struct Link {
-        ax::NodeEditor::PinId input_pin_id;
-        ax::NodeEditor::PinId output_pin_id;
-    };
-
-   protected:
-    Node* create_node() {
-        nodes_.push_back(std::make_unique<Node>());
-        return nodes_.back().get();
-    }
     ax::NodeEditor::LinkId create_link(ax::NodeEditor::PinId input,
-                                       ax::NodeEditor::PinId output) {
-        links_.push_back(std::make_unique<Link>(input, output));
-        return ax::NodeEditor::LinkId{links_.back().get()};
-    }
-    void delete_link(ax::NodeEditor::LinkId id) {
-        links_.erase(std::remove_if(links_.begin(), links_.end(),
-                                    [id](const auto& link) {
-                                        return link.get() == id.AsPointer();
-                                    }),
-                     links_.end());
-    }
+                                       ax::NodeEditor::PinId output);
+    void delete_link(ax::NodeEditor::LinkId id);
 
    public:
     bool show{true};
 
    private:
-    ax::NodeEditor::EditorContext* editor_context_{nullptr};
-    std::vector<std::unique_ptr<Node>> nodes_{};
+    std::vector<node::node_class_ptr> node_class_{};
+    std::vector<node::node_ptr> nodes_{};
     std::vector<std::unique_ptr<Link>> links_{};
+    // state
+    ax::NodeEditor::EditorContext* editor_context_{nullptr};
     ImVec2 open_popu_pos_{};
     ax::NodeEditor::NodeId context_node_{};
     ax::NodeEditor::LinkId context_link_{};
-    ax::NodeEditor::PinId context_pin_;
-
+    ax::NodeEditor::PinId context_pin_{};
 };

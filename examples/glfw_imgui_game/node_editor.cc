@@ -7,7 +7,9 @@
 #include <print>
 
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "imgui_node_editor.h"
+#include "node_types.hpp"
 
 namespace ed = ::ax::NodeEditor;
 using PK = ed::PinKind;
@@ -24,17 +26,10 @@ void NodeEditor::init(ecs::World& world) { world.add_resource<NodeEditor>(); }
 NodeEditor::NodeEditor() {
     // 创建节点编辑器上下文
     ed::Config config;
-
     config.SettingsFile = nullptr;
-
     editor_context_ = ed::CreateEditor(&config);
-    auto n1 = create_node();
-    n1->create_pin(PK::Input);
-    n1->create_pin(PK::Output);
-
-    auto n2 = create_node();
-    n2->create_pin(PK::Input);
-    n2->create_pin(PK::Output);
+    node_class_.emplace_back(std::make_unique<node::ConstValueNodeClass>());
+    node_class_.emplace_back(std::make_unique<node::PrintNodeClass>());
 }
 
 NodeEditor::~NodeEditor() {
@@ -52,8 +47,19 @@ void NodeEditor::update(ecs::World& world) {
     ed::Begin("Node Editor");
 
     // 创建一些示例节点
-    draw_nodes();
-
+    for (auto& node : nodes_) {
+        auto id = ed::NodeId(node.get());
+        ed::BeginNode(id);
+        draw_node(node.get());
+        ed::EndNode();
+    }
+    for (auto& link : links_) {
+        ed::Link(ax::NodeEditor::LinkId(link.get()), link->input_pin_id,
+                 link->output_pin_id);
+    }
+    handle_create_link();
+    handle_delete_link();
+    handle_context_menu();
     // 结束节点编辑器
     ed::End();
 
@@ -61,53 +67,73 @@ void NodeEditor::update(ecs::World& world) {
     ed::SetCurrentEditor(nullptr);
 }
 
-void NodeEditor::draw_nodes() {
+void NodeEditor::draw_node(node::Node* node) {
     using namespace ImGui;
-
-    // 创建节点
-    for (auto& node : nodes_) {
-        auto id = ed::NodeId(node.get());
-        ed::BeginNode(id);
-
-        // 节点标题
-        ImGui::Text("Node %p", id.AsPointer());
-
-        auto input_size = node->input_pins.size();
-        auto output_size = node->output_pins.size();
-        size_t max_pins = std::max(input_size, output_size);
-        for (size_t i = 0; i < max_pins; i++) {
-            if (i < input_size) {
-                ed::PinId input_pin_id{node->input_pins[i].get()};
-                ed::BeginPin(input_pin_id, ed::PinKind::Input);
-                ImGui::Text("Input");
-                ed::EndPin();
-            }
-            ImGui::SameLine();
-            if (i < output_size) {
-                ed::PinId output_pin_id{node->output_pins[i].get()};
-                ed::BeginPin(output_pin_id, ed::PinKind::Output);
-                ImGui::Text("Output");
-                ed::EndPin();
-            }
-        }
-        ed::EndNode();
+    PushStyleColor(ImGuiCol_Header, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+    draw_node_header(node);
+    if (node->input_pin()) {
+        BeginGroup();
+        draw_input_adapter(node->input_pin(), ed::NodeId{node});
+        EndGroup();
+        SameLine();
     }
-
-    // 创建连接
-    for (auto& link : links_) {
-        ed::Link(ax::NodeEditor::LinkId(link.get()), link->input_pin_id,
-                 link->output_pin_id);
+    if (node->property_adapter()) {
+        BeginGroup();
+        draw_node_properties(node);
+        EndGroup();
+        SameLine();
     }
-
-    // 处理新的连接
-    handle_create_link();
-
-    // 处理删除连接
-    handle_delete_link();
-
-    handle_context_menu();
+    if (node->output_pin()) {
+        BeginGroup();
+        draw_output_adapter(node->output_pin(), ed::NodeId{node});
+        EndGroup();
+    }
+    PopStyleColor();
+}
+void NodeEditor::draw_node_header(node::Node* node) {
+    // 计算文字高度并垂直居中
+    const auto text =
+        node->name() ? node->name() : std::string{node->class_name()} + " Node";
+    auto cur = ImGui::GetCursorPos();
+    auto text_size = ImGui::CalcTextSize(text.c_str());
+    ImGui::SetCursorPos(
+        {cur.x + (ed::GetNodeSize(ed::NodeId{node}).x - text_size.x) / 2,
+         cur.y});
+    ImGui::TextUnformatted(text.c_str());
+    ImGui::Spacing();
 }
 
+void NodeEditor::draw_input_adapter(const node::PinAdapter* pin_adapter,
+                                    ed::NodeId node_id) {
+    if (!pin_adapter) return;
+    for (size_t i = 0; i < pin_adapter->pin_count(); i++) {
+        ed::PinId input_pin_id{pin_adapter->pin_at(i)};
+        ed::BeginPin(input_pin_id, ed::PinKind::Input);
+        ImGui::TextUnformatted(pin_adapter->pin_at(i)->name.c_str());
+        ed::EndPin();
+        ImGui::SameLine();
+    }
+}
+void NodeEditor::draw_output_adapter(const node::PinAdapter* pin_adapter,
+                                     ed::NodeId node_id) {
+    if (!pin_adapter) return;
+    for (size_t i = 0; i < pin_adapter->pin_count(); i++) {
+        ed::PinId output_pin_id{pin_adapter->pin_at(i)};
+        auto text = pin_adapter->pin_at(i)->name.c_str();
+        ed::BeginPin(output_pin_id, ed::PinKind::Output);
+        ImGui::TextUnformatted(text);
+        ed::EndPin();
+        ImGui::SameLine();
+    }
+}
+void NodeEditor::draw_node_properties(node::Node* node) {
+    if (!node) return;
+    auto property_adapter = node->property_adapter();
+    if (!property_adapter) return;
+    for (size_t i = 0; i < property_adapter->property_count(); i++) {
+        property_adapter->property_at(i)(node);
+    }
+}
 void NodeEditor::handle_create_link() {
     // 开始连接
     if (ed::BeginCreate()) {
@@ -175,10 +201,16 @@ void NodeEditor::popu_background_context() {
     if (ImGui::BeginMenu("Create Node")) {
         // create_node();
         std::println("Create Node");
-        if (ImGui::MenuItem("react")) {
-            auto node = create_node();
-            ed::SetNodePosition(ed::NodeId{node}, open_popu_pos_);
-            std::println("react");
+        size_t unique_id = 0;
+        for (auto& node_class : node_class_) {
+            ImGui::PushID(++unique_id);
+            if (ImGui::MenuItem(node_class->name())) {
+                auto node = node_class->create_node();
+                ed::SetNodePosition(ed::NodeId{node.get()}, open_popu_pos_);
+                std::println("{}", node_class->name());
+                nodes_.push_back(std::move(node));
+            }
+            ImGui::PopID();
         }
         ImGui::EndMenu();
     }
@@ -189,3 +221,15 @@ void NodeEditor::popup_node_context() {}
 void NodeEditor::popup_link_context() {}
 
 void NodeEditor::popup_pin_context() {}
+ax::NodeEditor::LinkId NodeEditor::create_link(ax::NodeEditor::PinId input,
+                                               ax::NodeEditor::PinId output) {
+    links_.push_back(std::make_unique<Link>(input, output));
+    return ax::NodeEditor::LinkId{links_.back().get()};
+}
+void NodeEditor::delete_link(ax::NodeEditor::LinkId id) {
+    links_.erase(std::remove_if(links_.begin(), links_.end(),
+                                [id](const auto& link) {
+                                    return link.get() == id.AsPointer();
+                                }),
+                 links_.end());
+}
