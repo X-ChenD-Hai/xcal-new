@@ -1,5 +1,6 @@
 target("ex-glfw")
     set_kind("binary")
     add_files("*.cc")
-    add_deps("ecs", "xc-glfw-support","xc-opengl-support","xcal-camera")
+    add_deps("ecs", "xc-glfw-support","xc-opengl-support")
+    add_deps("xcal-transform","xcal-camera")
     add_defines("USE_GLBINDING")

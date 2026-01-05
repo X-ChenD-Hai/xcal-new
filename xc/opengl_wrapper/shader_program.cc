@@ -43,27 +43,27 @@ void xc::opengl::ShaderProgram::uniform(const std::string& name,
 }
 
 void xc::opengl::ShaderProgram::uniform_vec2(const std::string& name,
-                                             void* vec) const noexcept {
+                                             float* vec) const noexcept {
     glUniform2fv(glGetUniformLocation(program_id_, name.c_str()), 1,
                  (float*)vec);
 }
 void xc::opengl::ShaderProgram::uniform_vec3(const std::string& name,
-                                             void* vec) const noexcept {
+                                             float* vec) const noexcept {
     glUniform3fv(glGetUniformLocation(program_id_, name.c_str()), 1,
                  (float*)vec);
 }
 void xc::opengl::ShaderProgram::uniform_vec4(const std::string& name,
-                                             void* vec) const noexcept {
+                                             float* vec) const noexcept {
     glUniform4fv(glGetUniformLocation(program_id_, name.c_str()), 1,
                  (float*)vec);
 }
 void xc::opengl::ShaderProgram::uniform_mat3(const std::string& name,
-                                             void* mat) const noexcept {
+                                             float* mat) const noexcept {
     glUniformMatrix3fv(glGetUniformLocation(program_id_, name.c_str()), 1,
                        GL_FALSE, (float*)mat);
 }
 void xc::opengl::ShaderProgram::uniform_mat4(const std::string& name,
-                                             void* mat) const noexcept {
+                                             float* mat) const noexcept {
     glUniformMatrix4fv(glGetUniformLocation(program_id_, name.c_str()), 1,
                        GL_FALSE, (float*)mat);
 }

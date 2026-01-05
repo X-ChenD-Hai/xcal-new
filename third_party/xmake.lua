@@ -1,3 +1,22 @@
+target("imgui-wrapper")
+    set_kind("static")
+    add_files("imgui/*.cpp")
+    add_includedirs("imgui",{public = true})
+
+target("imgui-glfw-backend")
+    set_kind("static")
+    add_files("imgui/backends/imgui_impl_glfw.cpp")
+    add_includedirs("imgui/backends/",{public = true})
+    add_deps("imgui-wrapper")
+    add_packages("glfw")
+
+target("imgui-opengl3-backend")
+    set_kind("static")
+    add_files("imgui/backends/imgui_impl_opengl3.cpp")
+    add_includedirs("imgui/backends/",{public = true})
+    add_deps("imgui-wrapper")
+
+
 target("imgui-node-editor")
     set_kind("static")
     add_files("imgui-node-editor/crude_json.cpp")
@@ -5,5 +24,6 @@ target("imgui-node-editor")
     add_files("imgui-node-editor/imgui_node_editor.cpp")
     add_files("imgui-node-editor/imgui_node_editor_api.cpp")
     add_includedirs("imgui-node-editor", { public = true })
-    add_packages("imgui")
+    add_includedirs("imgui")
+
 includes("xcmath")

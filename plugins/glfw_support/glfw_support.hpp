@@ -4,32 +4,10 @@
 #include <ecs/event_bus.hpp>
 #include <ecs/world.hpp>
 
+#include "./types.hpp"
+
 struct GLFWwindow;
 namespace glfw_support {
-using GLFWglproc = void (*)();
-using GetProcAddressFunc = GLFWglproc (*)(const char*);
-struct WindowCloseEvent {};
-
-struct WindowResizeEvent {
-    int width;
-    int height;
-};
-struct KeyEvent {
-    int key;
-    int action;
-    int mods;
-};
-struct MouseButtonEvent {
-    int button;
-    int action;
-    int mods;
-    double xpos;
-    double ypos;
-};
-struct MouseMoveEvent {
-    double xpos;
-    double ypos;
-};
 
 class GLFWSupport {
     friend class ::ecs::World;

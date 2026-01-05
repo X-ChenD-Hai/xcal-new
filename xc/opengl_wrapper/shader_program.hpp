@@ -22,11 +22,11 @@ class ShaderProgram {
 
     void uniform(const std::string &name, float value) const noexcept;
     void uniform(const std::string &name, int value) const noexcept;
-    void uniform_vec2(const std::string &name, void *vec) const noexcept;
-    void uniform_vec3(const std::string &name, void *vec) const noexcept;
-    void uniform_vec4(const std::string &name, void *vec) const noexcept;
-    void uniform_mat3(const std::string &name, void *mat) const noexcept;
-    void uniform_mat4(const std::string &name, void *mat) const noexcept;
+    void uniform_vec2(const std::string &name, float *vec) const noexcept;
+    void uniform_vec3(const std::string &name, float *vec) const noexcept;
+    void uniform_vec4(const std::string &name, float *vec) const noexcept;
+    void uniform_mat3(const std::string &name, float *mat) const noexcept;
+    void uniform_mat4(const std::string &name, float *mat) const noexcept;
 
    private:
     shader_source_id_t program_id_;

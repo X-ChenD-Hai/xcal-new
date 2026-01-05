@@ -24,15 +24,20 @@ void OpenGLSupport::load(GetProcAddressFunc get_proc_address) {
     std::println("get_proc_address {}", (void*)get_proc_address);
     if (!gladLoadGLLoader((GLADloadproc)get_proc_address)) {
         std::println("gladLoadGLLoader failed");
-        throw (std::runtime_error("gladLoadGLLoader failed"));
+        throw(std::runtime_error("gladLoadGLLoader failed"));
     }
 #endif
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     initialized_ = true;
 }
 OpenGLSupport* OpenGLSupport::install(ecs::World& world,
                                       GetProcAddressFunc get_proc_address) {
     auto plugin = new OpenGLSupport(world);
     plugin->load(get_proc_address);
+
     return plugin;
 }
 void OpenGLSupport::uninstall(ecs::World& world, OpenGLSupport* plugin) {
