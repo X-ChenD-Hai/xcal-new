@@ -14,8 +14,10 @@
 #include "ecs/entity.hpp"
 #include "ecs/world.hpp"
 #include "glbinding/gl/functions.h"
+using namespace ::gl;
+
 // 顶点着色器源码
-const char* vertexShaderSource = R"(
+const char* vertexShaderSource = R"glsl(
     #version 330 core
     layout (location = 0) in vec3 aPos;
     layout (location = 1) in vec3 aColor;
@@ -25,10 +27,10 @@ const char* vertexShaderSource = R"(
         gl_Position = vec4(aPos, 1.0);
         ourColor = aColor;
     }
-)";
+)glsl";
 
 // 片段着色器源码
-const char* fragmentShaderSource = R"(
+const char* fragmentShaderSource = R"glsl(
     #version 330 core
     in vec3 ourColor;
     out vec4 FragColor;
@@ -36,26 +38,26 @@ const char* fragmentShaderSource = R"(
     {
         FragColor = vec4(ourColor, 1.0);
     }
-)";
+)glsl";
 
 void DrawDriver::init(ecs::World& world) { world.add_resource<DrawDriver>(); }
 DrawDriver::DrawDriver() {
     // 编译着色器
-    vertex_shader_ = gl::glCreateShader(gl::GL_VERTEX_SHADER);
-    gl::glShaderSource(vertex_shader_, 1, &vertexShaderSource, NULL);
-    gl::glCompileShader(vertex_shader_);
+    vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader_, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertex_shader_);
     std::println("id: {}", vertex_shader_);
 
-    fragment_shader_ = gl::glCreateShader(gl::GL_FRAGMENT_SHADER);
-    gl::glShaderSource(fragment_shader_, 1, &fragmentShaderSource, NULL);
-    gl::glCompileShader(fragment_shader_);
+    fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader_, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragment_shader_);
     std::println("id: {}", fragment_shader_);
 
     // 创建着色器程序
-    shader_program_ = gl::glCreateProgram();
-    gl::glAttachShader(shader_program_, vertex_shader_);
-    gl::glAttachShader(shader_program_, fragment_shader_);
-    gl::glLinkProgram(shader_program_);
+    shader_program_ = glCreateProgram();
+    glAttachShader(shader_program_, vertex_shader_);
+    glAttachShader(shader_program_, fragment_shader_);
+    glLinkProgram(shader_program_);
     std::println("id: {}", shader_program_);
 
     // 设置顶点数据
@@ -67,50 +69,49 @@ DrawDriver::DrawDriver() {
     };
 
     // 生成VAO和VBO
-    gl::glGenVertexArrays(1, &vao_);
-    gl::glGenBuffers(1, &vbo_);
+    glGenVertexArrays(1, &vao_);
+    glGenBuffers(1, &vbo_);
 
     // 绑定VAO
-    gl::glBindVertexArray(vao_);
+    glBindVertexArray(vao_);
 
     // 绑定VBO并设置顶点数据
-    gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vbo_);
-    gl::glBufferData(gl::GL_ARRAY_BUFFER, sizeof(vertices), vertices,
-                     gl::GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // 设置顶点属性指针
     // 位置属性
-    gl::glVertexAttribPointer(0, 3, gl::GL_FLOAT, gl::GL_FALSE,
-                              6 * sizeof(float), (void*)0);
-    gl::glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                          (void*)0);
+    glEnableVertexAttribArray(0);
     // 颜色属性
-    gl::glVertexAttribPointer(1, 3, gl::GL_FLOAT, gl::GL_FALSE,
-                              6 * sizeof(float), (void*)(3 * sizeof(float)));
-    gl::glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                          (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     // 解绑
-    gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
-    gl::glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 }
 
 DrawDriver::~DrawDriver() {
-    gl::glDeleteVertexArrays(1, &vao_);
-    gl::glDeleteBuffers(1, &vbo_);
-    gl::glDeleteProgram(shader_program_);
-    gl::glDeleteShader(vertex_shader_);
-    gl::glDeleteShader(fragment_shader_);
+    glDeleteVertexArrays(1, &vao_);
+    glDeleteBuffers(1, &vbo_);
+    glDeleteProgram(shader_program_);
+    glDeleteShader(vertex_shader_);
+    glDeleteShader(fragment_shader_);
 }
 
 void DrawDriver::update() {
     // 使用着色器程序
-    gl::glUseProgram(shader_program_);
+    glUseProgram(shader_program_);
 
     // 绑定VAO
-    gl::glBindVertexArray(vao_);
+    glBindVertexArray(vao_);
 
     // 绘制三角形
-    gl::glDrawArrays(gl::GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // 解绑
-    gl::glBindVertexArray(0);
+    glBindVertexArray(0);
 }

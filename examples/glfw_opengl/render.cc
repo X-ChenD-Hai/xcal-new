@@ -6,15 +6,14 @@
 
 #include "ecs/event_bus.hpp"
 #include "ecs/world.hpp"
-#include "glfw_support.hpp"
 #include "opengl_support.hpp"
 #include "opengl_wrapper/buffer.hpp"
 #include "opengl_wrapper/draw.hpp"
 #include "opengl_wrapper/shader_program.hpp"
 #include "opengl_wrapper/vertex_array.hpp"
-#include "types.hpp"
 #include "xcal2/camera/camera.hpp"
 #include "xcal2/camera/fps_camera_controler.hpp"
+#include "xcal2/camera/ui_controler/fps_ui_controler.hpp"
 #include "xcal2/events/events.hpp"
 #include "xcal2/transform/transform.hpp"
 
@@ -199,7 +198,7 @@ struct Trangle {
         draw_arrays(DrawMode::TRIANGLES, 0, 3);
     }
 };
-
+using xcal::camera::ui_controler::FPSUIControler;
 struct RenderHandle {
     std::unique_ptr<xc::opengl::ShaderProgram> program;
     std::unique_ptr<Cube> cube;
@@ -209,12 +208,11 @@ struct RenderHandle {
     RenderHandle(ecs::World& world) {
         using namespace xc::opengl;
         auto& view = world.resource<xcal::camera::ViewConfig>();
-        view.position = {5.0f, 0.0f, 5.0f};
-        view.direction = {0.0f, 0.0f, -1.0f};
         camera_controler = std::make_unique<xcal::camera::FpsCameraControler>(
             &world.resource<ecs::EventBus>(),
             &world.resource<xcal::camera::ViewConfig>(),
             &world.resource<xcal::camera::ProjectionConfig>());
+        world.add_resource(camera_controler.get());
         std::println("create shader program");
         try {
             program = std::unique_ptr<ShaderProgram>(new ShaderProgram{{
@@ -235,63 +233,53 @@ struct RenderHandle {
     }
     void draw(ecs::EventBus& event_bus, ecs::World& world) {
         program->use();
-        handle_controler_event(event_bus);
         update_camera(event_bus, world);
         // cube->draw();
-        trangle->draw();
-    }
-    void handle_controler_event(ecs::EventBus& bus) {
-        using namespace glfw_support;
-        using Direction = xcal::camera::FpsCameraControler::Direction;
-        constexpr float speed = 0.1;
-        bus.each([&](KeyEvent& e) {
-            if (e.action == KeyAction::Press || e.action == KeyAction::Repeat) {
-                if (e.key == Key::W) {
-                    camera_controler->move(Direction::FORWARD, speed);
-                } else if (e.key == Key::S) {
-                    camera_controler->move(Direction::BACKWARD, speed);
-                } else if (e.key == Key::A) {
-                    camera_controler->move(Direction::LEFT, speed);
-                } else if (e.key == Key::D) {
-                    camera_controler->move(Direction::RIGHT, speed);
-                } else if (e.key == Key::E) {
-                    camera_controler->move(Direction::UP, speed);
-                } else if (e.key == Key::Q) {
-                    camera_controler->move(Direction::DOWN, speed);
-                }
-            }
-        });
+        // trangle->draw();
+        cube->draw();
     }
 
     void update_camera(ecs::EventBus& event_bus, ecs::World& world) {
         if (event_bus.exist<xcal::events::CameraProjectionChanged>()) {
             std::println("CameraProjectionChanged");
             program->uniform_mat4(
-                "projection",
-                &world.resource<xcal::camera::ProjectionConfig>().as_mat4()[0][0]);
+                "projection", world.resource<xcal::camera::ProjectionConfig>()
+                                  .as_mat4()
+                                  .T()
+                                  .value_ptr());
         }
         if (event_bus.exist<xcal::events::CameraViewChanged>()) {
-            std::println("CameraViewChanged");
-            program->uniform_mat4(
-                "view",
-                &world.resource<xcal::camera::ViewConfig>().as_mat4()[0][0]);
+            std::println("CameraViewChanged\np:{}\nu:{}\nd:{}",
+                         world.resource<xcal::camera::ViewConfig>().position,
+                         world.resource<xcal::camera::ViewConfig>().up,
+                         world.resource<xcal::camera::ViewConfig>().direction);
+            program->uniform_mat4("view",
+                                  world.resource<xcal::camera::ViewConfig>()
+                                      .as_mat4()
+                                      .T()
+                                      .value_ptr());
         }
-        program->uniform_mat4("transform", &transform.transform_matrix()[0][0]);
+        program->uniform_mat4("transform", transform.to_mat().T().value_ptr());
     }
 };
 }  // namespace app
 
 void app::Renderer::init(ecs::World& world) {
     world.use_plugin<xcal::camera::CameroPlugin>()
-        .use_plugin<xcal::transform::TransformPlugin>();
+        .use_plugin<xcal::transform::TransformPlugin>()
+        .use_plugin<FPSUIControler>();
 
     world.add_resource<Renderer>(std::make_unique<RenderHandle>(world));
+    world.resource<FPSUIControler>()
+        .set_dtranslation(0.05, 0.05, 0.05)
+        .set_drotation(0.1, 0.1)
+        .set_dzoom(0.01);
 }
 void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
     using namespace xc::opengl;
     clear(ClearBufferMask::COLOR_BUFFER_BIT |
           ClearBufferMask::DEPTH_BUFFER_BIT);
-
+    world.run_plugin<FPSUIControler>();
     handle_->draw(event_bus, world);
 
     event_bus.each([&](opengl::FrameResizeEvent& e) {

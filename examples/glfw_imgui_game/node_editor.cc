@@ -7,7 +7,6 @@
 #include <print>
 
 #include "imgui.h"
-#include "imgui_internal.h"
 #include "imgui_node_editor.h"
 #include "node_types.hpp"
 
@@ -29,7 +28,9 @@ NodeEditor::NodeEditor() {
     config.SettingsFile = nullptr;
     editor_context_ = ed::CreateEditor(&config);
     node_class_.emplace_back(std::make_unique<node::ConstValueNodeClass>());
+    nodes_.emplace_back(node_class_.back()->create_node());
     node_class_.emplace_back(std::make_unique<node::PrintNodeClass>());
+    nodes_.emplace_back(node_class_.back()->create_node());
 }
 
 NodeEditor::~NodeEditor() {
@@ -69,8 +70,50 @@ void NodeEditor::update(ecs::World& world) {
 
 void NodeEditor::draw_node(node::Node* node) {
     using namespace ImGui;
-    PushStyleColor(ImGuiCol_Header, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-    draw_node_header(node);
+
+    // Draw node header with background
+    const auto header_text =
+        node->name() ? node->name() : std::string{node->class_name()} + " Node";
+    auto text_size = ImGui::CalcTextSize(header_text.c_str());
+
+    // Add some padding to the background
+    ImVec2 padding = ImVec2(8.0f, 4.0f);
+    ImVec2 bg_size =
+        ImVec2(text_size.x + padding.x * 2, text_size.y + padding.y * 2);
+
+    // Get the current cursor position before drawing anything
+    auto cursor_pos = ImGui::GetCursorScreenPos();
+
+    // Draw background using window draw list with screen coordinates
+    auto draw_list = ImGui::GetWindowDrawList();
+
+    // Draw filled rectangle with darker color
+    draw_list->AddRectFilled(
+        cursor_pos, ImVec2(cursor_pos.x + bg_size.x, cursor_pos.y + bg_size.y),
+        IM_COL32(0, 10, 150, 255),  // Darker gray color
+        4.0f                        // Add some rounding
+    );
+
+    // Draw border for more visibility
+    draw_list->AddRect(
+        cursor_pos, ImVec2(cursor_pos.x + bg_size.x, cursor_pos.y + bg_size.y),
+        IM_COL32(120, 120, 120, 255),  // Lighter gray for border
+        4.0f,
+        0,    // No specific corners
+        1.5f  // Border thickness
+    );
+
+    // Add padding before text
+    ImGui::SetCursorScreenPos(
+        ImVec2(cursor_pos.x + padding.x, cursor_pos.y + padding.y));
+
+    // Draw the text with white color for contrast
+    ImGui::TextUnformatted(header_text.c_str());
+
+    // Reset cursor position after drawing text
+    ImGui::SetCursorScreenPos(ImVec2(cursor_pos.x, cursor_pos.y + bg_size.y));
+
+    // Draw the rest of the node content
     if (node->input_pin()) {
         BeginGroup();
         draw_input_adapter(node->input_pin(), ed::NodeId{node});
@@ -88,17 +131,14 @@ void NodeEditor::draw_node(node::Node* node) {
         draw_output_adapter(node->output_pin(), ed::NodeId{node});
         EndGroup();
     }
-    PopStyleColor();
 }
 void NodeEditor::draw_node_header(node::Node* node) {
     // 计算文字高度并垂直居中
+    using namespace ImGui;
     const auto text =
         node->name() ? node->name() : std::string{node->class_name()} + " Node";
-    auto cur = ImGui::GetCursorPos();
     auto text_size = ImGui::CalcTextSize(text.c_str());
-    ImGui::SetCursorPos(
-        {cur.x + (ed::GetNodeSize(ed::NodeId{node}).x - text_size.x) / 2,
-         cur.y});
+
     ImGui::TextUnformatted(text.c_str());
     ImGui::Spacing();
 }
@@ -200,7 +240,6 @@ void NodeEditor::handle_context_menu() {
 void NodeEditor::popu_background_context() {
     if (ImGui::BeginMenu("Create Node")) {
         // create_node();
-        std::println("Create Node");
         size_t unique_id = 0;
         for (auto& node_class : node_class_) {
             ImGui::PushID(++unique_id);

@@ -18,6 +18,7 @@ void run(glfw::GLFWSupport& glfw, ecs::World& world, ecs::EventBus& event_bus) {
         });
         world.run_system<&app::Renderer::run>();
         glfw.swap_buffers();
+        glfw.handle_extern_event();
         world.execute_commands();
         event_bus.clear();
     }
