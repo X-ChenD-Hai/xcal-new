@@ -7,7 +7,8 @@ void xc::opengl::draw_arrays(xc::opengl::DrawMode mode, int32_t first,
     glDrawArrays(enum_to_gl(mode), first, count);
 }
 
-void xc::opengl::draw_elements(xc::opengl::DrawMode mode, size_t count, const void* indices) {
+void xc::opengl::draw_elements(xc::opengl::DrawMode mode, size_t count,
+                               const void* indices) {
     glDrawElements(enum_to_gl(mode), count, enum_to_gl(DataType::UNSIGNED_INT),
                    indices);
 }

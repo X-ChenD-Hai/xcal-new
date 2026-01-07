@@ -106,11 +106,11 @@ template <class T>
     requires std::is_enum_v<T>
 class Flags final {
     using data_t = std::underlying_type_t<T>;
-    data_t data_;
+    data_t data_{};
 
    public:
     template <T flag>
-    constexpr Flags() : data_(flag) {}
+    constexpr Flags() : data_{} {}
     constexpr Flags(data_t data = 0) : data_(data) {}
     constexpr Flags(T flag) : data_(static_cast<data_t>(flag)) {}
     template <class... Args>
