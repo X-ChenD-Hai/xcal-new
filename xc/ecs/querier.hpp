@@ -1,18 +1,17 @@
 #pragma once
-#include <vector>
 #include <print>
+#include <vector>
+
 #include "./component_info.hpp"
 #include "./entity.hpp"
 #include "./utils/traits.hpp"
+
 
 namespace ecs {
 
 class World;
 class Entity;
 class Querier {
-    const World &world_;
-    const std::vector<size_t> component_info_index_;
-
    public:
     Querier(const World &world,
             const std::vector<size_t> &component_infos_index)
@@ -22,6 +21,10 @@ class Querier {
     std::vector<Entity> entities() const;
     void inset_info_index(std::vector<size_t> &component_info_index,
                           component_t component_id) const;
+
+   private:
+    const World &world_;
+    const std::vector<size_t> component_info_index_;
 };
 template <typename... Components>
 Querier Querier::query() const {

@@ -1,21 +1,16 @@
 #pragma once
-#include <type_map.hpp>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <type_map.hpp>
 #include <xc_assert.hpp>
+
 
 namespace ecs {
 using Cell_ = std::unique_ptr<void, std::function<void(void *)>>;
-class Cell {
-    
-};
+class Cell {};
 
 class ResourceManager {
-    static constexpr uint32_t INVALID_RESOURCE_ID = uint32_t(-1);
-    TypeMap<uint32_t> resource_id_map_{INVALID_RESOURCE_ID};
-    std::vector<Cell_> resources_{};
-
    public:
     template <typename Resource, typename... Args>
     ResourceManager &add(Args &&...args) noexcept {
@@ -89,6 +84,11 @@ class ResourceManager {
         return resource_id_map_.data<Resource>();
     }
     size_t size() const noexcept { return resources_.size(); }
+
+   private:
+    static constexpr uint32_t INVALID_RESOURCE_ID = uint32_t(-1);
+    TypeMap<uint32_t> resource_id_map_{INVALID_RESOURCE_ID};
+    std::vector<Cell_> resources_{};
 };
 
 }  // namespace ecs

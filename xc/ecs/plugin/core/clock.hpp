@@ -59,11 +59,11 @@ class Clock {
     using time_point = std::chrono::high_resolution_clock::time_point;
     using time_duration = std::chrono::duration<double>;
     struct TimeOutTask {
-        double until;
-        mutable std::unique_ptr<ecs::command::Command> command;
         auto operator<=>(const TimeOutTask& t) const noexcept {
             return until <=> t.until;
         }
+        double until;
+        mutable std::unique_ptr<ecs::command::Command> command;
     };
 
    public:

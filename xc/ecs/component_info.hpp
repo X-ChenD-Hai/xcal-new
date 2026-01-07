@@ -10,9 +10,6 @@ class ComponentInfo {
     friend class CommandSubmit;
     friend class Querier;
     friend class ComponentAccessor;
-    uint32_t pool_index_;
-    SparseList<Entity::entity_t, uint32_t, 32> entities_;
-    std::function<void(void *)> deleter_;
 
    public:
     size_t cell_index(Entity e) { return entities_.get_index(e.id()); };
@@ -27,5 +24,10 @@ class ComponentInfo {
 
     ComponentInfo(uint32_t pool_index, std::function<void(void *)> deleter)
         : pool_index_(pool_index), deleter_(deleter) {}
+
+   private:
+    uint32_t pool_index_;
+    SparseList<Entity::entity_t, uint32_t, 32> entities_;
+    std::function<void(void *)> deleter_;
 };
 }  // namespace ecs

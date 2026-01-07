@@ -14,20 +14,13 @@ class ResourceTable {
         uint32_t id = -1;
     };
     struct Pairhash {
-        constexpr static auto hash_ = std::hash<size_t>{};
         size_t operator()(const std::pair<size_t, size_t> &p) const {
             return hash_(p.first) ^
                    (hash_(p.second) << (sizeof(size_t) * 8 / 2));
         }
+        constexpr static auto hash_ = std::hash<size_t>{};
     };
-    std::unordered_map<size_t, void (*)(void *)>
-        register_types_destroy_callbacks_;
-    std::vector<void *> resources_;
-    std::vector<ResourceDescribtor> describtors_;
-    std::unordered_map<std::pair<size_t, size_t>, uint32_t, Pairhash>
-        resource_map_;
-    std::vector<std::function<void()>> asyn_create_tasks_;
-    std::vector<size_t> asyn_release_id_;
+
     struct CreateResouse {
         void *(*create_func)(void *);
         ResourceDescribtor describtor;
@@ -160,6 +153,16 @@ class ResourceTable {
             }
         }
     }
+
+   private:
+    std::unordered_map<size_t, void (*)(void *)>
+        register_types_destroy_callbacks_;
+    std::vector<void *> resources_;
+    std::vector<ResourceDescribtor> describtors_;
+    std::unordered_map<std::pair<size_t, size_t>, uint32_t, Pairhash>
+        resource_map_;
+    std::vector<std::function<void()>> asyn_create_tasks_;
+    std::vector<size_t> asyn_release_id_;
 };
 
 }  // namespace ecs

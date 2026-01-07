@@ -11,15 +11,15 @@ class Entity final {
     friend class CommandSubmit;
 
    public:
+    Entity(const Entity&) = default;
+    Entity(Entity&&) = default;
+    Entity& operator=(const Entity&) = default;
+    Entity& operator=(Entity&&) = default;
+
+   public:
     using entity_t = uint64_t;
     using id_t = uint32_t;
     using version_t = uint32_t;
-
-   private:
-    static constexpr entity_t id_mask = static_cast<id_t>(-1);
-    static constexpr entity_t version_mask =
-        static_cast<entity_t>(static_cast<version_t>(-1)) << 32;
-    entity_t entity_;
 
    public:
     Entity(id_t id, version_t version)
@@ -35,11 +35,11 @@ class Entity final {
         return id() != id_mask && version() != version_mask;
     }
 
-   public:
-    Entity(const Entity&) = default;
-    Entity(Entity&&) = default;
-    Entity& operator=(const Entity&) = default;
-    Entity& operator=(Entity&&) = default;
+   private:
+    static constexpr entity_t id_mask = static_cast<id_t>(-1);
+    static constexpr entity_t version_mask =
+        static_cast<entity_t>(static_cast<version_t>(-1)) << 32;
+    entity_t entity_;
 };
 class ComponentInfo;
 template <typename Component_>

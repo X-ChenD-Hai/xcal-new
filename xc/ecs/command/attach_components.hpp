@@ -6,9 +6,6 @@
 namespace ecs::command {
 
 class AttachComponents : public Command {
-    Entity entity_;
-    std::vector<std::pair<component_t, void*>> components_{};
-
    public:
     template <typename... Components>
     AttachComponents(Entity entity, Components&&... components)
@@ -36,6 +33,10 @@ class AttachComponents : public Command {
         return ExecutePriority::APPEND_COMPONENTS;
     };
     void execute(World& world) const override;
+
+   private:
+    Entity entity_;
+    std::vector<std::pair<component_t, void*>> components_{};
 };
 
 }  // namespace ecs::command

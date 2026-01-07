@@ -66,14 +66,7 @@ struct EventBus final {
             }
         };
         friend class EventBus;
-        static constexpr uint32_t invalid_index =
-            std::numeric_limits<uint32_t>::max();
-        uint32_t pool_size_{0};
-        uint32_t free_list_{invalid_index};
-        std::vector<EventInfo> event_infos_;
-        TypeMap<uint32_t> index_map_{invalid_index};
-        Cell<cell_size>* cells_{nullptr};
-        size_t size_{0};
+
         EventPool() {}
 
        public:
@@ -304,19 +297,17 @@ struct EventBus final {
             pool_size_ = 0;
             free_list_ = invalid_index;
         }
-    };
-    template <typename Event>
-    constexpr static auto index = details::aligned_size<sizeof(Event)>::log2;
 
-    template <typename T>
-        requires(sizeof(T) <= 64)
-    friend class EventIterator;
-    static constexpr size_t pool_size = 1024;
-    static constexpr uint32_t invalid_index =
-        std::numeric_limits<uint32_t>::max();
-    std::tuple<EventPool<1>*, EventPool<2>*, EventPool<4>*, EventPool<8>*,
-               EventPool<16>*, EventPool<32>*, EventPool<64>*>
-        pools_;
+       private:
+        static constexpr uint32_t invalid_index =
+            std::numeric_limits<uint32_t>::max();
+        uint32_t pool_size_{0};
+        uint32_t free_list_{invalid_index};
+        std::vector<EventInfo> event_infos_;
+        TypeMap<uint32_t> index_map_{invalid_index};
+        Cell<cell_size>* cells_{nullptr};
+        size_t size_{0};
+    };
 
    public:
     template <typename T>
@@ -324,10 +315,7 @@ struct EventBus final {
     template <typename T>
         requires(sizeof(T) <= 64)
     class EventIterator {
-        static constexpr auto index = details::aligned_size<sizeof(T)>::log2;
-        EventPool<details::aligned_size<sizeof(T)>::value>& pool;
-        std::vector<uint32_t>& indices_;
-        size_t index_ = 0;
+        friend class EventRange<T>;
 
        public:
         T& operator*() const {
@@ -353,12 +341,16 @@ struct EventBus final {
             : pool(pool),
               indices_(indices),
               index_(index == -1 ? indices.size() : index) {}
-        friend class EventRange<T>;
+
+       private:
+        static constexpr auto index = details::aligned_size<sizeof(T)>::log2;
+        EventPool<details::aligned_size<sizeof(T)>::value>& pool;
+        std::vector<uint32_t>& indices_;
+        size_t index_ = 0;
     };
     template <typename Event>
     class EventRange {
-        EventPool<details::aligned_size<sizeof(Event)>::value>& pool_;
-        std::vector<uint32_t>& indices_;
+        friend class EventBus;
 
        protected:
         EventRange(EventPool<details::aligned_size<sizeof(Event)>::value>& pool,
@@ -372,7 +364,10 @@ struct EventBus final {
         EventIterator<Event> end() const {
             return EventIterator<Event>(pool_, indices_, indices_.size());
         }
-        friend class EventBus;
+
+       private:
+        EventPool<details::aligned_size<sizeof(Event)>::value>& pool_;
+        std::vector<uint32_t>& indices_;
     };
     template <typename Event>
         requires(sizeof(Event) <= 64)
@@ -511,6 +506,20 @@ struct EventBus final {
     static constexpr size_t pool_index() {
         return index<Event>;
     }
+
+   private:
+    template <typename Event>
+    constexpr static auto index = details::aligned_size<sizeof(Event)>::log2;
+
+    template <typename T>
+        requires(sizeof(T) <= 64)
+    friend class EventIterator;
+    static constexpr size_t pool_size = 1024;
+    static constexpr uint32_t invalid_index =
+        std::numeric_limits<uint32_t>::max();
+    std::tuple<EventPool<1>*, EventPool<2>*, EventPool<4>*, EventPool<8>*,
+               EventPool<16>*, EventPool<32>*, EventPool<64>*>
+        pools_;
 };
 
 }  // namespace ecs

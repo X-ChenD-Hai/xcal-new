@@ -5,8 +5,6 @@ namespace ecs {
 class World;
 class Entity;
 class ComponentAccessor {
-    World &world_;
-
    public:
     ComponentAccessor(World &world) : world_(world) {}
     template <typename Component>
@@ -15,9 +13,12 @@ class ComponentAccessor {
         requires(sizeof...(Component) > 1)
     std::tuple<Component *...> data(Entity entity);
     void *data(Entity entity, component_t component_id);
-    template <typename... Component, typename Fn,typename ...Args>
-        requires std::is_invocable_v<Fn, Component& ..., Args...>
+    template <typename... Component, typename Fn, typename... Args>
+        requires std::is_invocable_v<Fn, Component &..., Args...>
     void each(Fn &&fn, Args &&...args);
+
+   private:
+    World &world_;
 };
 
 template <typename Component>
