@@ -15,7 +15,7 @@ struct TransformComponent {
     xcmath::vec3f rotation{0.0f, 0.0f, 0.0f};
     TransformStateFlags state{TransformState::Dirty, TransformState::Visible};
 
-    xcmath::mat4f transform_matrix() const;
+    xcmath::mat4f to_mat() const;
 };
 struct TransformMatrixComponent {
     xcmath::mat4f matrix{xcmath::mat4f::eye()};

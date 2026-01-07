@@ -4,8 +4,7 @@
 #include "ecs/querier.hpp"
 #include "ecs/world.hpp"
 
-
-xcmath::mat4f xcal::transform::TransformComponent::transform_matrix() const {
+xcmath::mat4f xcal::transform::TransformComponent::to_mat() const {
     return xcmath::translate(
         xcmath::rotate(
             xcmath::rotate(
@@ -22,7 +21,7 @@ void update_transform_matrix(ecs::Querier q, ecs::ComponentAccessor a) {
         auto t = a.data<TransformComponent>(e);
         if (t->state.has(TransformState::Dirty)) {
             auto m = a.data<TransformMatrixComponent>(e);
-            m->matrix = t->transform_matrix();
+            m->matrix = t->to_mat();
             t->state.remove(TransformState::Dirty);
             std::println("update transform matrix {}", m->matrix);
         }
