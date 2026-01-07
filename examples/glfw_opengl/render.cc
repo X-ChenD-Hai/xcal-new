@@ -344,6 +344,15 @@ void dump(const FunctionCurve2d& obj, Path& path) {
     path.vbo.buffer_data(xc::opengl::BufferTarget::ARRAY,
                          xc::opengl::BufferUsage::STATIC_DRAW, vertices);
 }
+template <typename A, typename B>
+inline void dump(const A& a, const std::unique_ptr<B>& b) {
+    dump(a, *b.get());
+}
+template <typename A, typename B>
+inline void dump(const A& a, const B* b) {
+    dump(a, *b);
+}
+
 using xcal::camera::ui_controler::FPSUIControler;
 struct RenderHandle {
     std::unique_ptr<xc::opengl::ShaderProgram> vertex_color_shader;
@@ -358,7 +367,16 @@ struct RenderHandle {
     std::unique_ptr<Path> path;
     xcmath::vec3f model_color{.0f, 1.0f, 1.0f};
     xcmath::vec3f loght_color{1.0f, 1.0f, 1.0f};
-    RenderHandle(ecs::World& world) {
+    double offset;
+    FunctionCurve2d curve;
+    RenderHandle(ecs::World& world)
+        : curve{[this](double x) { return std::sin((x + offset) * 10); }} {
+        offset = 0;
+        world.resource<Clock>().tick(0.01, [this]() {
+            offset += 0.01;
+            dump(curve, *path.get());
+        });
+
         using namespace xc::opengl;
         auto& view = world.resource<xcal::camera::ViewConfig>();
         camera_controler = std::make_unique<xcal::camera::FpsCameraControler>(
@@ -384,8 +402,7 @@ struct RenderHandle {
         transform_light.position = {1.f, 1.f, -1.0f};
         transform_light.scale = {0.3, 0.3, 0.3};
         path = std::make_unique<Path>();
-        FunctionCurve2d curve([](double x) { return std::sin(x * 10); });
-        dump(curve, *path.get());
+        dump(curve, path);
     }
     void draw_light(ecs::EventBus& event_bus, ecs::World& world) {
         use_shader(event_bus, world, uniform_color_shader.get());
@@ -438,16 +455,12 @@ void app::Renderer::init(ecs::World& world) {
         .use_plugin<xcal::transform::Transform>()
         .use_plugin<FPSUIControler>()
         .use_plugin<Clock>();
-        
+
     world.add_resource<Renderer>(std::make_unique<RenderHandle>(world));
     world.resource<FPSUIControler>()
         .set_dtranslation(0.05, 0.05, 0.05)
         .set_drotation(0.1, 0.1)
         .set_dzoom(0.01);
-
-    world.resource<Clock>().tick(0.5,[](){
-        std::println("tick");
-    } );
 }
 void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
     using namespace xc::opengl;

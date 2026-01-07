@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "xcmath/xcmath.hpp"
 
@@ -13,11 +14,11 @@ struct Path2dStyle {
 };
 
 struct FunctionCurve2d {
-    double (*function)(double x);
+    std::function<double(double)> function;
     double min_x{0.0};
     double max_x{1.0};
     uint32_t num_samples{100};
-    FunctionCurve2d(double (*function)(double x), double min_x = 0.0,
+    FunctionCurve2d(std::function<double(double)> function, double min_x = 0.0,
                     double max_x = 1.0, uint32_t num_samples = 100)
         : function(function),
           min_x(min_x),
