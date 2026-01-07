@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <memory>
 namespace ecs {
 class World;
 namespace command {
@@ -17,5 +18,8 @@ struct Command {
     virtual void execute(World& world) const = 0;
     virtual ~Command() {}
 };
+
+using command_ptr = std::unique_ptr<Command>;
+
 }  // namespace command
 }  // namespace ecs

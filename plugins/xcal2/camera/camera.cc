@@ -66,7 +66,7 @@ xcmath::mat4f xcal::camera::ViewConfig::as_mat4() const {
     return V;
 }
 
-void xcal::camera::CameroPlugin::install(ecs::World& world) {
+void xcal::camera::Camero::install(ecs::World& world) {
     std::println("camera setup");
 
     XC_ASSERT(world.resource_manager().has<ecs::EventBus>());
@@ -74,6 +74,6 @@ void xcal::camera::CameroPlugin::install(ecs::World& world) {
     world.resource<ecs::EventBus>().publish<events::CameraProjectionChanged>();
     world.resource<ecs::EventBus>().publish<events::CameraViewChanged>();
 }
-void xcal::camera::CameroPlugin::run(ecs::World& world) {
+void xcal::camera::Camero::run(ecs::World& world) {
     world.run_system<update_camera>();
 }

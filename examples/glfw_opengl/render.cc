@@ -6,6 +6,7 @@
 #include <print>
 
 #include "ecs/event_bus.hpp"
+#include "ecs/plugin/core/clock.hpp"
 #include "ecs/world.hpp"
 #include "opengl_support.hpp"
 #include "opengl_wrapper/buffer.hpp"
@@ -17,12 +18,14 @@
 #include "xcal2/camera/fps_camera_controler.hpp"
 #include "xcal2/camera/ui_controler/fps_ui_controler.hpp"
 #include "xcal2/events/events.hpp"
+#include "xcal2/object/types.hpp"
 #include "xcal2/transform/transform.hpp"
 #include "xcmath/mobject/declaration.hpp"
 
 namespace opengl = opengl_support;
 namespace app {
-
+using namespace xcal::object;
+using ecs::core::Clock;
 namespace shader_source_string {
 const char* kVertexWithPosUniformColorShaderSource = R"glsl(
 #version 330 core
@@ -325,34 +328,22 @@ struct Path {
     }
 };
 
-struct FunctionCurve2d {
-    double (*function)(double x);
-    double min_x{0.0};
-    double max_x{1.0};
-    uint32_t num_samples{100};
-    FunctionCurve2d(double (*function)(double x), double min_x = 0.0,
-                    double max_x = 1.0, uint32_t num_samples = 100)
-        : function(function),
-          min_x(min_x),
-          max_x(max_x),
-          num_samples(num_samples) {}
-    void dump(Path& path) {
-        path.count = num_samples;
-        std::vector<float> vertices;
-        vertices.reserve(num_samples * 3);
-        for (uint32_t i = 0; i < num_samples; ++i) {
-            double x = min_x + (max_x - min_x) * i / (num_samples - 1);
-            double y = function(x);
-            vertices.push_back(x);
-            vertices.push_back(y);
-            vertices.push_back(0.0f);
-        }
-        path.vbo.bind(xc::opengl::BufferTarget::ARRAY);
-        path.vbo.buffer_data(xc::opengl::BufferTarget::ARRAY,
-                             xc::opengl::BufferUsage::STATIC_DRAW, vertices);
+void dump(const FunctionCurve2d& obj, Path& path) {
+    path.count = obj.num_samples;
+    std::vector<float> vertices;
+    vertices.reserve(obj.num_samples * 3);
+    for (uint32_t i = 0; i < obj.num_samples; ++i) {
+        double x =
+            obj.min_x + (obj.max_x - obj.min_x) * i / (obj.num_samples - 1);
+        double y = obj.function(x);
+        vertices.push_back(x);
+        vertices.push_back(y);
+        vertices.push_back(0.0f);
     }
-};
-
+    path.vbo.bind(xc::opengl::BufferTarget::ARRAY);
+    path.vbo.buffer_data(xc::opengl::BufferTarget::ARRAY,
+                         xc::opengl::BufferUsage::STATIC_DRAW, vertices);
+}
 using xcal::camera::ui_controler::FPSUIControler;
 struct RenderHandle {
     std::unique_ptr<xc::opengl::ShaderProgram> vertex_color_shader;
@@ -393,8 +384,8 @@ struct RenderHandle {
         transform_light.position = {1.f, 1.f, -1.0f};
         transform_light.scale = {0.3, 0.3, 0.3};
         path = std::make_unique<Path>();
-        FunctionCurve2d curve([](double x) { return std::sin(x*10); });
-        curve.dump(*path.get());
+        FunctionCurve2d curve([](double x) { return std::sin(x * 10); });
+        dump(curve, *path.get());
     }
     void draw_light(ecs::EventBus& event_bus, ecs::World& world) {
         use_shader(event_bus, world, uniform_color_shader.get());
@@ -405,7 +396,8 @@ struct RenderHandle {
     void draw(ecs::EventBus& event_bus, ecs::World& world) {
         draw_light(event_bus, world);
         // use_shader(event_bus, world, uniform_color_and_light_shader.get());
-        // uniform_transform(uniform_color_and_light_shader.get(), transform_cube);
+        // uniform_transform(uniform_color_and_light_shader.get(),
+        // transform_cube);
         // uniform_color_and_light_shader->uniform_vec3("color",
         //                                              model_color.value_ptr());
         // uniform_color_and_light_shader->uniform("ambientStrength", 0.1f);
@@ -418,7 +410,6 @@ struct RenderHandle {
         uniform_transform(uniform_color_shader.get(), transform_cube);
         uniform_color_shader->uniform_vec3("color", model_color.value_ptr());
         path->draw();
-
     }
 
     void transpose_event(ecs::EventBus& event_bus, ecs::World& world) {
@@ -443,21 +434,26 @@ struct RenderHandle {
 }  // namespace app
 
 void app::Renderer::init(ecs::World& world) {
-    world.use_plugin<xcal::camera::CameroPlugin>()
-        .use_plugin<xcal::transform::TransformPlugin>()
-        .use_plugin<FPSUIControler>();
-
+    world.use_plugin<xcal::camera::Camero>()
+        .use_plugin<xcal::transform::Transform>()
+        .use_plugin<FPSUIControler>()
+        .use_plugin<Clock>();
+        
     world.add_resource<Renderer>(std::make_unique<RenderHandle>(world));
     world.resource<FPSUIControler>()
         .set_dtranslation(0.05, 0.05, 0.05)
         .set_drotation(0.1, 0.1)
         .set_dzoom(0.01);
+
+    world.resource<Clock>().tick(0.5,[](){
+        std::println("tick");
+    } );
 }
 void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
     using namespace xc::opengl;
+    world.run_plugin<Clock>().run_plugin<FPSUIControler>();
     clear(ClearBufferMask::COLOR_BUFFER_BIT |
           ClearBufferMask::DEPTH_BUFFER_BIT);
-    world.run_plugin<FPSUIControler>();
     handle_->transpose_event(event_bus, world);
     handle_->draw(event_bus, world);
 }

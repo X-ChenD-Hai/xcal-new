@@ -3,6 +3,7 @@
 #include <ecs/command/command.hpp>
 #include <memory>
 #include <utility>
+#include <variant>
 
 #include "./entity.hpp"
 
@@ -11,9 +12,8 @@ class World;
 class CommandSubmit {
     friend class World;
 
-    std::array<std::vector<std::unique_ptr<command::Command>>,
-               (size_t)command::ExecutePriority::AFTER_ALL + 1>
-        commands_;
+    using command_ptr =
+        std::variant<std::unique_ptr<command::Command>, command::Command*>;
 
    protected:
     void execute_then_clear(World& world);
@@ -21,6 +21,10 @@ class CommandSubmit {
    public:
     CommandSubmit() {}
 
+    CommandSubmit& submit(ecs::command::Command* cmd) {
+        commands_[(uint32_t)cmd->execute_priority()].push_back(cmd);
+        return *this;
+    }
     CommandSubmit& submit(std::unique_ptr<ecs::command::Command>&& cmd) {
         commands_[(uint32_t)cmd->execute_priority()].push_back(std::move(cmd));
         return *this;
@@ -43,5 +47,10 @@ class CommandSubmit {
          ...);
         return *this;
     }
+
+   private:
+    std::array<std::vector<command_ptr>,
+               (size_t)command::ExecutePriority::AFTER_ALL + 1>
+        commands_;
 };
 }  // namespace ecs

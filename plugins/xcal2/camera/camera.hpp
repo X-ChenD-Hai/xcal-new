@@ -25,7 +25,7 @@ struct ProjectionConfig {
     xcmath::mat4f as_mat4() const;
 };
 
-class CameroPlugin {
+class Camero {
     friend class ecs::World;
 
    protected:

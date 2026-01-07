@@ -22,7 +22,7 @@ struct TransformComponent {
 struct TransformMatrixComponent {
     xcmath::mat4f matrix{xcmath::mat4f::eye()};
 };
-class TransformPlugin {
+class Transform {
     friend class ecs::World;
 
    protected:

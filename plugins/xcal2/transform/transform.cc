@@ -28,11 +28,11 @@ void update_transform_matrix(ecs::Querier q, ecs::ComponentAccessor a) {
     }
 }
 
-void xcal::transform::TransformPlugin::install(ecs::World& world) {
+void xcal::transform::Transform::install(ecs::World& world) {
     std::println("transform setup");
     world.regist_component<TransformComponent>()
         .regist_component<TransformMatrixComponent>();
 }
-void xcal::transform::TransformPlugin::run(ecs::World& world) {
+void xcal::transform::Transform::run(ecs::World& world) {
     world.run_system<update_transform_matrix>();
 }
