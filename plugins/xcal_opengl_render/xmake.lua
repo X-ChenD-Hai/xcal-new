@@ -1,0 +1,5 @@
+target("xcal-opengl-render")
+    set_kind("static")
+    add_files("*.cc")
+    add_deps("xcal2","xc-opengl-support")
+    add_includedirs("../..",{public = true})

@@ -20,12 +20,14 @@
 #include "xcal2/events/events.hpp"
 #include "xcal2/object/types.hpp"
 #include "xcal2/transform/transform.hpp"
+#include "xcal_opengl_render/render.hpp"
 #include "xcmath/mobject/declaration.hpp"
 
 namespace opengl = opengl_support;
 namespace app {
 using namespace xcal::object;
 using ecs::core::Clock;
+using GLRednder = xcal_opengl_render::Render;
 namespace shader_source_string {
 const char* kVertexWithPosUniformColorShaderSource = R"glsl(
 #version 330 core
@@ -454,6 +456,7 @@ void app::Renderer::init(ecs::World& world) {
     world.use_plugin<xcal::camera::Camero>()
         .use_plugin<xcal::transform::Transform>()
         .use_plugin<FPSUIControler>()
+        .use_plugin<GLRednder>()
         .use_plugin<Clock>();
 
     world.add_resource<Renderer>(std::make_unique<RenderHandle>(world));
@@ -464,7 +467,9 @@ void app::Renderer::init(ecs::World& world) {
 }
 void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
     using namespace xc::opengl;
-    world.run_plugin<Clock>().run_plugin<FPSUIControler>();
+    world.run_plugin<Clock>()
+        .run_plugin<FPSUIControler>()
+        .run_plugin<GLRednder>();
     clear(ClearBufferMask::COLOR_BUFFER_BIT |
           ClearBufferMask::DEPTH_BUFFER_BIT);
     handle_->transpose_event(event_bus, world);
