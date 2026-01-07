@@ -156,6 +156,10 @@ class World {
 };
 template <typename Resource>
 inline Resource& World::resource() {
+#ifdef _DEBUG
+    if (!resource_manager_.has<Resource>())
+        std::println("Not found resouse: {}", typeid(Resource).name());
+#endif
     XC_ASSERT(resource_manager_.has<Resource>());
     return resource_manager_.get<Resource>();
 };
