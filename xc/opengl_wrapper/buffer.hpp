@@ -31,7 +31,7 @@ class Buffer {
     void bind(BufferTarget type) const noexcept;
     static void unbind(BufferTarget type) noexcept;
 
-    void buffer_data(void* data, size_t size, BufferTarget target,
+    void buffer_data(const void* data, size_t size, BufferTarget target,
                      BufferUsage usage) const noexcept;
     void buffer_sub_data(void* data, size_t size, BufferTarget target,
                          BufferUsage usage) const noexcept;

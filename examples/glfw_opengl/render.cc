@@ -1,5 +1,6 @@
 #include "render.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <print>
@@ -10,21 +11,38 @@
 #include "opengl_wrapper/buffer.hpp"
 #include "opengl_wrapper/draw.hpp"
 #include "opengl_wrapper/shader_program.hpp"
+#include "opengl_wrapper/types.hpp"
 #include "opengl_wrapper/vertex_array.hpp"
 #include "xcal2/camera/camera.hpp"
 #include "xcal2/camera/fps_camera_controler.hpp"
 #include "xcal2/camera/ui_controler/fps_ui_controler.hpp"
 #include "xcal2/events/events.hpp"
 #include "xcal2/transform/transform.hpp"
+#include "xcmath/mobject/declaration.hpp"
 
 namespace opengl = opengl_support;
 namespace app {
 
 namespace shader_source_string {
+const char* kVertexWithPosUniformColorShaderSource = R"glsl(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 transform;
+uniform vec3 color;
+out vec3 ourColor;
+void main()
+{
+    gl_Position = projection * view * transform * vec4(aPos, 1.0);
+    ourColor = color;
+}
+)glsl";
 const char* kVertexWithPosColorShaderSource = R"glsl(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aColor;
+layout (location = 3) in vec3 aNormel;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat4 transform;
@@ -36,18 +54,23 @@ void main()
 }
 )glsl";
 
-static const char* kVertexWhitPosUniformColorShaderSource = R"glsl(
+static const char* kVertexWhitPosNormalLightShaderSource = R"glsl(
 #version 330 core
 layout (location = 0) in vec3 aPos;
-uniform mat4 view;
+layout (location = 3) in vec3 aNormal;
 uniform mat4 projection;
+uniform mat4 view;
 uniform mat4 transform;
-uniform vec3 aColor;
+uniform vec3 color;
 out vec3 ourColor;
+out vec3 normal;
+out vec3 vpos;
 void main()
 {
     gl_Position = projection * view * transform * vec4(aPos, 1.0);
-    ourColor = aColor;
+    ourColor = color;
+    normal = mat3(transpose(inverse(transform))) * aNormal;;
+    vpos = vec3(transform * vec4(aPos, 1.0));
 }
 )glsl";
 
@@ -61,9 +84,70 @@ void main()
     FragColor = vec4(ourColor, 1.0);
 }
 )glsl";
+const char* kFragmentWithLightShaderSource = R"glsl(
+#version 330 core
+uniform vec3 light_color;
+uniform vec3 light_pos;
+uniform mat4 transform;
+uniform float ambientStrength;
+in vec3 ourColor;
+in vec3 vpos;
+in vec3 normal;
+out vec4 FragColor;
+void main()
+{
+    vec3 norm = normalize(normal);
+    vec3 light_direction = normalize(light_pos-vpos);
+    float diff = max(dot(norm, light_direction), 0.0);
+    FragColor = vec4(ourColor*(ambientStrength+diff), 1.0);
+}
+)glsl";
 }  // namespace shader_source_string
 namespace static_buffer_data {
 
+static constexpr float kCubeVerticesWithNormal[] = {
+    -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,  //
+    0.5f,  -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,  //
+    0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,  //
+    0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,  //
+    -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,  //
+    -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,  //
+
+    -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  //
+    0.5f,  -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  //
+    0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  //
+    0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  //
+    -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  //
+    -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  //
+
+    -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  //
+    -0.5f, 0.5f,  -0.5f, -1.0f, 0.0f,  0.0f,  //
+    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  //
+    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  //
+    -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  //
+    -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  //
+
+    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  //
+    0.5f,  0.5f,  -0.5f, 1.0f,  0.0f,  0.0f,  //
+    0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  //
+    0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  //
+    0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  //
+    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  //
+
+    -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  //
+    0.5f,  -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  //
+    0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  //
+    0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  //
+    -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  //
+    -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  //
+
+    -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  //
+    0.5f,  0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  //
+    0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  //
+    0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  //
+    -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  //
+    -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f   //
+};
 static constexpr float kCubeVerticesPosition[]{
     // positions
     -0.5f, -0.5f, -0.5f,  // 0: left bottom back
@@ -75,7 +159,6 @@ static constexpr float kCubeVerticesPosition[]{
     0.5f,  0.5f,  0.5f,   // 6: right top front
     -0.5f, 0.5f,  0.5f,   // 7: left top front
 };
-
 static constexpr float kCubeVerticesColor[]{
     // colors
     1.0f, 0.0f, 0.0f,  // 0: red
@@ -87,7 +170,6 @@ static constexpr float kCubeVerticesColor[]{
     1.0f, 1.0f, 1.0f,  // 6: white
     0.5f, 0.5f, 0.5f,  // 7: gray
 };
-
 static constexpr uint32_t kCubeIndices[]{
     0, 1, 2, 2, 3, 0,  // 背面
     4, 5, 6, 6, 7, 4,  // 前面
@@ -96,14 +178,12 @@ static constexpr uint32_t kCubeIndices[]{
     0, 1, 5, 5, 4, 0,  // 底面
     3, 2, 6, 6, 7, 3   // 顶面
 };
-
 static constexpr float kTrangleVerticesPosition[]{
     // positions
     0.0f,  0.5f,  0.0f,  // top
     -0.5f, -0.5f, 0.0f,  // bottom left
     0.5f,  -0.5f, 0.0f,  // bottom right
 };
-
 static constexpr float kTrangleVerticesColor[]{
     // colors
     1.0f, 0.0f, 0.0f,  // top
@@ -157,6 +237,35 @@ struct Cube {
         draw_elements(DrawMode::TRIANGLES, 36, nullptr);
     }
 };
+
+struct NormelCube {
+    xc::opengl::VertexArray vao{};
+    xc::opengl::Buffer vbo{};
+    NormelCube() {
+        using namespace xc::opengl;
+        vao.bind();
+        std::println("create vertex array object {}", vao.id());
+        // Bind position VBO
+        vbo.bind(BufferTarget::ARRAY);
+        std::println("create vertex buffer object {}", vbo.id());
+        vbo.buffer_data(BufferTarget::ARRAY, BufferUsage::STATIC_DRAW,
+                        static_buffer_data::kCubeVerticesWithNormal);
+        // Set vertex attribute pointers for position
+        vao.set_attribute(0, 3, DataType::FLOAT, false, 6 * sizeof(float),
+                          nullptr);
+        vao.enable_attribute(0);
+        // Set vertex attribute pointers for normal
+        vao.set_attribute(3, 3, DataType::FLOAT, false, 6 * sizeof(float),
+                          (void*)(3 * sizeof(float)));
+        vao.enable_attribute(3);
+    }
+    void draw() {
+        using namespace xc::opengl;
+        vao.bind();
+        draw_arrays(DrawMode::TRIANGLES, 0, 36);
+    }
+};
+
 struct Trangle {
     xc::opengl::VertexArray vao{};
     xc::opengl::Buffer pos_vbo{};
@@ -192,13 +301,72 @@ struct Trangle {
         draw_arrays(DrawMode::TRIANGLES, 0, 3);
     }
 };
+
+struct Path {
+    xc::opengl::VertexArray vao{};
+    xc::opengl::Buffer vbo{};
+    size_t count{0};
+    Path() {
+        using namespace xc::opengl;
+        vao.bind();
+        std::println("create vertex array object {}", vao.id());
+        // Bind position VBO
+        vbo.bind(BufferTarget::ARRAY);
+        std::println("create vertex buffer object {}", vbo.id());
+        // Set vertex attribute pointers for position
+        vao.set_attribute(0, 3, DataType::FLOAT, false, 3 * sizeof(float),
+                          nullptr);
+        vao.enable_attribute(0);
+    }
+    void draw() {
+        using namespace xc::opengl;
+        vao.bind();
+        draw_arrays(DrawMode::LINE_STRIP, 0, count);
+    }
+};
+
+struct FunctionCurve2d {
+    double (*function)(double x);
+    double min_x{0.0};
+    double max_x{1.0};
+    uint32_t num_samples{100};
+    FunctionCurve2d(double (*function)(double x), double min_x = 0.0,
+                    double max_x = 1.0, uint32_t num_samples = 100)
+        : function(function),
+          min_x(min_x),
+          max_x(max_x),
+          num_samples(num_samples) {}
+    void dump(Path& path) {
+        path.count = num_samples;
+        std::vector<float> vertices;
+        vertices.reserve(num_samples * 3);
+        for (uint32_t i = 0; i < num_samples; ++i) {
+            double x = min_x + (max_x - min_x) * i / (num_samples - 1);
+            double y = function(x);
+            vertices.push_back(x);
+            vertices.push_back(y);
+            vertices.push_back(0.0f);
+        }
+        path.vbo.bind(xc::opengl::BufferTarget::ARRAY);
+        path.vbo.buffer_data(xc::opengl::BufferTarget::ARRAY,
+                             xc::opengl::BufferUsage::STATIC_DRAW, vertices);
+    }
+};
+
 using xcal::camera::ui_controler::FPSUIControler;
 struct RenderHandle {
-    std::unique_ptr<xc::opengl::ShaderProgram> program;
+    std::unique_ptr<xc::opengl::ShaderProgram> vertex_color_shader;
+    std::unique_ptr<xc::opengl::ShaderProgram> uniform_color_shader;
+    std::unique_ptr<xc::opengl::ShaderProgram> uniform_color_and_light_shader;
     std::unique_ptr<Cube> cube;
+    std::unique_ptr<NormelCube> normel_cube;
     std::unique_ptr<Trangle> trangle;
     std::unique_ptr<xcal::camera::FpsCameraControler> camera_controler;
-    xcal::transform::TransformComponent transform{};
+    xcal::transform::TransformComponent transform_cube{};
+    xcal::transform::TransformComponent transform_light{};
+    std::unique_ptr<Path> path;
+    xcmath::vec3f model_color{.0f, 1.0f, 1.0f};
+    xcmath::vec3f loght_color{1.0f, 1.0f, 1.0f};
     RenderHandle(ecs::World& world) {
         using namespace xc::opengl;
         auto& view = world.resource<xcal::camera::ViewConfig>();
@@ -207,54 +375,52 @@ struct RenderHandle {
             &world.resource<xcal::camera::ViewConfig>(),
             &world.resource<xcal::camera::ProjectionConfig>());
         world.add_resource(camera_controler.get());
-        std::println("create shader program");
-        try {
-            program = std::unique_ptr<ShaderProgram>(new ShaderProgram{{
-                {.source =
-                     shader_source_string::kVertexWithPosColorShaderSource,
-                 .type = ShaderSourceType::Vertex},
-                {.source = shader_source_string::kFragmentShaderSource,
-                 .type = ShaderSourceType::Fragment},
-            }});
-
-            std::println("create shader program {}", program->id());
-        } catch (const std::exception& e) {
-            std::println("create shader program failed: {}", e.what());
-        }
+        std::println("create shader programs");
+        vertex_color_shader =
+            make_shader(shader_source_string::kVertexWithPosColorShaderSource,
+                        shader_source_string::kFragmentShaderSource);
+        uniform_color_shader = make_shader(
+            shader_source_string::kVertexWithPosUniformColorShaderSource,
+            shader_source_string::kFragmentShaderSource);
+        uniform_color_and_light_shader = make_shader(
+            shader_source_string::kVertexWhitPosNormalLightShaderSource,
+            shader_source_string::kFragmentWithLightShaderSource);
         cube = std::make_unique<Cube>();
+        normel_cube = std::make_unique<NormelCube>();
         trangle = std::make_unique<Trangle>();
-        transform.position = {0.0f, 0.0f, -1.0f};
+        transform_cube.position = {0.0f, 0.0f, -1.0f};
+        transform_light = transform_cube;
+        transform_light.position = {1.f, 1.f, -1.0f};
+        transform_light.scale = {0.3, 0.3, 0.3};
+        path = std::make_unique<Path>();
+        FunctionCurve2d curve([](double x) { return std::sin(x*10); });
+        curve.dump(*path.get());
+    }
+    void draw_light(ecs::EventBus& event_bus, ecs::World& world) {
+        use_shader(event_bus, world, uniform_color_shader.get());
+        uniform_transform(uniform_color_shader.get(), transform_light);
+        uniform_color_shader->uniform_vec3("color", loght_color.value_ptr());
+        normel_cube->draw();
     }
     void draw(ecs::EventBus& event_bus, ecs::World& world) {
-        program->use();
-        update_camera(event_bus, world);
-        // cube->draw();
-        // trangle->draw();
-        cube->draw();
+        draw_light(event_bus, world);
+        // use_shader(event_bus, world, uniform_color_and_light_shader.get());
+        // uniform_transform(uniform_color_and_light_shader.get(), transform_cube);
+        // uniform_color_and_light_shader->uniform_vec3("color",
+        //                                              model_color.value_ptr());
+        // uniform_color_and_light_shader->uniform("ambientStrength", 0.1f);
+        // uniform_color_and_light_shader->uniform_vec3(
+        //     "light_pos", transform_light.position.value_ptr());
+        // uniform_color_and_light_shader->uniform_vec3("light_color",
+        //                                              loght_color.value_ptr());
+        // normel_cube->draw();
+        use_shader(event_bus, world, uniform_color_shader.get());
+        uniform_transform(uniform_color_shader.get(), transform_cube);
+        uniform_color_shader->uniform_vec3("color", model_color.value_ptr());
+        path->draw();
+
     }
 
-    void update_camera(ecs::EventBus& event_bus, ecs::World& world) {
-        if (event_bus.exist<xcal::events::CameraProjectionChanged>()) {
-            std::println("CameraProjectionChanged");
-            program->uniform_mat4(
-                "projection", world.resource<xcal::camera::ProjectionConfig>()
-                                  .as_mat4()
-                                  .T()
-                                  .value_ptr());
-        }
-        if (event_bus.exist<xcal::events::CameraViewChanged>()) {
-            // std::println("CameraViewChanged\np:{}\nu:{}\nd:{}",
-            //              world.resource<xcal::camera::ViewConfig>().position,
-            //              world.resource<xcal::camera::ViewConfig>().up,
-            //              world.resource<xcal::camera::ViewConfig>().direction);
-            program->uniform_mat4("view",
-                                  world.resource<xcal::camera::ViewConfig>()
-                                      .as_mat4()
-                                      .T()
-                                      .value_ptr());
-        }
-        program->uniform_mat4("transform", transform.to_mat().T().value_ptr());
-    }
     void transpose_event(ecs::EventBus& event_bus, ecs::World& world) {
         using namespace xc::opengl;
         event_bus.each([&](opengl::FrameResizeEvent& e) {
@@ -265,7 +431,15 @@ struct RenderHandle {
             event_bus.publish<xcal::events::CameraProjectionChanged>();
         });
     }
+    static std::unique_ptr<xc::opengl::ShaderProgram> make_shader(
+        const char* vertex_shader_source, const char* fragment_shader_source);
+    static void uniform_transform(
+        xc::opengl::ShaderProgram* shader,
+        xcal::transform::TransformComponent transform);
+    static void use_shader(ecs::EventBus& event_bus, ecs::World& world,
+                           xc::opengl::ShaderProgram* shader);
 };
+
 }  // namespace app
 
 void app::Renderer::init(ecs::World& world) {
@@ -289,3 +463,46 @@ void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
 }
 app::Renderer::Renderer(std::unique_ptr<RenderHandle> render_handle)
     : handle_(std::move(render_handle)) {}
+
+std::unique_ptr<xc::opengl::ShaderProgram> app::RenderHandle::make_shader(
+    const char* vertex_shader_source, const char* fragment_shader_source) {
+    using namespace xc::opengl;
+    try {
+        auto shader = std::unique_ptr<ShaderProgram>(new ShaderProgram{{
+            {.source = vertex_shader_source, .type = ShaderSourceType::Vertex},
+            {.source = fragment_shader_source,
+             .type = ShaderSourceType::Fragment},
+        }});
+
+        std::println("create shader program {}", shader->id());
+        return shader;
+    } catch (const std::exception& e) {
+        std::println("create shader program failed: {}", e.what());
+    }
+    return nullptr;
+}
+
+void app::RenderHandle::uniform_transform(
+    xc::opengl::ShaderProgram* shader,
+    xcal::transform::TransformComponent transform) {
+    shader->uniform_mat4("transform", transform.to_mat().T().value_ptr());
+}
+
+void app::RenderHandle::use_shader(ecs::EventBus& event_bus, ecs::World& world,
+                                   xc::opengl::ShaderProgram* shader) {
+    shader->use();
+    if (event_bus.exist<xcal::events::CameraProjectionChanged>()) {
+        std::println("CameraProjectionChanged");
+        shader->uniform_mat4("projection",
+                             world.resource<xcal::camera::ProjectionConfig>()
+                                 .as_mat4()
+                                 .T()
+                                 .value_ptr());
+    }
+    if (event_bus.exist<xcal::events::CameraViewChanged>()) {
+        shader->uniform_mat4("view", world.resource<xcal::camera::ViewConfig>()
+                                         .as_mat4()
+                                         .T()
+                                         .value_ptr());
+    }
+}

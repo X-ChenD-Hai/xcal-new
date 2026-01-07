@@ -17,7 +17,7 @@ void xc::opengl::Buffer::unbind(BufferTarget type) noexcept {
     glBindBuffer(enum_to_gl(type), 0);
 }
 
-void xc::opengl::Buffer::buffer_data(void* data, size_t size,
+void xc::opengl::Buffer::buffer_data(const void* data, size_t size,
                                      BufferTarget target,
                                      BufferUsage usage) const noexcept {
     glBufferData(enum_to_gl(target), static_cast<GLsizeiptr>(size), data,

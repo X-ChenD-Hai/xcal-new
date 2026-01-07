@@ -9,7 +9,6 @@ ShaderSource::ShaderSource(const ShaderSourceDescriptor& desc) {
     shader_id_ = glCreateShader(enum_to_gl(desc.type));
 
     std::string source(desc.source);
-    std::println("source {}", desc.source);
     const char* src = source.c_str();
 
     glShaderSource(shader_id_, 1, &src, nullptr);

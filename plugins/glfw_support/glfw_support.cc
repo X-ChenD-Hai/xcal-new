@@ -176,7 +176,6 @@ static Modifier glfw_to_modifier(int glfwMods) {
 }
 static MouseButton glfw_to_button(int glfwButton) {
     using namespace glfw_support;
-    std::println("parse");
     if (glfwButton == GLFW_MOUSE_BUTTON_LEFT) {
         return MouseButton::Left;
     } else if (glfwButton == GLFW_MOUSE_BUTTON_RIGHT) {
@@ -270,7 +269,6 @@ void GLFWSupport::get_mouse_position(double& xpos, double& ypos) const {
 
 // 初始化和清理方法
 bool GLFWSupport::initialize() {
-    std::println("GLFWSupport::initialize");
     if (!init_glfw()) {
         return false;
     }
@@ -297,7 +295,6 @@ bool GLFWSupport::init_glfw() {
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    std::println("GLFWSupport::init_glfw_window");
     return true;
 }
 

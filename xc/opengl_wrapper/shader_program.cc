@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "./opengl_api.hpp"
+#include "./opengl_api.hpp"  // IWYU pragma: keep
 
 xc::opengl::ShaderProgram::ShaderProgram(
     std::initializer_list<ShaderSourceDescriptor> desc) {
