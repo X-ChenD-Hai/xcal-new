@@ -21,6 +21,8 @@
 #include "xcal2/object/types.hpp"
 #include "xcal2/transform/transform.hpp"
 #include "xcal_opengl_render/render.hpp"
+#include "xcal_opengl_render/shader.hpp"
+#include "xcal_opengl_render/static_mesh_data.hpp"
 #include "xcmath/mobject/declaration.hpp"
 
 namespace opengl = opengl_support;
@@ -28,175 +30,8 @@ namespace app {
 using namespace xcal::object;
 using ecs::core::Clock;
 using GLRednder = xcal_opengl_render::Render;
-namespace shader_source_string {
-const char* kVertexWithPosUniformColorShaderSource = R"glsl(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-uniform mat4 view;
-uniform mat4 projection;
-uniform mat4 transform;
-uniform vec3 color;
-out vec3 ourColor;
-void main()
-{
-    gl_Position = projection * view * transform * vec4(aPos, 1.0);
-    ourColor = color;
-}
-)glsl";
-const char* kVertexWithPosColorShaderSource = R"glsl(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aColor;
-layout (location = 3) in vec3 aNormel;
-uniform mat4 view;
-uniform mat4 projection;
-uniform mat4 transform;
-out vec3 ourColor;
-void main()
-{
-    gl_Position = projection * view * transform * vec4(aPos, 1.0);
-    ourColor = aColor;
-}
-)glsl";
-
-static const char* kVertexWhitPosNormalLightShaderSource = R"glsl(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 3) in vec3 aNormal;
-uniform mat4 projection;
-uniform mat4 view;
-uniform mat4 transform;
-uniform vec3 color;
-out vec3 ourColor;
-out vec3 normal;
-out vec3 vpos;
-void main()
-{
-    gl_Position = projection * view * transform * vec4(aPos, 1.0);
-    ourColor = color;
-    normal = mat3(transpose(inverse(transform))) * aNormal;;
-    vpos = vec3(transform * vec4(aPos, 1.0));
-}
-)glsl";
-
-// 片段着色器源码
-const char* kFragmentShaderSource = R"glsl(
-#version 330 core
-in vec3 ourColor;
-out vec4 FragColor;
-void main()
-{
-    FragColor = vec4(ourColor, 1.0);
-}
-)glsl";
-const char* kFragmentWithLightShaderSource = R"glsl(
-#version 330 core
-uniform vec3 light_color;
-uniform vec3 light_pos;
-uniform mat4 transform;
-uniform float ambientStrength;
-in vec3 ourColor;
-in vec3 vpos;
-in vec3 normal;
-out vec4 FragColor;
-void main()
-{
-    vec3 norm = normalize(normal);
-    vec3 light_direction = normalize(light_pos-vpos);
-    float diff = max(dot(norm, light_direction), 0.0);
-    FragColor = vec4(ourColor*(ambientStrength+diff), 1.0);
-}
-)glsl";
-}  // namespace shader_source_string
-namespace static_buffer_data {
-
-static constexpr float kCubeVerticesWithNormal[] = {
-    -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,  //
-    0.5f,  -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,  //
-    0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,  //
-    0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,  //
-    -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,  //
-    -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,  //
-
-    -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  //
-    0.5f,  -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  //
-    0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  //
-    0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  //
-    -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  //
-    -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  //
-
-    -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  //
-    -0.5f, 0.5f,  -0.5f, -1.0f, 0.0f,  0.0f,  //
-    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  //
-    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  //
-    -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  //
-    -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  //
-
-    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  //
-    0.5f,  0.5f,  -0.5f, 1.0f,  0.0f,  0.0f,  //
-    0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  //
-    0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  //
-    0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  //
-    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  //
-
-    -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  //
-    0.5f,  -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  //
-    0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  //
-    0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  //
-    -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  //
-    -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  //
-
-    -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  //
-    0.5f,  0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  //
-    0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  //
-    0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  //
-    -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  //
-    -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f   //
-};
-static constexpr float kCubeVerticesPosition[]{
-    // positions
-    -0.5f, -0.5f, -0.5f,  // 0: left bottom back
-    0.5f,  -0.5f, -0.5f,  // 1: right bottom back
-    0.5f,  0.5f,  -0.5f,  // 2: right top back
-    -0.5f, 0.5f,  -0.5f,  // 3: left top back
-    -0.5f, -0.5f, 0.5f,   // 4: left bottom front
-    0.5f,  -0.5f, 0.5f,   // 5: right bottom front
-    0.5f,  0.5f,  0.5f,   // 6: right top front
-    -0.5f, 0.5f,  0.5f,   // 7: left top front
-};
-static constexpr float kCubeVerticesColor[]{
-    // colors
-    1.0f, 0.0f, 0.0f,  // 0: red
-    0.0f, 1.0f, 0.0f,  // 1: green
-    0.0f, 0.0f, 1.0f,  // 2: blue
-    1.0f, 1.0f, 0.0f,  // 3: yellow
-    1.0f, 0.0f, 1.0f,  // 4: magenta
-    0.0f, 1.0f, 1.0f,  // 5: cyan
-    1.0f, 1.0f, 1.0f,  // 6: white
-    0.5f, 0.5f, 0.5f,  // 7: gray
-};
-static constexpr uint32_t kCubeIndices[]{
-    0, 1, 2, 2, 3, 0,  // 背面
-    4, 5, 6, 6, 7, 4,  // 前面
-    3, 0, 4, 4, 7, 3,  // 左面
-    1, 5, 6, 6, 2, 1,  // 右面
-    0, 1, 5, 5, 4, 0,  // 底面
-    3, 2, 6, 6, 7, 3   // 顶面
-};
-static constexpr float kTrangleVerticesPosition[]{
-    // positions
-    0.0f,  0.5f,  0.0f,  // top
-    -0.5f, -0.5f, 0.0f,  // bottom left
-    0.5f,  -0.5f, 0.0f,  // bottom right
-};
-static constexpr float kTrangleVerticesColor[]{
-    // colors
-    1.0f, 0.0f, 0.0f,  // top
-    0.0f, 1.0f, 0.0f,  // bottom left
-    0.0f, 0.0f, 1.0f,  // bottom right
-};
-
-}  // namespace static_buffer_data
+namespace static_buffer_data = xcal_opengl_render::static_buffer_data;
+namespace static_shader_source = xcal_opengl_render::static_shader_source;
 struct Cube {
     xc::opengl::VertexArray vao{};
     xc::opengl::Buffer pos_vbo{};
@@ -388,14 +223,14 @@ struct RenderHandle {
         world.add_resource(camera_controler.get());
         std::println("create shader programs");
         vertex_color_shader =
-            make_shader(shader_source_string::kVertexWithPosColorShaderSource,
-                        shader_source_string::kFragmentShaderSource);
-        uniform_color_shader = make_shader(
-            shader_source_string::kVertexWithPosUniformColorShaderSource,
-            shader_source_string::kFragmentShaderSource);
-        uniform_color_and_light_shader = make_shader(
-            shader_source_string::kVertexWhitPosNormalLightShaderSource,
-            shader_source_string::kFragmentWithLightShaderSource);
+            make_shader(static_shader_source::kVertexWithPosColorShaderSource,
+                        static_shader_source::kFragmentShaderSource);
+        uniform_color_shader =
+            make_shader(static_shader_source::kVertexWithPosUniformColorShaderSource,
+                        static_shader_source::kFragmentShaderSource);
+        uniform_color_and_light_shader =
+            make_shader(static_shader_source::kVertexWhitPosNormalLightShaderSource,
+                        static_shader_source::kFragmentWithLightShaderSource);
         cube = std::make_unique<Cube>();
         normel_cube = std::make_unique<NormelCube>();
         trangle = std::make_unique<Trangle>();
