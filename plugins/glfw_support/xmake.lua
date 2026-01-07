@@ -1,6 +1,7 @@
 target("xc-glfw-support")
     set_kind("static")
     add_files("*.cc")
-    add_packages("glfw")
     add_includedirs(".", { public = true })
+    add_packages("glfw")
+    add_deps("ui-protocol")
     add_deps("ecs")

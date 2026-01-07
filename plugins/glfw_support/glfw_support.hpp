@@ -4,11 +4,11 @@
 #include <ecs/event_bus.hpp>
 #include <ecs/world.hpp>
 
-#include "./types.hpp"
+#include "ui_protocol/types.hpp"
 
 struct GLFWwindow;
 namespace glfw_support {
-
+using namespace ui_protocol;
 class GLFWSupport {
     friend class ::ecs::World;
 
@@ -21,8 +21,10 @@ class GLFWSupport {
     void destroy_window();
     bool window_should_close() const;
     void set_window_should_close(bool value);
+    void set_input_mode(InputMode mode);
+    void poll_events(double timeout_s = 0.0);
     void swap_buffers() const;
-    void poll_events(double timeout_s = 0.0) const;
+    void handle_extern_event() ;
 
     // 输入处理接口
     bool is_key_pressed(int key) const;
@@ -54,6 +56,9 @@ class GLFWSupport {
                                       int action, int mods);
     static void cursor_pos_callback(GLFWwindow* window, double xpos,
                                     double ypos);
+    static void wheel_callback(GLFWwindow* window, double xoffset,
+                               double yoffset);
+    static void mouse_move_callback(GLFWwindow* window, double xpos, double ypos);
 
    private:
     GLFWwindow* window_;
@@ -62,6 +67,7 @@ class GLFWSupport {
     int width_;
     int height_;
     const char* title_;
+    double last_pos_x_, last_pos_y_;
 };
 
 }  // namespace glfw_support

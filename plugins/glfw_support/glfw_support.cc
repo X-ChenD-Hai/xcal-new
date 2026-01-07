@@ -4,7 +4,8 @@
 
 #include <print>
 
-#include "types.hpp"
+#include "ecs/event_bus.hpp"
+
 namespace glfw_support {
 
 static Key glfw_to_key(int glfwKeycode) {
@@ -175,17 +176,18 @@ static Modifier glfw_to_modifier(int glfwMods) {
 }
 static MouseButton glfw_to_button(int glfwButton) {
     using namespace glfw_support;
-    MouseButton button;
-    if (glfwButton & GLFW_MOUSE_BUTTON_LEFT) {
-        button |= MouseButtons::Left;
+    std::println("parse");
+    if (glfwButton == GLFW_MOUSE_BUTTON_LEFT) {
+        std::println("left");
+        return MouseButton::Left;
+    } else if (glfwButton == GLFW_MOUSE_BUTTON_RIGHT) {
+        std::println("right");
+        return MouseButton::Right;
+    } else if (glfwButton == GLFW_MOUSE_BUTTON_MIDDLE) {
+        std::println("middle");
+        return MouseButton::Middle;
     }
-    if (glfwButton & GLFW_MOUSE_BUTTON_RIGHT) {
-        button |= MouseButtons::Right;
-    }
-    if (glfwButton & GLFW_MOUSE_BUTTON_MIDDLE) {
-        button |= MouseButtons::Middle;
-    }
-    return button;
+    return static_cast<MouseButton>(0);
 }
 
 // 辅助函数：从窗口获取GLFWSupport实例
@@ -246,7 +248,7 @@ void GLFWSupport::swap_buffers() const {
     }
 }
 
-void GLFWSupport::poll_events(double timeout_s) const {
+void GLFWSupport::poll_events(double timeout_s) {
     if (timeout_s > 0) glfwWaitEventsTimeout(timeout_s);
     glfwPollEvents();
 }
@@ -322,6 +324,8 @@ bool GLFWSupport::init_glfw_window() {
     glfwSetKeyCallback(window_, key_callback);
     glfwSetMouseButtonCallback(window_, mouse_button_callback);
     glfwSetCursorPosCallback(window_, cursor_pos_callback);
+    glfwSetScrollCallback(window_, wheel_callback);
+    glfwSetCursorPosCallback(window_, mouse_move_callback);
 
     // 设置交换间隔（垂直同步）
     glfwSwapInterval(1);
@@ -396,5 +400,38 @@ GLFWSupport& GLFWSupport::set_window_position(int xpos, int ypos) {
         glfwSetWindowPos(window_, xpos, ypos);
     }
     return *this;
+}
+void GLFWSupport::wheel_callback(GLFWwindow* window, double xoffset,
+                                 double yoffset) {
+    auto instance = get_instance(window);
+    instance->event_bus_->publish<WheelEvent>(xoffset, yoffset);
+}
+void GLFWSupport::mouse_move_callback(GLFWwindow* window, double xpos,
+                                      double ypos) {
+    auto instance = get_instance(window);
+    instance->event_bus_->publish<MouseMoveEvent>(xpos - instance->last_pos_x_,
+                                                  ypos - instance->last_pos_y_);
+    instance->last_pos_x_ = xpos;
+    instance->last_pos_y_ = ypos;
+}
+
+static inline int enum_to_glfw(InputMode mode) {
+    switch (mode) {
+        case InputMode::CursorNormal:
+            return GLFW_CURSOR_NORMAL;
+        case InputMode::CursorDisabled:
+            return GLFW_CURSOR_DISABLED;
+        default:
+            return GLFW_CURSOR_NORMAL;
+    }
+}
+
+void GLFWSupport::set_input_mode(InputMode mode) {
+    if (window_) {
+        glfwSetInputMode(window_, GLFW_CURSOR, enum_to_glfw(mode));
+    }
+}
+void GLFWSupport::handle_extern_event() {
+    event_bus_->each([&](SetInputModeEvent e) { set_input_mode(e.mode); });
 }
 }  // namespace glfw_support

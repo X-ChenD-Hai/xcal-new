@@ -1,6 +1,6 @@
 #pragma once
 #include <common/flags.hpp>
-namespace glfw_support {
+namespace ui_protocol {
 enum class Key {
     /* Printable keys */
     SPACE = 32,
@@ -128,7 +128,7 @@ enum class Key {
 
     LAST = MENU,
 };
-enum class MouseButtons : uint8_t {
+enum class MouseButton : uint8_t {
     Left = 1 << 0,
     Right = 1 << 1,
     Middle = 1 << 2
@@ -143,8 +143,6 @@ enum class Modifiers : uint16_t {
     NumLock = 1 << 5,
 };
 
-
-using MouseButton = flags::Flags<MouseButtons>;
 using KeyAction = KeyActions;
 using Modifier = flags::Flags<Modifiers>;
 struct WindowCloseEvent {};
@@ -160,7 +158,7 @@ struct KeyEvent {
 };
 
 struct WheelEvent {
-    double x_offset, y_offset;
+    double dx, dy;
 };
 struct MouseButtonEvent {
     MouseButton button;
@@ -170,9 +168,19 @@ struct MouseButtonEvent {
     double ypos;
 };
 struct MouseMoveEvent {
-    double xpos;
-    double ypos;
+    double dx;
+    double dy;
 };
 using GLFWglproc = void (*)();
 using GetProcAddressFunc = GLFWglproc (*)(const char*);
-}  // namespace glfw_support
+
+enum InputMode {
+    CursorNormal,
+    CursorDisabled,
+};
+
+struct SetInputModeEvent {
+    InputMode mode;
+};
+
+}  // namespace ui_protocol
