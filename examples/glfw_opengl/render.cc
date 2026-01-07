@@ -66,41 +66,35 @@ namespace static_buffer_data {
 
 static constexpr float kCubeVerticesPosition[]{
     // positions
-    0.5f,  0.5f,  0.5f,   // top right front
-    -0.5f, 0.5f,  0.5f,   // top left front
-    0.5f,  -0.5f, 0.5f,   // bottom right front
-    -0.5f, -0.5f, 0.5f,   // bottom left front
-    0.5f,  0.5f,  -0.5f,  // top right back
-    -0.5f, 0.5f,  -0.5f,  // top left back
-    0.5f,  -0.5f, -0.5f,  // bottom right back
-    -0.5f, -0.5f, -0.5f,  // bottom left back
+    -0.5f, -0.5f, -0.5f,  // 0: left bottom back
+    0.5f,  -0.5f, -0.5f,  // 1: right bottom back
+    0.5f,  0.5f,  -0.5f,  // 2: right top back
+    -0.5f, 0.5f,  -0.5f,  // 3: left top back
+    -0.5f, -0.5f, 0.5f,   // 4: left bottom front
+    0.5f,  -0.5f, 0.5f,   // 5: right bottom front
+    0.5f,  0.5f,  0.5f,   // 6: right top front
+    -0.5f, 0.5f,  0.5f,   // 7: left top front
 };
 
 static constexpr float kCubeVerticesColor[]{
     // colors
-    1.0f, 0.0f, 0.0f,  // top right front
-    0.0f, 1.0f, 0.0f,  // top left front
-    0.0f, 0.0f, 1.0f,  // bottom right front
-    1.0f, 1.0f, 0.0f,  // bottom left front
-    1.0f, 0.0f, 1.0f,  // top right back
-    0.0f, 1.0f, 1.0f,  // top left back
-    1.0f, 1.0f, 1.0f,  // bottom right back
-    0.0f, 0.0f, 0.0f,  // bottom left back
+    1.0f, 0.0f, 0.0f,  // 0: red
+    0.0f, 1.0f, 0.0f,  // 1: green
+    0.0f, 0.0f, 1.0f,  // 2: blue
+    1.0f, 1.0f, 0.0f,  // 3: yellow
+    1.0f, 0.0f, 1.0f,  // 4: magenta
+    0.0f, 1.0f, 1.0f,  // 5: cyan
+    1.0f, 1.0f, 1.0f,  // 6: white
+    0.5f, 0.5f, 0.5f,  // 7: gray
 };
 
 static constexpr uint32_t kCubeIndices[]{
-    0, 1, 2,  // first triangle
-    1, 3, 2,  // second triangle
-    2, 3, 6,  // third triangle
-    3, 7, 6,  // fourth triangle
-    6, 7, 4,  // fifth triangle
-    7, 5, 4,  // sixth triangle
-    4, 5, 0,  // seventh triangle
-    5, 1, 0,  // eighth triangle
-    0, 3, 1,  // ninth triangle
-    3, 2, 1,  // tenth triangle
-    4, 6, 5,  // eleventh triangle
-    6, 7, 5,  // twelfth triangle
+    0, 1, 2, 2, 3, 0,  // 背面
+    4, 5, 6, 6, 7, 4,  // 前面
+    3, 0, 4, 4, 7, 3,  // 左面
+    1, 5, 6, 6, 2, 1,  // 右面
+    0, 1, 5, 5, 4, 0,  // 底面
+    3, 2, 6, 6, 7, 3   // 顶面
 };
 
 static constexpr float kTrangleVerticesPosition[]{
@@ -249,10 +243,10 @@ struct RenderHandle {
                                   .value_ptr());
         }
         if (event_bus.exist<xcal::events::CameraViewChanged>()) {
-            std::println("CameraViewChanged\np:{}\nu:{}\nd:{}",
-                         world.resource<xcal::camera::ViewConfig>().position,
-                         world.resource<xcal::camera::ViewConfig>().up,
-                         world.resource<xcal::camera::ViewConfig>().direction);
+            // std::println("CameraViewChanged\np:{}\nu:{}\nd:{}",
+            //              world.resource<xcal::camera::ViewConfig>().position,
+            //              world.resource<xcal::camera::ViewConfig>().up,
+            //              world.resource<xcal::camera::ViewConfig>().direction);
             program->uniform_mat4("view",
                                   world.resource<xcal::camera::ViewConfig>()
                                       .as_mat4()
@@ -260,6 +254,16 @@ struct RenderHandle {
                                       .value_ptr());
         }
         program->uniform_mat4("transform", transform.to_mat().T().value_ptr());
+    }
+    void transpose_event(ecs::EventBus& event_bus, ecs::World& world) {
+        using namespace xc::opengl;
+        event_bus.each([&](opengl::FrameResizeEvent& e) {
+            std::println("FrameResizeEvent {} {}", e.width, e.height);
+            viewport(0, 0, e.width, e.height);
+            world.resource<xcal::camera::ProjectionConfig>().aspect =
+                static_cast<float>(e.width) / static_cast<float>(e.height);
+            event_bus.publish<xcal::events::CameraProjectionChanged>();
+        });
     }
 };
 }  // namespace app
@@ -280,12 +284,8 @@ void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
     clear(ClearBufferMask::COLOR_BUFFER_BIT |
           ClearBufferMask::DEPTH_BUFFER_BIT);
     world.run_plugin<FPSUIControler>();
+    handle_->transpose_event(event_bus, world);
     handle_->draw(event_bus, world);
-
-    event_bus.each([&](opengl::FrameResizeEvent& e) {
-        std::println("FrameResizeEvent {} {}", e.width, e.height);
-        viewport(0, 0, e.width, e.height);
-    });
 }
 app::Renderer::Renderer(std::unique_ptr<RenderHandle> render_handle)
     : handle_(std::move(render_handle)) {}

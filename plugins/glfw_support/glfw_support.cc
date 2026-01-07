@@ -178,13 +178,10 @@ static MouseButton glfw_to_button(int glfwButton) {
     using namespace glfw_support;
     std::println("parse");
     if (glfwButton == GLFW_MOUSE_BUTTON_LEFT) {
-        std::println("left");
         return MouseButton::Left;
     } else if (glfwButton == GLFW_MOUSE_BUTTON_RIGHT) {
-        std::println("right");
         return MouseButton::Right;
     } else if (glfwButton == GLFW_MOUSE_BUTTON_MIDDLE) {
-        std::println("middle");
         return MouseButton::Middle;
     }
     return static_cast<MouseButton>(0);
