@@ -1,0 +1,5 @@
+target("xcal-camera-ui-controler")
+    set_kind("static")
+    add_files("*.cc")
+    add_deps("xcal-camera","ui-protocol",{public = true})
+    add_deps("ecs")

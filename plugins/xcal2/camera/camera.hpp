@@ -25,13 +25,12 @@ struct ProjectionConfig {
     xcmath::mat4f as_mat4() const;
 };
 
-
-
 class CameroPlugin {
     friend class ecs::World;
-    protected:
-     static void install(ecs::World& world);
-     static void run(ecs::World& world);
+
+   protected:
+    static void install(ecs::World& world);
+    static void run(ecs::World& world);
 };
 
 };  // namespace xcal::camera
