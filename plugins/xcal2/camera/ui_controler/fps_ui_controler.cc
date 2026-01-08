@@ -47,4 +47,7 @@ void xcal::camera::ui_controler::FPSUIControler::run(
             camera_controler.rotate(e.dx * dyaw_, -e.dy * dpitch_);
         }
     });
+    bus.each([&](WindowResizeEvent& e) {
+        camera_controler.resize(e.width, e.height);
+    });
 }

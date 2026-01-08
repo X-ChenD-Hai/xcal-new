@@ -5,6 +5,7 @@
 #include "glfw_support.hpp"
 #include "opengl_support.hpp"
 #include "render.hpp"
+#include "ui_protocol/types.hpp"
 namespace glfw = glfw_support;
 
 static constexpr int kWindowWidth = 800;
@@ -41,7 +42,7 @@ int main() {
         .set_window_title("GLFW OpenGL Example")
         .set_window_position(200, 200);
     world.run_system<app::Renderer::init>();
-    world.resource<EventBus>().publish<opengl_support::FrameResizeEvent>(
+    world.resource<EventBus>().publish<ui_protocol::WindowResizeEvent>(
         kWindowWidth, kWindowHeight);
     world.run_system<run>();
     return 0;

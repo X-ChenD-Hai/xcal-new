@@ -74,7 +74,9 @@ enum class DrawMode {
     // 邻接三角形（GL_TRIANGLES_ADJACENCY，OpenGL 3.2+）
     TRIANGLES_ADJACENCY,
     // 邻接三角形带（GL_TRIANGLE_STRIP_ADJACENCY，OpenGL 3.2+）
-    TRIANGLE_STRIP_ADJACENCY
+    TRIANGLE_STRIP_ADJACENCY,
+    // 多面体（GL_POLYGON，OpenGL 4.0+）
+    POLYGON,
 };
 using shader_source_id_t = uint32_t;
 using shader_source_id_t = uint32_t;
@@ -133,12 +135,14 @@ enum class ClearBufferMask {
 template <class E>
 class Flag {
     using underlying_type = std::underlying_type_t<E>;
+
    public:
-    Flag() = default;
-    Flag(E value) : value_(value) {}
+    constexpr Flag() = default;
+    constexpr Flag(E value) : value_(value) {}
     operator E() const { return value_; }
-    bool test(E mask) const {
-        return (static_cast<underlying_type>(value_) & static_cast<underlying_type>(mask)) != 0;
+    constexpr bool test(E mask) const {
+        return (static_cast<underlying_type>(value_) &
+                static_cast<underlying_type>(mask)) != 0;
     }
 
    private:

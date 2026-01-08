@@ -56,3 +56,8 @@ void xcal::camera::FpsCameraControler::zoom(float dzoom) {
     zoon_ = projection_->fov / fov_;
     event_bus_->publish<events::CameraProjectionChanged>();
 }
+void xcal::camera::FpsCameraControler::resize(int width, int height) {
+    if (!projection_) return;
+    projection_->aspect = (float)width / (float)height;
+    event_bus_->publish<events::CameraProjectionChanged>();
+}

@@ -4,6 +4,7 @@
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
+
 #include "glbinding/gl/bitfield.h"
 #include "glbinding/gl/enum.h"
 using namespace ::gl;
@@ -187,6 +188,8 @@ inline constexpr GLenum enum_to_gl(DrawMode value) {
             return GL_TRIANGLES_ADJACENCY;
         case DrawMode::TRIANGLE_STRIP_ADJACENCY:
             return GL_TRIANGLE_STRIP_ADJACENCY;
+        case DrawMode::POLYGON:
+            return GL_POLYGON;
         default:
             return GL_INVALID_ENUM;
     }
