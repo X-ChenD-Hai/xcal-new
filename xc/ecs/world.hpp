@@ -66,6 +66,7 @@ class World {
         if constexpr (std::is_invocable_r_v<Plugin*, decltype(Plugin::install),
                                             World&, Args...>) {
             auto pligin = Plugin::install(*this, std::forward<Args>(args)...);
+            XC_ASSERT(pligin != nullptr);
             plugins_.emplace_back(pligin, [this](void* ptr) {
                 Plugin::uninstall(*this, (Plugin*)ptr);
             });

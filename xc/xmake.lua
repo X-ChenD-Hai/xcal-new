@@ -2,6 +2,7 @@ target("libxc")
     set_kind("phony")
     add_includedirs("./common",{public = true})
 
+includes("async_scheduler")
 includes("opengl_wrapper")
 includes("cmdline")
 includes("event")

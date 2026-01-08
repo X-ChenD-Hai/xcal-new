@@ -31,7 +31,7 @@ using namespace xcal::object;
 using ecs::core::Clock;
 using GLRednder = xcal_opengl_render::Render;
 namespace static_buffer_data = xcal_opengl_render::static_buffer_data;
-namespace static_shader_source = xcal_opengl_render::static_shader_source;
+namespace glrednder = xcal_opengl_render;
 struct Cube {
     xc::opengl::VertexArray vao{};
     xc::opengl::Buffer pos_vbo{};
@@ -165,6 +165,21 @@ struct Path {
     }
 };
 
+void dump(const QuadraticBezierCurve2d& bezier, Path& path,
+          size_t count = 100) {
+    path.count = count;
+    std::vector<xcmath::vec3f> vertices;
+    vertices.reserve(path.count * 3);
+    for (uint32_t i = 0; i < path.count; ++i) {
+        float t = i / (path.count - 1.0);
+        vertices.push_back(lerp(lerp(bezier.p0, bezier.p1, t),
+                                lerp(bezier.p1, bezier.p2, t), t));
+    }
+    path.vbo.bind(xc::opengl::BufferTarget::ARRAY);
+    path.vbo.buffer_data(xc::opengl::BufferTarget::ARRAY,
+                         xc::opengl::BufferUsage::STATIC_DRAW, vertices);
+}
+
 void dump(const FunctionCurve2d& obj, Path& path) {
     path.count = obj.num_samples;
     std::vector<float> vertices;
@@ -192,9 +207,6 @@ inline void dump(const A& a, const B* b) {
 
 using xcal::camera::ui_controler::FPSUIControler;
 struct RenderHandle {
-    std::unique_ptr<xc::opengl::ShaderProgram> vertex_color_shader;
-    std::unique_ptr<xc::opengl::ShaderProgram> uniform_color_shader;
-    std::unique_ptr<xc::opengl::ShaderProgram> uniform_color_and_light_shader;
     std::unique_ptr<Cube> cube;
     std::unique_ptr<NormelCube> normel_cube;
     std::unique_ptr<Trangle> trangle;
@@ -202,6 +214,7 @@ struct RenderHandle {
     xcal::transform::TransformComponent transform_cube{};
     xcal::transform::TransformComponent transform_light{};
     std::unique_ptr<Path> path;
+    std::unique_ptr<Path> bezier_path;
     xcmath::vec3f model_color{.0f, 1.0f, 1.0f};
     xcmath::vec3f loght_color{1.0f, 1.0f, 1.0f};
     double offset;
@@ -221,16 +234,6 @@ struct RenderHandle {
             &world.resource<xcal::camera::ViewConfig>(),
             &world.resource<xcal::camera::ProjectionConfig>());
         world.add_resource(camera_controler.get());
-        std::println("create shader programs");
-        vertex_color_shader =
-            make_shader(static_shader_source::kVertexWithPosColorShaderSource,
-                        static_shader_source::kFragmentShaderSource);
-        uniform_color_shader =
-            make_shader(static_shader_source::kVertexWithPosUniformColorShaderSource,
-                        static_shader_source::kFragmentShaderSource);
-        uniform_color_and_light_shader =
-            make_shader(static_shader_source::kVertexWhitPosNormalLightShaderSource,
-                        static_shader_source::kFragmentWithLightShaderSource);
         cube = std::make_unique<Cube>();
         normel_cube = std::make_unique<NormelCube>();
         trangle = std::make_unique<Trangle>();
@@ -240,30 +243,36 @@ struct RenderHandle {
         transform_light.scale = {0.3, 0.3, 0.3};
         path = std::make_unique<Path>();
         dump(curve, path);
+        bezier_path = std::make_unique<Path>();
+        dump(
+            QuadraticBezierCurve2d{
+                {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {2.0f, 0.0f, 0.0f}},
+            *bezier_path, 100);
+        std::println("count {}", bezier_path->count);
     }
-    void draw_light(ecs::EventBus& event_bus, ecs::World& world) {
-        use_shader(event_bus, world, uniform_color_shader.get());
-        uniform_transform(uniform_color_shader.get(), transform_light);
-        uniform_color_shader->uniform_vec3("color", loght_color.value_ptr());
+    void draw_light(ecs::EventBus& event_bus, ecs::World& world,
+                    glrednder::ShaderTable& shader_table) {
+        use_shader(event_bus, world,
+                   shader_table.pos_then_uniform_color_shader.get());
+        uniform_transform(shader_table.pos_then_uniform_color_shader.get(),
+                          transform_light);
+        shader_table.pos_then_uniform_color_shader->uniform_vec3(
+            "color", loght_color.value_ptr());
         normel_cube->draw();
     }
     void draw(ecs::EventBus& event_bus, ecs::World& world) {
-        draw_light(event_bus, world);
-        // use_shader(event_bus, world, uniform_color_and_light_shader.get());
-        // uniform_transform(uniform_color_and_light_shader.get(),
-        // transform_cube);
-        // uniform_color_and_light_shader->uniform_vec3("color",
-        //                                              model_color.value_ptr());
-        // uniform_color_and_light_shader->uniform("ambientStrength", 0.1f);
-        // uniform_color_and_light_shader->uniform_vec3(
-        //     "light_pos", transform_light.position.value_ptr());
-        // uniform_color_and_light_shader->uniform_vec3("light_color",
-        //                                              loght_color.value_ptr());
-        // normel_cube->draw();
-        use_shader(event_bus, world, uniform_color_shader.get());
-        uniform_transform(uniform_color_shader.get(), transform_cube);
-        uniform_color_shader->uniform_vec3("color", model_color.value_ptr());
+        draw_light(event_bus, world, world.resource<glrednder::ShaderTable>());
+        use_shader(event_bus, world,
+                   world.resource<glrednder::ShaderTable>()
+                       .pos_then_uniform_color_shader.get());
+        uniform_transform(world.resource<glrednder::ShaderTable>()
+                              .pos_then_uniform_color_shader.get(),
+                          transform_cube);
+        world.resource<glrednder::ShaderTable>()
+            .pos_then_uniform_color_shader->uniform_vec3(
+                "color", model_color.value_ptr());
         path->draw();
+        bezier_path->draw();
     }
 
     void transpose_event(ecs::EventBus& event_bus, ecs::World& world) {
@@ -276,8 +285,6 @@ struct RenderHandle {
             event_bus.publish<xcal::events::CameraProjectionChanged>();
         });
     }
-    static std::unique_ptr<xc::opengl::ShaderProgram> make_shader(
-        const char* vertex_shader_source, const char* fragment_shader_source);
     static void uniform_transform(
         xc::opengl::ShaderProgram* shader,
         xcal::transform::TransformComponent transform);
@@ -292,9 +299,8 @@ void app::Renderer::init(ecs::World& world) {
         .use_plugin<xcal::transform::Transform>()
         .use_plugin<FPSUIControler>()
         .use_plugin<GLRednder>()
-        .use_plugin<Clock>();
-
-    world.add_resource<Renderer>(std::make_unique<RenderHandle>(world));
+        .use_plugin<Clock>()
+        .add_resource<Renderer>(std::make_unique<RenderHandle>(world));
     world.resource<FPSUIControler>()
         .set_dtranslation(0.05, 0.05, 0.05)
         .set_drotation(0.1, 0.1)
@@ -313,24 +319,6 @@ void app::Renderer::run(ecs::World& world, ecs::EventBus& event_bus) {
 app::Renderer::Renderer(std::unique_ptr<RenderHandle> render_handle)
     : handle_(std::move(render_handle)) {}
 
-std::unique_ptr<xc::opengl::ShaderProgram> app::RenderHandle::make_shader(
-    const char* vertex_shader_source, const char* fragment_shader_source) {
-    using namespace xc::opengl;
-    try {
-        auto shader = std::unique_ptr<ShaderProgram>(new ShaderProgram{{
-            {.source = vertex_shader_source, .type = ShaderSourceType::Vertex},
-            {.source = fragment_shader_source,
-             .type = ShaderSourceType::Fragment},
-        }});
-
-        std::println("create shader program {}", shader->id());
-        return shader;
-    } catch (const std::exception& e) {
-        std::println("create shader program failed: {}", e.what());
-    }
-    return nullptr;
-}
-
 void app::RenderHandle::uniform_transform(
     xc::opengl::ShaderProgram* shader,
     xcal::transform::TransformComponent transform) {
@@ -340,18 +328,4 @@ void app::RenderHandle::uniform_transform(
 void app::RenderHandle::use_shader(ecs::EventBus& event_bus, ecs::World& world,
                                    xc::opengl::ShaderProgram* shader) {
     shader->use();
-    if (event_bus.exist<xcal::events::CameraProjectionChanged>()) {
-        std::println("CameraProjectionChanged");
-        shader->uniform_mat4("projection",
-                             world.resource<xcal::camera::ProjectionConfig>()
-                                 .as_mat4()
-                                 .T()
-                                 .value_ptr());
-    }
-    if (event_bus.exist<xcal::events::CameraViewChanged>()) {
-        shader->uniform_mat4("view", world.resource<xcal::camera::ViewConfig>()
-                                         .as_mat4()
-                                         .T()
-                                         .value_ptr());
-    }
 }

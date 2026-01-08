@@ -25,4 +25,9 @@ struct FunctionCurve2d {
           max_x(max_x),
           num_samples(num_samples) {}
 };
+struct QuadraticBezierCurve2d {
+    xcmath::vec3f p0{0.0f, 0.0f};
+    xcmath::vec3f p1{0.0f, 0.0f};
+    xcmath::vec3f p2{0.0f, 0.0f};
+};
 }  // namespace xcal::object
