@@ -19,3 +19,14 @@ void xc::opengl::clear_color(float red, float green, float blue, float alpha) {
     glClearColor(red, green, blue, alpha);
 }
 void xc::opengl::clear(ClearBufferMaskFlag mask) { glClear(enum_to_gl(mask)); }
+void xc::opengl::draw_elements_instanced(DrawMode mode, size_t count,
+                                         const void* indices,
+                                         size_t instance_count) {
+    glDrawElementsInstanced(enum_to_gl(mode), count,
+                            enum_to_gl(DataType::UNSIGNED_INT), indices,
+                            instance_count);
+}
+void xc::opengl::draw_arrays_instanced(DrawMode mode, int32_t first,
+                                       size_t count, size_t instance_count) {
+    glDrawArraysInstanced(enum_to_gl(mode), first, count, instance_count);
+}

@@ -209,7 +209,7 @@ struct MeshSurface {
     }
 };
 
-void dump(const QuadraticBezierCurve2d& bezier, Path& path, size_t count) {
+void dump(const QuadraticBezierCurve& bezier, Path& path, size_t count) {
     path.count = count;
     std::vector<xcmath::vec3f> vertices;
     vertices.reserve(path.count * 3);
@@ -222,7 +222,7 @@ void dump(const QuadraticBezierCurve2d& bezier, Path& path, size_t count) {
     path.vbo.buffer_data(xc::opengl::BufferTarget::ARRAY,
                          xc::opengl::BufferUsage::STATIC_DRAW, vertices);
 }
-void dump(const FunctionCurve2d& obj, Path& path) {
+void dump(const ScalarFunctionCurve& obj, Path& path) {
     path.count = obj.num_samples;
     std::vector<float> vertices;
     vertices.reserve(obj.num_samples * 3);
@@ -333,21 +333,21 @@ struct RenderHandle {
     xcmath::vec3f suface_color{.0f, 0.3f, 0.3f};
     xcmath::vec3f loght_color{1.0f, 1.0f, 1.0f};
     double offset;
-    FunctionCurve2d curve;
+    ScalarFunctionCurve curve;
     RenderHandle(ecs::World& world)
         : curve{[this](double x) { return std::sin((x) * 2 * 3.1415); }} {
         offset = 0;
         mesh_surface = std::make_unique<MeshSurface>();
 
         dump(ParametricSurface{[](float theta, float gama) {
-                                   //    return xcmath::vec3f{theta, gama,
-                                   //    0.0f};
-                                   float r = 1;
-                                   return r *
-                                          xcmath::vec3f(
-                                              std::sin(theta) * std::cos(gama),
-                                              std::sin(theta) * std::sin(gama),
-                                              std::cos(theta));
+                                      return xcmath::vec3f{theta, gama,
+                                      0.0f};
+                                //    float r = 1;
+                                //    return r *
+                                //           xcmath::vec3f(
+                                //               std::sin(theta) * std::cos(gama),
+                                //               std::sin(theta) * std::sin(gama),
+                                //               std::cos(theta));
                                },
                                .0f, 3.14f, 50, .0f, 2. * 3.14, 50},
              *mesh_surface.get());
@@ -374,7 +374,7 @@ struct RenderHandle {
         dump(curve.derivative(), diff_path);
         bezier_path = std::make_unique<Path>();
         dump(
-            QuadraticBezierCurve2d{
+            QuadraticBezierCurve{
                 {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {2.0f, 0.0f, 0.0f}},
             *bezier_path, 100);
         std::println("count {}", bezier_path->count);

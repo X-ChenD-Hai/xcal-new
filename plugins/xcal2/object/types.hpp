@@ -15,25 +15,40 @@ struct Path2dStyle {
     bool is_filled{false};
 };
 
-struct FunctionCurve2d {
+struct ScalarFunctionCurve {
     std::function<double(double)> function;
     double min_x{0.0};
     double max_x{1.0};
     uint32_t num_samples{100};
-    FunctionCurve2d(std::function<double(double)> function, double min_x = 0.0,
-                    double max_x = 1.0, uint32_t num_samples = 100)
+    ScalarFunctionCurve(std::function<double(double)> function,
+                        double min_x = 0.0, double max_x = 1.0,
+                        uint32_t num_samples = 100)
         : function(function),
           min_x(min_x),
           max_x(max_x),
           num_samples(num_samples) {}
     double operator()(double x) const { return function(x); }
-    FunctionCurve2d derivative() const {
+    ScalarFunctionCurve derivative() const {
         auto fn = function;
         auto dx = (max_x - min_x) / num_samples;
-        return FunctionCurve2d(
+        return ScalarFunctionCurve(
             [fn, dx](double x) { return xcmath::derivative(dx, fn, x); }, min_x,
             max_x, num_samples);
     }
+};
+
+struct ScalarFunctionCurve3D {
+    std::function<double(double x, double y)> function;
+    double min_x{0.0};
+    double max_x{1.0};
+    uint32_t num_samples{100};
+    ScalarFunctionCurve3D(std::function<double(double x, double y)> function,
+                          double min_x = 0.0, double max_x = 1.0,
+                          uint32_t num_samples = 100)
+        : function(function),
+          min_x(min_x),
+          max_x(max_x),
+          num_samples(num_samples) {}
 };
 
 struct ParametricCurve {
@@ -77,12 +92,11 @@ struct ParametricSurface {
           max_v(max_v),
           num_samples_v(num_samples_v) {}
     xcmath::vec3f operator()(float u, float v) const { return function(u, v); }
-
 };
 
-struct QuadraticBezierCurve2d {
-    xcmath::vec3f p0{0.0f, 0.0f};
-    xcmath::vec3f p1{0.0f, 0.0f};
-    xcmath::vec3f p2{0.0f, 0.0f};
+struct QuadraticBezierCurve {
+    xcmath::vec3f p0{0.0f};
+    xcmath::vec3f p1{0.0f};
+    xcmath::vec3f p2{0.0f};
 };
 }  // namespace xcal::object
