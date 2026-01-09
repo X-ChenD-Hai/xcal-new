@@ -8,6 +8,7 @@
 #include <exception>
 #include <functional>
 #include <future>
+#include <iterator>
 #include <memory>
 #include <print>
 #include <queue>
@@ -189,6 +190,28 @@ struct ClockRecord {
 
 }  // namespace utility
 
+template <typename T, typename Fn>
+struct AsyncForeach {
+    AsyncForeach(T begin, T end, Fn&& fn) : begin(begin), end(end), fn(fn) {}
+    T begin;
+    T end;
+    Fn fn;
+};
+
+template <typename T, typename Fn>
+struct AsyncForeachWait {
+    using category = std::iterator_traits<T>::iterator_category;
+    AsyncForeachWait(AsyncForeach<T, Fn>&& foreach, SystemScheduler* scheduler)
+        : foreach_(std::move(foreach)), scheduler(scheduler) {}
+
+    bool await_ready() { return true; }
+    void await_suspend(std::coroutine_handle<SystemPromise>) {}
+    void await_resume();
+
+    AsyncForeach<T, Fn> foreach_;
+    SystemScheduler* scheduler{nullptr};
+};
+
 struct SystemPromise {
     System get_return_object() {
         return System{system_handle_t::from_promise(*this)};
@@ -209,6 +232,10 @@ struct SystemPromise {
     template <typename Fn, typename... Args>
     SyncWait<Fn, Args...> await_transform(Sync<Fn, Args...>&& sync) {
         return {std::move(sync), scheduler};
+    }
+    template <typename T, typename Fn>
+    AsyncForeachWait<T, Fn> await_transform(AsyncForeach<T, Fn>&& foreach) {
+        return {std::move(foreach), scheduler};
     }
 
     std::suspend_always yield_value(Yield);
@@ -355,7 +382,7 @@ struct SystemScheduler {
             while (handle.promise().doing_.test_and_set()) {
                 std::this_thread::yield();
             }
-            handle.resume();
+            if (!handle.done()) handle.resume();
             handle.promise().doing_.clear();
         };
         submit_task(task);
@@ -382,6 +409,38 @@ struct SystemScheduler {
         } while (!all_finish);
         systems_instencees_.clear();
         std::println("All systems finished");
+    }
+    size_t free_workers_count() const {
+        return std::count_if(
+            workers_.begin(), workers_.end(),
+            [](const auto& worker) { return worker->task_count() == 0; });
+    }
+    template <typename T>
+    static void wait_until_all(T tasks) {
+        bool all_finish;
+        do {
+            all_finish = true;
+            for (auto& task : tasks) {
+                if (task.handle.done()) {
+                    continue;
+                }
+                all_finish = false;
+            }
+            std::this_thread::yield();
+        } while (!all_finish);
+    }
+    template <typename T>
+    static auto wait_until_one(T tasks) {
+        bool one_finish = false;
+        do {
+            for (auto it = tasks.begin(); it != tasks.end(); ++it) {
+                if (it->handle.done()) {
+                    return it;
+                }
+            }
+            std::this_thread::yield();
+        } while (1);
+        return tasks.end();
     }
 
     std::vector<System (*)()> systems_{};
@@ -424,21 +483,57 @@ System await_sync() {
     std::println("await_sync end");
 }
 
+System await_foreach() {
+    std::vector<int> vec{10};
+    vec.resize(20, 0);
+    for (int i = 0; i < vec.size(); ++i) {
+        vec[i] = i;
+    }
+    co_await AsyncForeach{vec.begin(), vec.end(),
+                          [](int i) { std::println("foreach {}", i); }};
+}
+template <typename T, typename Fn>
+void AsyncForeachWait<T, Fn>::await_resume() {
+    if constexpr (std::is_same_v<category, std::random_access_iterator_tag>) {
+        auto count = foreach_.end - foreach_.begin;
+        auto worker_count = scheduler->free_workers_count();
+        auto mod = count % worker_count;
+        auto count_per_worker =
+            (count + worker_count - 1) / worker_count - (mod != 0);
+        auto tasks = std::vector<System>{};
+        for (uint32_t i = 0; i < worker_count; ++i) {
+            auto a = foreach_.begin + i * count_per_worker;
+            auto b = (i != worker_count - 1)
+                         ? foreach_.begin + (count_per_worker * (i + 1))
+                         : foreach_.end;
+            auto task = [](auto it, auto b, auto& fn) -> System {
+                for (; it < b; ++it) fn(*it);
+                co_return;
+            };
+            tasks.emplace_back(task(a, b, foreach_.fn));
+            scheduler->submit_handle(tasks.back().handle);
+        }
+        scheduler->wait_until_all(tasks);
+    } else {
+        for (T it = foreach_.begin; it != foreach_.end; ++it) {
+            foreach_.fn(*it);
+        }
+    }
+}
+
 int main() {
     utility::ClockRecord clock_record;
     SystemScheduler scheduler;
     clock_record.record();
     scheduler.start_workers(10);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // scheduler.add_system(my_task);
+    scheduler.add_system(my_task);
     scheduler.add_system(await_sync);
-    scheduler.add_system(await_sync);
-    scheduler.add_system(await_sync);
-    scheduler.add_system(await_sync);
-    scheduler.add_system(await_sync);
-    // for (int i = 0; i < 200; ++i) {
-    //     scheduler.add_system(my_task);
-    // }
+    scheduler.add_system(await_foreach);
+
+    for (int i = 0; i < 200; ++i) {
+        scheduler.add_system(my_task);
+    }
     scheduler.update();
     std::println("run using {} s", clock_record.duration());
     clock_record.record();
