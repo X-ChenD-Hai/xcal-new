@@ -78,6 +78,8 @@ struct Entity {
 };
 
 struct Table {};
+template <typename... T>
+struct TableStorage {};
 struct Marker {};
 struct System;
 struct SystemPromise;
