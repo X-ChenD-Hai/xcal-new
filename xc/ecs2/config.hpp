@@ -1,3 +1,4 @@
+#include <print>  // IWYU pragma: export
 #define DEBUG(...) std::println(__VA_ARGS__)
 // #define WORKER_DEBUG
 // #define SCHEDULER_DEBUG
