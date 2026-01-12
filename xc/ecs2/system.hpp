@@ -1,21 +1,23 @@
 #pragma once
 #include <cassert>
 #include <coroutine>
+
 #include "config.hpp"
+#include "types.hpp"
+
 namespace xc::ecs {
-    struct SystemPromise;
+struct SystemPromise;
 struct SystemScheduler;
-using system_handle_t = std::coroutine_handle<SystemPromise>;
 struct System {
     using promise_type = SystemPromise;
     System(System&& o) : handle(nullptr) {
-       _SCHEDULER_DEBUG("move construct system {} @ {}", (void*)this,
-                     (void*)o.handle.address());
+        _SCHEDULER_DEBUG("move construct system {} @ {}", (void*)this,
+                         (void*)o.handle.address());
         std::swap(handle, o.handle);
     }
     System& operator=(System&& o) {
-       _SCHEDULER_DEBUG("move assign system {} @ {}", (void*)this,              
-                     (void*)o.handle.address());
+        _SCHEDULER_DEBUG("move assign system {} @ {}", (void*)this,
+                         (void*)o.handle.address());
         std::swap(handle, o.handle);
         return *this;
     }
@@ -26,7 +28,7 @@ struct System {
     };
     System(system_handle_t handle) noexcept : handle(handle) {
         _SCHEDULER_DEBUG("construct system {} @ {}", (void*)this,
-                     (void*)handle.address());
+                         (void*)handle.address());
     }
     ~System();
     system_handle_t handle{nullptr};
@@ -68,9 +70,10 @@ struct SystemPromise {
 };
 inline System::~System() {
     _SCHEDULER_DEBUG("destroy system {} @ {} {}", (void*)this,
-                 (void*)handle.address(), handle ? handle.promise().id : NAN);
+                     (void*)handle.address(),
+                     handle ? handle.promise().id : NAN);
     assert((!handle || handle.done() || handle.promise().exception_) &&
            "system is not done");
     if (handle) handle.destroy();
 }
-}
+}  // namespace xc::ecs

@@ -340,14 +340,15 @@ struct RenderHandle {
         mesh_surface = std::make_unique<MeshSurface>();
 
         dump(ParametricSurface{[](float theta, float gama) {
-                                      return xcmath::vec3f{theta, gama,
-                                      0.0f};
-                                //    float r = 1;
-                                //    return r *
-                                //           xcmath::vec3f(
-                                //               std::sin(theta) * std::cos(gama),
-                                //               std::sin(theta) * std::sin(gama),
-                                //               std::cos(theta));
+                                   return xcmath::vec3f{theta, gama, 0.0f};
+                                   //    float r = 1;
+                                   //    return r *
+                                   //           xcmath::vec3f(
+                                   //               std::sin(theta) *
+                                   //               std::cos(gama),
+                                   //               std::sin(theta) *
+                                   //               std::sin(gama),
+                                   //               std::cos(theta));
                                },
                                .0f, 3.14f, 50, .0f, 2. * 3.14, 50},
              *mesh_surface.get());

@@ -7,12 +7,11 @@
 #include <thread>
 
 #include "config.hpp"
-
+#include "types.hpp"
 
 namespace xc::ecs {
 
 struct Worker {
-    using task_t = std::function<void(void)>;
     Worker() = default;
     void worker() {
         auto tread_id_ = std::this_thread::get_id();

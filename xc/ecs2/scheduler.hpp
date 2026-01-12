@@ -65,7 +65,7 @@ struct SystemScheduler {
         }
         return worker_paloads;
     }
-    bool try_submit_task(const Worker::task_t& task) {
+    bool try_submit_task(const task_t& task) {
         for (auto& worker : workers_) {
             if (!worker->waiting()) continue;
             if (worker->try_enqueue_task(task)) {
@@ -95,7 +95,7 @@ struct SystemScheduler {
         }
         return false;
     }
-    void submit_task(const Worker::task_t& task) {
+    void submit_task(const task_t& task) {
         while (!try_submit_task(task)) {
             std::this_thread::yield();
         }
@@ -126,7 +126,7 @@ struct SystemScheduler {
         lock.unlock();
         steal_cv_.notify_all();
     }
-    inline void work_steal(std::queue<Worker::task_t>& task_queue) {
+    inline void work_steal(std::queue<task_t>& task_queue) {
         notify_steal();
         auto worker_paloads = this->worker_paloads();
         auto it = std::max_element(workers_.begin(), workers_.end(),
@@ -139,7 +139,7 @@ struct SystemScheduler {
         if (worker.waiting()) return;
         auto count = worker.task_count() / 2;
         for (uint32_t i = 0; i < count; ++i) {
-            Worker::task_t task;
+            task_t task;
             if (worker.try_dequeue_task(task)) {
                 task_queue.push(task);
                 _WORKER_DEBUG("steal task from worker {}", worker.worker_id());
