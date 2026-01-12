@@ -2,6 +2,7 @@ add_rules("mode.debug", "mode.release","mode.minsizerel")
 set_project("libxc")
 set_languages("c++23")
 add_cxxflags("-std=c++23")
+add_cxxflags("/std:c++23preview")
 if is_plat("linux") then
     add_requireconfs("*",{configs ={runtimes = "c++_static"} })
 end
