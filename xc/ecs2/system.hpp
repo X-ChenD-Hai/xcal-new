@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <coroutine>
+#include <type_traits>
 
 #include "config.hpp"
 #include "types.hpp"
@@ -59,7 +60,15 @@ struct SystemPromise {
     };
     template <typename T>
     auto await_transform(T&& t) {
-        return T::await_transform(std::forward<T>(t), scheduler_, handle_);
+        return std::decay_t<T>::wait_type::await_transform(std::forward<T>(t), scheduler_, handle_);
+    }
+    template <typename T>
+    auto await_transform(T& t) {
+        return std::decay_t<T>::wait_type::await_transform(std::forward<T>(t), scheduler_, handle_);
+    }
+    template <typename T>
+    auto await_transform(const T& t) {
+        return std::decay_t<T>::wait_type::await_transform(std::forward<T>(t), scheduler_, handle_);
     }
 
     void return_void() {}
