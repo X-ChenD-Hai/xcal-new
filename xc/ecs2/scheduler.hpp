@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <cstdint>
 #include <mutex>
@@ -212,4 +213,18 @@ struct SystemScheduler {
     alignas(64) std::atomic_flag sync_flag_{};
 };
 
+inline void SystemPromise::submit_task(const task_t& task) {
+    remain_task_count_.fetch_add(1);
+    std::println("submit task {} remain {}", handle_.address(),
+                 remain_task_count_.load());
+    scheduler_->submit_task([this, task = std::move(task)] {
+        task();
+        if (remain_task_count_.fetch_sub(1) == 1) {
+            std::println("resume {} remain {}", handle_.address(),
+                         remain_task_count_.load());
+            handle_.resume();
+        }
+    });
+}
+inline void SystemPromise::resubmit() { scheduler_->submit_handle(handle_); }
 }  // namespace xc::ecs
