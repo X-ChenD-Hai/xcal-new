@@ -48,14 +48,19 @@ System async_foreach() {
         return 12;
     }};
 
-
     auto foreach_t = AsyncForeach{vec.begin(), vec.end(), [](int& i) {
                                       i *= 2;
                                       std::println("i={}", i);
                                   }};
-    auto [a, b, c] = (co_await (f1 && f2 && f3)).values();
+    // static_assert(std::is_move_constructible_v<std::decay_t<decltype(foreach_t)>::wait_type>,
+    // ""); auto s =std::move((foreach_t));
+    std::println("foreach_t s");
+    // auto [a,b] = (co_await (f2&&f3)).values();
+    // auto [a,b] = (co_await (f2&&f3)).values();
+    auto [a, b,d] = (co_await (f1 && f2&&foreach_t)).values();
+    std::println("foreach_t e");
     std::println("a {} b {}", a.value(), b.value());
-    co_await foreach_t;
+    co_return;
 }
 
 int main(int argc, char* argv[]) {
