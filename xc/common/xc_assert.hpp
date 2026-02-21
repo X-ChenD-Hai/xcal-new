@@ -3,7 +3,7 @@
 #include <iostream>  // IWYU pragma: keep
 
 #ifdef _DEBUG
-#define XC_ASSERT(msg)                                \
+#define XC_ASSERT(msg)                                              \
     do {                                                            \
         if (!(msg)) {                                               \
             std::cout << "Assertion failed: " << #msg << std::endl; \

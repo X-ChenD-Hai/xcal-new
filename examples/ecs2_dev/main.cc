@@ -7,12 +7,12 @@
 #include <print>
 #include <thread>
 #include <vector>
+#include <xc/ecs2/async_primitives.hpp>
+#include <xc/ecs2/scheduler.hpp>
+#include <xc/ecs2/types.hpp>
+#include <xc/ecs2/utility.hpp>
+#include <xc/ecs2/world.hpp>
 
-#include "ecs2/async_primitives.hpp"
-#include "ecs2/scheduler.hpp"
-#include "ecs2/types.hpp"
-#include "ecs2/utility.hpp"
-#include "ecs2/world.hpp"
 
 using namespace xc::ecs;
 
@@ -57,7 +57,7 @@ System async_foreach() {
     std::println("foreach_t s");
     // auto [a,b] = (co_await (f2&&f3)).values();
     // auto [a,b] = (co_await (f2&&f3)).values();
-    auto [a, b,d] = (co_await (f1 && f2&&foreach_t)).values();
+    auto [a, b, d] = (co_await (f1 && f2 && foreach_t)).values();
     std::println("foreach_t e");
     std::println("a {} b {}", a.value(), b.value());
     co_return;

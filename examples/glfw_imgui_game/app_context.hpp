@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ecs/event_bus.hpp"
-#include "ecs/world.hpp"
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/world.hpp>
 
 struct GLFWwindow;
 

@@ -1,8 +1,9 @@
 #include "fps_ui_controler.hpp"
 
-#include "ecs/event_bus.hpp"
-#include "ui_protocol/types.hpp"
-#include "xcal2/camera/fps_camera_controler.hpp"
+#include <ui_protocol/types.hpp>
+#include <xc/ecs/event_bus.hpp>
+#include <xcal2/camera/fps_camera_controler.hpp>
+
 
 void xcal::camera::ui_controler::FPSUIControler::run(
     ecs::EventBus& bus, xcal::camera::FpsCameraControler& camera_controler) {

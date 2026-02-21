@@ -2,9 +2,10 @@
 
 #include <chrono>
 #include <print>
-#include <sparse_list.hpp>
-#include <type_map.hpp>
 #include <unordered_map>
+#include <xc/common/sparse_list.hpp>
+#include <xc/common/type_map.hpp>
+
 
 // t[tid][cid]=data
 

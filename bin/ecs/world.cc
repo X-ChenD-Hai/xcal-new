@@ -1,12 +1,13 @@
-#include <ecs/command/attach_components.hpp>
-#include <ecs/command_submit.hpp>
-#include <ecs/component_accessor.hpp>
-#include <ecs/querier.hpp>
-#include <ecs/world.hpp>
-#include <id_generator.hpp>
 #include <print>
-#include <sparse_list.hpp>
-#include <xc_assert.hpp>
+#include <xc/common/id_generator.hpp>
+#include <xc/common/sparse_list.hpp>
+#include <xc/common/xc_assert.hpp>
+#include <xc/ecs/command/attach_components.hpp>
+#include <xc/ecs/command_submit.hpp>
+#include <xc/ecs/component_accessor.hpp>
+#include <xc/ecs/querier.hpp>
+#include <xc/ecs/world.hpp>
+
 class EntityName {
     std::string name_;
     size_t copy_count_ = 0;

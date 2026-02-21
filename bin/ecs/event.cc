@@ -1,4 +1,4 @@
-#include <ecs/event_bus.hpp>
+#include <xc/ecs/event_bus.hpp>
 #include <iostream>
 
 struct MyEvent {

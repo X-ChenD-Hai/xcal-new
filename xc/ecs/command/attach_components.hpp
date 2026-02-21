@@ -1,8 +1,8 @@
 #pragma once
-#include <ecs/command/command.hpp>
-#include <ecs/component_info.hpp>
-#include <ecs/entity.hpp>
-#include <ecs/utils/traits.hpp>
+#include "../command/command.hpp"
+#include "../component_info.hpp"
+#include "../entity.hpp"
+#include "../utils/traits.hpp"
 namespace ecs::command {
 
 class AttachComponents : public Command {

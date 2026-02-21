@@ -1,7 +1,7 @@
 #include "fps_camera_controler.hpp"
 
 #include "../events/events.hpp"
-#include "ecs/event_bus.hpp"
+#include <xc/ecs/event_bus.hpp>
 
 void xcal::camera::FpsCameraControler::move(Direction direction,
                                             float distance) {

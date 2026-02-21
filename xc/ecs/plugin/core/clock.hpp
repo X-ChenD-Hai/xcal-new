@@ -1,14 +1,14 @@
 #pragma once
 #include <chrono>
 #include <cstddef>
-#include <ecs/command/command.hpp>
-#include <ecs/command_submit.hpp>
 #include <functional>
 #include <memory>
 #include <queue>
 #include <vector>
+#include <xc/ecs/command/command.hpp>
+#include <xc/ecs/command/function.hpp>
+#include <xc/ecs/command_submit.hpp>
 
-#include "ecs/command/function.hpp"
 
 namespace ecs {
 class World;

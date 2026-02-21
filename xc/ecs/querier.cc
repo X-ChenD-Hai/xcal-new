@@ -22,7 +22,7 @@ std::vector<ecs::Entity> ecs::Querier::entities() const {
     result.erase(
         std::remove_if(
             result.begin(), result.end(),
-            [&](const Entity &entity) {
+            [&](const Entity& entity) {
                 for (auto comp_idx : component_info_index_) {
                     if (!world_.component_infos_[comp_idx].has_entity(entity)) {
                         return true;  // 移除
@@ -34,7 +34,7 @@ std::vector<ecs::Entity> ecs::Querier::entities() const {
 
     return result;
 }
-void ecs::Querier::inset_info_index(std::vector<size_t> &component_info_index,
+void ecs::Querier::inset_info_index(std::vector<size_t>& component_info_index,
                                     component_t component_id) const {
     if (auto idx = world_.component2pool_map_.get_index(component_id);
         idx < world_.component_infos_.size()) {

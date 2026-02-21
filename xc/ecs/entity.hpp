@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdint>
-#include <id_generator.hpp>
-#include <sparse_list.hpp>
-#include <xc_assert.hpp>
+#include <xc/common/id_generator.hpp>
+#include <xc/common/sparse_list.hpp>
+#include <xc/common/xc_assert.hpp>
 namespace ecs {
 
 class World;

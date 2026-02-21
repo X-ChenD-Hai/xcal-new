@@ -1,8 +1,9 @@
+#include <GLFW/glfw3.h>
+//
 #include "./glfw_window_loader.hpp"
 
-#include <GLFW/glfw3.h>
 
-#include <xc_assert.hpp>
+#include <xc/common/xc_assert.hpp>
 
 #include "./event.h"
 #include "./glfw_dark_header_support.h"
@@ -259,7 +260,7 @@ GlfwWindowLoader::~GlfwWindowLoader() {
     if (!--alive_window_count_) glfwTerminate();
 }
 std::string_view GlfwWindowLoader::window_title() const {
-    return glfwGetWindowTitle(window_);
+    return glfwGetWindowTitle(window_);;
 }
 void GlfwWindowLoader::set_cursor_mode(CursorMode mode) {
     if (mode == CursorMode::Normal) {

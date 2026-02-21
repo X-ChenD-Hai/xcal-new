@@ -1,11 +1,12 @@
+#include <glfw_support/glfw_support.hpp>
+#include <opengl_support/opengl_support.hpp>
 #include <print>
+#include <ui_protocol/types.hpp>
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/world.hpp>
 
-#include "ecs/event_bus.hpp"
-#include "ecs/world.hpp"
-#include "glfw_support.hpp"
-#include "opengl_support.hpp"
-#include "render.hpp"
-#include "ui_protocol/types.hpp"
+#include "./render.hpp"
+
 namespace glfw = glfw_support;
 
 static constexpr int kWindowWidth = 800;

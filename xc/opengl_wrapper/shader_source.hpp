@@ -1,7 +1,7 @@
 #pragma once
 #include <string_view>
 
-#include "opengl_wrapper/types.hpp"
+#include "./types.hpp"
 
 namespace xc::opengl {
 

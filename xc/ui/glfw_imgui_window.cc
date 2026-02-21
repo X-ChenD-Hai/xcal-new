@@ -5,7 +5,7 @@
 #define _gl gl::
 #endif
 #ifdef USE_GLAD
-#include <glad/glad.h>
+#include <glad/gl.h>
 #define _gl
 #endif
 
@@ -160,7 +160,7 @@ GlfwImguiWindow::GlfwImguiWindow(const std::string& title, int width,
 #ifdef USE_GLBINDING
     glbinding::initialize(loader_->get_proc_address(), false);
 #elif defined(USE_GLAD)
-    gladLoadGLLoader((GLADloadproc)loader_->get_proc_address());
+    gladLoadGL(loader_->get_proc_address());
 #endif
     ImGui::CreateContext();
     auto io = &ImGui::GetIO();

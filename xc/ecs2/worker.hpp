@@ -6,15 +6,15 @@
 #include <queue>
 #include <thread>
 
-#include "config.hpp"
-#include "types.hpp"
+#include "./config.hpp"
+#include "./types.hpp"
 
 namespace xc::ecs {
 
 struct Worker {
     Worker() = default;
     void worker() {
-        auto tread_id_ = std::this_thread::get_id();
+        // auto tread_id_ = std::this_thread::get_id();
         _WORKER_DEBUG("Worker {} start @ {}", worker_id_, tread_id_);
         while (!wait_flag_.test_and_set()) {
             wait_flag_.notify_all();

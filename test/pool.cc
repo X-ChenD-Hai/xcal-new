@@ -6,7 +6,7 @@
 #include <cstring>
 #include <print>
 #include <vector>
-#include <xc_assert.hpp>
+#include <xc/common/xc_assert.hpp>
 
 /*---------- MemoPage ----------*/
 

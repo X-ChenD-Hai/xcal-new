@@ -2,12 +2,12 @@
 #include <algorithm>
 #include <array>
 #include <functional>
-#include <id_generator.hpp>
 #include <memory>
 #include <print>
-#include <sparse_list.hpp>
-#include <type_map.hpp>
-#include <xc_assert.hpp>
+#include <xc/common/id_generator.hpp>
+#include <xc/common/sparse_list.hpp>
+#include <xc/common/type_map.hpp>
+#include <xc/common/xc_assert.hpp>
 
 #include "./command_submit.hpp"
 #include "./component_accessor.hpp"

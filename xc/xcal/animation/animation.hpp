@@ -1,7 +1,8 @@
 #pragma once
-#include <ecs/component_accessor.hpp>
-#include <xc_assert.hpp>
+#include <xc/common/xc_assert.hpp>
+#include <xc/ecs/component_accessor.hpp>
 #include <xcmath/xcmath.hpp>
+
 namespace ecs {
 class World;
 }
@@ -31,7 +32,7 @@ struct Update {
     float delta_time;
 };
 namespace details {
-void setup(ecs::World &world);
-void run(ecs::World &world);
-}
+void setup(ecs::World& world);
+void run(ecs::World& world);
+}  // namespace details
 }  // namespace xc::xcal::animation

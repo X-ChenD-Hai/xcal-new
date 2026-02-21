@@ -34,4 +34,5 @@ size_t UniqueTypeTable<Catgory, T>::next_id_{};
 template <typename Catgory, typename T>
 std::vector<T> UniqueTypeTable<Catgory, T>::data_{};
 template <typename Catgory, typename T>
-T UniqueTypeTable<Catgory, T>::default_value_{UniqueTypeTableDefaultData<Catgory, T>};
+T UniqueTypeTable<Catgory, T>::default_value_{
+    UniqueTypeTableDefaultData<Catgory, T>};

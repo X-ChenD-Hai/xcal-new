@@ -1,8 +1,8 @@
-#include "transform.hpp"
+#include "./transform.hpp"
 
-#include "ecs/component_accessor.hpp"
-#include "ecs/querier.hpp"
-#include "ecs/world.hpp"
+#include <xc/ecs/component_accessor.hpp>
+#include <xc/ecs/querier.hpp>
+#include <xc/ecs/world.hpp>
 
 xcmath::mat4f xcal::transform::TransformComponent::to_mat() const {
     return xcmath::translate(

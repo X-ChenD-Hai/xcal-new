@@ -1,9 +1,9 @@
-#include "./glfw_support.hpp"
+#include <glfw_support/glfw_support.hpp>
 
 #include <GLFW/glfw3.h>
 #include <gtest/gtest.h>
 
-#include <ecs/world.hpp>
+#include <xc/ecs/world.hpp>
 
 using namespace ecs;
 namespace glfw = glfw_support;

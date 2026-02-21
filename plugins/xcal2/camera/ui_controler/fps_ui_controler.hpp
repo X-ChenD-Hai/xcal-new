@@ -1,8 +1,9 @@
 #pragma once
-#include <ecs/types.hpp>
+#include <xc/ecs/types.hpp>
+#include <xc/ecs/world.hpp>
 
 #include "../fps_camera_controler.hpp"
-#include "ecs/world.hpp"
+
 
 namespace xcal::camera::ui_controler {
 class FPSUIControler {

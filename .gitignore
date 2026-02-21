@@ -1,14 +1,16 @@
 /*
 
 
-!.gitignore
-!.clang-format
-!xmake.lua
+!/.gitignore
+!/.clang-format
+!/xmake.lua
 
-!xc/
-!test/
-!bin/
-!plugins
-!examples/
-!res
-!third_party/
+!/xc/
+!/test/
+!/bin/
+!/plugins
+!/examples/
+!/res
+!/third_party/
+!/CMakeLists.txt
+!/cmake/

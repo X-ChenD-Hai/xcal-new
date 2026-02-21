@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "opengl_wrapper/types.hpp"
+#include "./types.hpp"
 
 namespace xc::opengl {
 

@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <ecs/command/attach_components.hpp>
-#include <ecs/command/command.hpp>
-#include <ecs/command/system.hpp>
-#include <ecs/command/update_components.hpp>
-#include <ecs/command_submit.hpp>
-#include <ecs/component_accessor.hpp>
-#include <ecs/plugin/core/clock.hpp>
-#include <ecs/world.hpp>
+#include <xc/ecs/command/attach_components.hpp>
+#include <xc/ecs/command/command.hpp>
+#include <xc/ecs/command/system.hpp>
+#include <xc/ecs/command/update_components.hpp>
+#include <xc/ecs/command_submit.hpp>
+#include <xc/ecs/component_accessor.hpp>
+#include <xc/ecs/plugin/core/clock.hpp>
+#include <xc/ecs/world.hpp>
 #include <functional>
 #include <memory>
 #include <print>

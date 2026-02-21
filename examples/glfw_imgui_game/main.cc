@@ -2,16 +2,18 @@
 #include <imgui.h>
 #include <imgui_node_editor.h>
 
+//
 #include <cstdint>
 #include <print>
+#include <xc/ecs/command/attach_components.hpp>
+#include <xc/ecs/entity.hpp>
+#include <xc/ecs/world.hpp>
 
 #include "./app_context.hpp"
-#include "draw_driver.hpp"
-#include "ecs/command/attach_components.hpp"
-#include "ecs/entity.hpp"
-#include "ecs/world.hpp"
+#include "./draw_driver.hpp"
 #include "glbinding/gl/functions.h"
 #include "node_editor.hpp"
+
 
 namespace render::gl {
 ecs::Entity create_object(ecs::World& world) {

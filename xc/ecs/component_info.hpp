@@ -19,15 +19,15 @@ class ComponentInfo {
         return entities_.has_value(entity.id());
     }
 
-    void deallocate(void *ptr) { deleter_(ptr); }
+    void deallocate(void* ptr) { deleter_(ptr); }
     inline uint32_t pool_index() const noexcept { return pool_index_; }
 
-    ComponentInfo(uint32_t pool_index, std::function<void(void *)> deleter)
+    ComponentInfo(uint32_t pool_index, std::function<void(void*)> deleter)
         : pool_index_(pool_index), deleter_(deleter) {}
 
    private:
     uint32_t pool_index_;
     SparseList<Entity::entity_t, uint32_t, 32> entities_;
-    std::function<void(void *)> deleter_;
+    std::function<void(void*)> deleter_;
 };
 }  // namespace ecs

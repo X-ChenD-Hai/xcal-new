@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <ecs/entity.hpp>
+#include <xc/ecs/entity.hpp>
 
 namespace xcal::events {
 

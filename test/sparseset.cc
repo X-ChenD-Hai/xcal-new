@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <print>
 #include <vector>
-#include <xc_assert.hpp>
+#include <xc/common/xc_assert.hpp>
 struct Entity {
     friend struct SparsetSet;
     using entity_t = uint64_t;

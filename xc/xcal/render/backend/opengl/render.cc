@@ -1,16 +1,16 @@
 #include "./render.hpp"
 
-#include <ecs/command/attach_components.hpp>
-#include <ecs/resource_table.hpp>
-#include <ecs/world.hpp>
-#include <xcal/transform/transform.hpp>
+#include <xc/ecs/command/attach_components.hpp>
+#include <xc/ecs/resource_table.hpp>
+#include <xc/ecs/world.hpp>
+#include <xc/xcal/transform/transform.hpp>
 
 #include "./event.hpp"
 #include "./mesh.hpp"
 #include "./shader.hpp"
 
-xc::xcal::render::opengl::Render *xc::xcal::render::opengl::Render::install(
-    ecs::World &world) {
+xc::xcal::render::opengl::Render* xc::xcal::render::opengl::Render::install(
+    ecs::World& world) {
     if (!world.resource_manager().has<ecs::ResourceTable>())
         world.add_resource<ecs::ResourceTable>();
     world.regist_component<SingleColorShaderComponent>()
@@ -22,20 +22,20 @@ xc::xcal::render::opengl::Render *xc::xcal::render::opengl::Render::install(
         .regist_component<MeshComponent>();
     return new Render(world);
 }
-ecs::World &xc::xcal::render::opengl::Render::run(ecs::World &world) {
+ecs::World& xc::xcal::render::opengl::Render::run(ecs::World& world) {
     return world.run_system<handle_event>().run_system<render_mesh>();
 }
-void xc::xcal::render::opengl::Render::uninstall(ecs::World &world,
-                                                 Render *render) {
+void xc::xcal::render::opengl::Render::uninstall(ecs::World& world,
+                                                 Render* render) {
     delete render;
 }
 void xc::xcal::render::opengl::Render::add_mesh(
-    const Mesh &mesh,
+    const Mesh& mesh,
     xc::xcal::transform::TransformComponent transform_component) {
     auto mesh_comp = mesh.mesh_component();
     transform_component.state = xc::xcal::transform::TransformState::Dirty;
     std::visit(
-        [&](auto &&shader) {
+        [&](auto&& shader) {
             auto entity = world_.create_entity();
             world_.submit().submit<ecs::command::AttachComponents>(
                 entity, transform_component, mesh_comp, shader,

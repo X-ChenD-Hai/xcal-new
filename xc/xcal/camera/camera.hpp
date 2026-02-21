@@ -79,5 +79,5 @@ void update_camera(ecs::ResourceManager& mgr, ecs::EventBus& event_bus);
 namespace details {
 void setup(ecs::World& world);
 void run(ecs::World& world);
-}
+}  // namespace details
 };  // namespace xc::xcal::camera

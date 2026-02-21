@@ -1,5 +1,6 @@
 #pragma once
-#include <event/event.hpp>
+#include <xc/event/event.hpp>
+
 #include "./abs_window.hpp"
 struct GLFWwindow;
 using ProcAddress = void (*(*)(const char*))(void);
@@ -13,7 +14,8 @@ class GlfwWindowLoader : EventPublisher {
     void init_callbacks_();
 
    public:
-    GlfwWindowLoader(EventLoop* loop,const char* title="LearnOpenGL",int width=800,int height=600);
+    GlfwWindowLoader(EventLoop* loop, const char* title = "LearnOpenGL",
+                     int width = 800, int height = 600);
     GlfwWindowLoader();
     ~GlfwWindowLoader();
     void poll_events_timeout(double seconds);

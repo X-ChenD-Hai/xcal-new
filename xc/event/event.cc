@@ -7,7 +7,7 @@
 #include <queue>
 #include <unordered_set>
 
-#include "./xc_assert.hpp"
+#include <xc/common/xc_assert.hpp>
 
 thread_local std::vector<EventLoop*> EventLoop::thread_loops_;
 thread_local std::shared_mutex EventLoop::thread_loops_mutex_;

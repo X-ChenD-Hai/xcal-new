@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <ecs/component_accessor.hpp>
+#include <xc/ecs/component_accessor.hpp>
 #include <string>
 
 #include "./shader.hpp"
@@ -8,7 +8,7 @@
 namespace ecs {
 class ResourceTable;
 class Querier;
-}
+}  // namespace ecs
 
 namespace xc::xcal::render::opengl {
 

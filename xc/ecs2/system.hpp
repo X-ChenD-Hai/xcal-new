@@ -5,13 +5,15 @@
 #include <exception>
 #include <type_traits>
 
-#include "config.hpp"
-#include "types.hpp"
+#include "./config.hpp"
+#include "./types.hpp"
 
 namespace xc::ecs {
-struct SystemPromise;
-struct SystemScheduler;
-struct System {
+class SystemPromise;
+class SystemScheduler;
+class System {
+   public:
+
     using promise_type = SystemPromise;
     System(System&& o) : handle(nullptr) {
         _SCHEDULER_DEBUG("move construct system {} @ {}", (void*)this,
@@ -36,8 +38,9 @@ struct System {
     ~System();
     system_handle_t handle{nullptr};
 };
-struct SystemPromise {
-    friend struct SystemScheduler;
+class SystemPromise {
+   public:
+    friend class SystemScheduler;
     System get_return_object() {
         return System{handle_ = system_handle_t::from_promise(*this)};
     };

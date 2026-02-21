@@ -1,16 +1,16 @@
 #include "./event.hpp"
 
-#include <ecs/command/attach_components.hpp>
-#include <ecs/command_submit.hpp>
-#include <ecs/event_bus.hpp>
-#include <ecs/resource_table.hpp>
-#include <ecs/world.hpp>
+#include <xc/ecs/command/attach_components.hpp>
+#include <xc/ecs/command_submit.hpp>
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/resource_table.hpp>
+#include <xc/ecs/world.hpp>
 #include <print>
-#include <xcal/camera/camera.hpp>
-#include <xcal/event/events.hpp>
-#include <xcal/object/line.hpp>
-#include <xcal/object/object.hpp>
-#include <xcal/transform/transform.hpp>
+#include <xc/xcal/camera/camera.hpp>
+#include <xc/xcal/event/events.hpp>
+#include <xc/xcal/object/line.hpp>
+#include <xc/xcal/object/object.hpp>
+#include <xc/xcal/transform/transform.hpp>
 
 #include "./mesh.hpp"
 #include "./mesh/axis.hpp"
@@ -35,7 +35,7 @@ void xc::xcal::render::opengl::handle_event(ecs::ResourceManager& resources,
                                             ecs::EventBus& bus,
                                             ecs::ResourceTable& table,
                                             ecs::CommandSubmit& submit) {
-    bus.each<xcal::event::FrameResize>([](auto& e) {
+    bus.each([](xcal::event::FrameResize& e) {
         std::println("frame resize");
         _gl glViewport(0, 0, e.width, e.height);
     });

@@ -1,13 +1,13 @@
 #include "./app_context.hpp"
-
-#include <GLFW/glfw3.h>
 #include <glbinding/gl/gl.h>
+#define __gl_h_
+#include <GLFW/glfw3.h>
 #include <glbinding/glbinding.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include "ecs/event_bus.hpp"
+#include <xc/ecs/event_bus.hpp>
 
 static inline AppContext* ctx_ptr(GLFWwindow* w) {
     return (AppContext*)glfwGetWindowUserPointer(w);
@@ -146,13 +146,13 @@ bool AppContext::init_imgui() {
     // io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here
     // for documentation purpose)
 #if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 3
-    io.ConfigDpiScaleFonts =
-        true;  // [Experimental] Automatically overwrite style.FontScaleDpi in
-               // Begin() when Monitor DPI changes. This will scale fonts but
-               // _NOT_ scale sizes/padding for now.
-    io.ConfigDpiScaleViewports =
-        true;  // [Experimental] Scale Dear ImGui and Platform Windows when
-               // Monitor DPI changes.
+    // io.ConfigDpiScaleFonts =
+    //     true;  // [Experimental] Automatically overwrite style.FontScaleDpi in
+    //            // Begin() when Monitor DPI changes. This will scale fonts but
+    //            // _NOT_ scale sizes/padding for now.
+    // io.ConfigDpiScaleViewports =
+    //     true;  // [Experimental] Scale Dear ImGui and Platform Windows when
+    //            // Monitor DPI changes.
 #endif
     io.FontGlobalScale = 1.8;
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform

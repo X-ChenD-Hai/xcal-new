@@ -1,10 +1,10 @@
 #pragma once
-#include <ecs/command/command.hpp>
-#include <ecs/command_submit.hpp>
-#include <ecs/event_bus.hpp>
-#include <ecs/world.hpp>
+#include <xc/ecs/command/command.hpp>
+#include <xc/ecs/command_submit.hpp>
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/world.hpp>
 
-#include "ui_protocol/types.hpp"
+#include <ui_protocol/types.hpp>
 
 struct GLFWwindow;
 namespace glfw_support {

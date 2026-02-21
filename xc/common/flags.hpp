@@ -1,18 +1,20 @@
 /**
  * @file flags.hpp
  * @author X_Chen D_Hai (illuminatestar@foxmail.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-10-22
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #pragma once
 #include <array>
 #include <format>
 #include <vector>
-#include <reflectionrecord.hpp>
+
+#include "./reflectionrecord.hpp"
+
 namespace flags {
 template <class _Type, bool _IsEnum = std::is_enum_v<_Type>>
 struct type_meta_info {
@@ -145,19 +147,19 @@ class Flags final {
     }
     constexpr void clear() { data_ = 0; }
 
-    constexpr Flags &operator=(T flag) {
+    constexpr Flags& operator=(T flag) {
         data_ = static_cast<data_t>(flag);
         return *this;
     }
-    constexpr Flags &operator|=(T flag) {
+    constexpr Flags& operator|=(T flag) {
         data_ |= static_cast<data_t>(flag);
         return *this;
     }
-    constexpr Flags &operator&=(T flag) {
+    constexpr Flags& operator&=(T flag) {
         data_ &= static_cast<data_t>(flag);
         return *this;
     }
-    constexpr Flags &operator^=(T flag) {
+    constexpr Flags& operator^=(T flag) {
         data_ ^= static_cast<data_t>(flag);
         return *this;
     }
@@ -181,13 +183,13 @@ class Flags final {
 
 template <class T>
     requires std::is_enum_v<T>
-std::ostream &operator<<(std::ostream &os, const Flags<T> &flags) {
+std::ostream& operator<<(std::ostream& os, const Flags<T>& flags) {
     os << flags.to_string();
     return os;
 }
 template <class T>
     requires std::is_enum_v<T>
-std::string to_string(const Flags<T> &flags) {
+std::string to_string(const Flags<T>& flags) {
     return flags.to_string();
 }
 
@@ -214,16 +216,16 @@ constexpr Flags<T> operator^(T flag1, U flag2) {
 template <class T>
     requires std::is_enum_v<T>
 struct std::formatter<flags::Flags<T>> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-    auto format(const flags::Flags<T> &flags, format_context &ctx) const {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(const flags::Flags<T>& flags, format_context& ctx) const {
         return format_to(ctx.out(), "{}", flags.to_string());
     }
 };
 template <class T>
     requires std::is_enum_v<T>
 struct std::formatter<T> {
-    consteval auto parse(format_parse_context &ctx) { return ctx.begin(); }
-    auto format(T v, format_context &ctx) const {
+    consteval auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(T v, format_context& ctx) const {
         return format_to(ctx.out(), "{}", flags::enum_value_name<T>(v));
     }
 };

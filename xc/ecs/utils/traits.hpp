@@ -16,17 +16,17 @@ struct tvector {
     using pop_front =
         std::remove_pointer<decltype([]<size_t... I>(
                                          std::index_sequence<I...>) {
-            return (tvector<at<I + 1>...> *)nullptr;
+            return (tvector<at<I + 1>...>*)nullptr;
         }(std::make_index_sequence<size - 1>{}))>::type;
     using pop_back =
         std::remove_pointer<decltype([]<size_t... I>(
                                          std::index_sequence<I...>) {
-            return (tvector<at<I>...> *)nullptr;
+            return (tvector<at<I>...>*)nullptr;
         }(std::make_index_sequence<size - 1>{}))>::type;
     template <typename T>
     using concat = std::remove_pointer<decltype([]<size_t... I>(
                                                     std::index_sequence<I...>) {
-        return (tvector<Ts..., typename T::template at<I>...> *)nullptr;
+        return (tvector<Ts..., typename T::template at<I>...>*)nullptr;
     }(std::make_index_sequence<T::size>{}))>::type;
 
    private:
@@ -35,17 +35,17 @@ struct tvector {
         using Type = std::remove_pointer<decltype([]<class _T, class... _Ts>() {
             if constexpr (sizeof...(_Ts) == 0) {
                 if constexpr (tvector<T...>::template has<_T>) {
-                    return (tvector<> *)nullptr;
+                    return (tvector<>*)nullptr;
                 } else {
-                    return (tvector<_T> *)nullptr;
+                    return (tvector<_T>*)nullptr;
                 }
             } else {
                 if constexpr (tvector<T...>::template has<_T>) {
-                    return (typename tvector<_Ts...>::template remove_all<T...>
-                                *)nullptr;
+                    return (typename tvector<_Ts...>::template remove_all<
+                            T...>*)nullptr;
                 } else {
                     return (typename tvector<_Ts...>::template remove_all<
-                            T...>::template push_front<_T> *)nullptr;
+                            T...>::template push_front<_T>*)nullptr;
                 }
             }
         }.template operator()<Ts...>())>::type;
@@ -61,34 +61,25 @@ struct tvector {
     using remove = std::remove_pointer<
         decltype([]<size_t... I, size_t... J>(std::index_sequence<I...>,
                                               std::index_sequence<J...>) {
-            return (tvector<at<I>..., at<J + T + 1>...> *)nullptr;
+            return (tvector<at<I>..., at<J + T + 1>...>*)nullptr;
         }(std::make_index_sequence<T>{},
                  std::make_index_sequence<size - T - 1>{}))>::type;
     template <typename... T>
     using remove_all = typename remove_all_helper<T...>::Type;
     template <typename T>
     using remove_all_from_list =
-        std::remove_pointer<decltype([]<class... _Rt>(tvector<_Rt...> *) {
-            return (remove_all<_Rt...> *)nullptr;
-        }((T *)nullptr))>::type;
+        std::remove_pointer<decltype([]<class... _Rt>(tvector<_Rt...>*) {
+            return (remove_all<_Rt...>*)nullptr;
+        }((T*)nullptr))>::type;
     template <class T>
     static constexpr size_t find =
-        []<size_t I, class _T, class... _Ts>(this auto &&self) {
-            if constexpr (std::is_same_v<T, _T>) {
-                return I;
-            }
-            if constexpr (sizeof...(_Ts) == 0) {
-                return I + 1;
-            } else {
-                return self.template operator()<I + 1, _Ts...>();
-            }
-        }.template operator()<0, Ts...>();
+        []() { static_assert(false, "not implemented"); return 0; }();
     template <size_t... T>
     using subsequence = tvector<at<T>...>;
     template <size_t Start, size_t End>
     using slice = std::remove_pointer<decltype([]<size_t... I>(
                                                    std::index_sequence<I...>) {
-        return (tvector<at<Start + I>...> *)nullptr;
+        return (tvector<at<Start + I>...>*)nullptr;
     }(std::make_index_sequence<End - Start>{}))>::type;
     template <typename Arg, typename... Args>
     struct remove_all_from_lists_helper {
@@ -124,6 +115,8 @@ struct tvector<> {
     using remove_all_from_list = tvector<>;
     template <typename... T>
     using remove_all_from_lists = tvector<>;
+    template <class T>
+    static constexpr size_t find = -1;
 };
 
 namespace internal {
@@ -144,15 +137,15 @@ struct Purge<const volatile T> {
     using type = Purge<T>::type;
 };
 template <typename T>
-struct Purge<T &> {
+struct Purge<T&> {
     using type = Purge<T>::type;
 };
 template <typename T>
-struct Purge<T &&> {
+struct Purge<T&&> {
     using type = Purge<T>::type;
 };
 template <typename T>
-struct Purge<T *> {
+struct Purge<T*> {
     using type = Purge<T>::type;
 };
 
@@ -173,8 +166,8 @@ struct first_arg_type_of<T(Arg, Args...)> {
     using type = Purge<Arg>::type;
 };
 template <typename T, typename... Args>
-struct first_arg_type_of<T(*)(Args...)> : public first_arg_type_of<T(Args...)> {
-};
+struct first_arg_type_of<T (*)(Args...)>
+    : public first_arg_type_of<T(Args...)> {};
 template <typename T>
 struct first_arg_type_of<T(void)> {
     using type = void;
@@ -239,5 +232,5 @@ using component_t = uint32_t;
 using archtype_t = uint32_t;
 template <auto Fn, typename... Args>
 constexpr auto is_func_with_args =
-    std::is_constructible_v<std::function<return_type_of_t<Fn>(Args &...)>,
+    std::is_constructible_v<std::function<return_type_of_t<Fn>(Args&...)>,
                             decltype(Fn)>;

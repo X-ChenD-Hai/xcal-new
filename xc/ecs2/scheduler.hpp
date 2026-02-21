@@ -4,14 +4,15 @@
 #include <mutex>
 #include <tuple>
 
-#include "config.hpp"
-#include "system.hpp"
-#include "worker.hpp"
+#include "./config.hpp"
+#include "./system.hpp"
+#include "./worker.hpp"
 
 #pragma once
 namespace xc::ecs {
 
-struct SystemScheduler {
+class SystemScheduler {
+   public:
     using system_fn_t = System (*)();
     using worker_paload_t = std::tuple<uint32_t, uint32_t, uint32_t>;
     SystemScheduler() = default;
@@ -104,7 +105,7 @@ struct SystemScheduler {
     void submit_handle(system_handle_t handle) {
         _SCHEDULER_DEBUG("start submit {}", handle.address());
         if (!handle) return;
-        auto task = [handle, this]() {
+        auto task = [handle]() {
             assert(!handle.done() && "handle is invalid");
             _SCHEDULER_DEBUG("start resume {} from submited", handle.address());
             try {
@@ -162,7 +163,7 @@ struct SystemScheduler {
         if (systems_instencees_.empty()) return;
         _SCHEDULER_DEBUG("Enter Loop");
         std::vector<std::exception_ptr> exceptions;
-        uint32_t redo_count_ = 0;
+        // uint32_t redo_count_ = 0;
         do {
             {
                 std::unique_lock<std::mutex> lock(steal_mutex_);
@@ -215,13 +216,13 @@ struct SystemScheduler {
 
 inline void SystemPromise::submit_task(const task_t& task) {
     remain_task_count_.fetch_add(1);
-   _SCHEDULER_DEBUG("submit task {} remain {}", handle_.address(),
-                 remain_task_count_.load());
+    _SCHEDULER_DEBUG("submit task {} remain {}", handle_.address(),
+                     remain_task_count_.load());
     scheduler_->submit_task([this, task = std::move(task)] {
         task();
         if (remain_task_count_.fetch_sub(1) == 1) {
-           _SCHEDULER_DEBUG("resume {} remain {}", handle_.address(),
-                         remain_task_count_.load());
+            _SCHEDULER_DEBUG("resume {} remain {}", handle_.address(),
+                             remain_task_count_.load());
             handle_.resume();
         }
     });

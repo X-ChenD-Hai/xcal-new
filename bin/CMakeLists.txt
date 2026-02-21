@@ -1,0 +1,9 @@
+macro(add_ecs_bin NAME)
+    xc_add_bin("ecs_${NAME}" "ecs/${NAME}.cc" xc::ecs)
+endmacro(add_ecs_bin NAME)
+
+add_ecs_bin(ecs)
+add_ecs_bin(event)
+add_ecs_bin(world)
+xc_add_bin(ui ui/ui.cc xc::ecs xc::ui xc::xcal_opengl_backend)
+xc_add_bin(cmdline cmdline/main.cc xc::cmdline)

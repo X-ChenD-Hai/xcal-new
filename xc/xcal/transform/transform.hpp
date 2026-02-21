@@ -1,10 +1,9 @@
 #pragma once
 #include <cstdint>
-#include <ecs/component_accessor.hpp>
-#include <ecs/querier.hpp>
-#include <flags.hpp>
+#include <xc/ecs/component_accessor.hpp>
+#include <xc/ecs/querier.hpp>
+#include <xc/common/flags.hpp>
 #include <xcmath/xcmath.hpp>
-
 
 namespace xc::xcal::transform {
 enum class TransformState : uint8_t {
@@ -26,8 +25,8 @@ struct TransformMatrixComponent {
 void update_transform_matrix(ecs::Querier q, ecs::ComponentAccessor a);
 
 namespace details {
-void setup(ecs::World &world);
-void run(ecs::World &world);
-}
+void setup(ecs::World& world);
+void run(ecs::World& world);
+}  // namespace details
 
 }  // namespace xc::xcal::transform

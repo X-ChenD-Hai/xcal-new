@@ -2,10 +2,11 @@
 #include <cstddef>
 #include <functional>
 #include <type_traits>
-#include <unique_type_table.hpp>
 #include <unordered_map>
 #include <vector>
-#include <xc_assert.hpp>
+#include <xc/common/unique_type_table.hpp>
+#include <xc/common/xc_assert.hpp>
+
 namespace ecs {
 class ResourceTable {
     struct ResourceDescribtor {
@@ -14,7 +15,7 @@ class ResourceTable {
         uint32_t id = -1;
     };
     struct Pairhash {
-        size_t operator()(const std::pair<size_t, size_t> &p) const {
+        size_t operator()(const std::pair<size_t, size_t>& p) const {
             return hash_(p.first) ^
                    (hash_(p.second) << (sizeof(size_t) * 8 / 2));
         }
@@ -22,24 +23,24 @@ class ResourceTable {
     };
 
     struct CreateResouse {
-        void *(*create_func)(void *);
+        void* (*create_func)(void*);
         ResourceDescribtor describtor;
     };
 
    public:
     template <typename T, typename Catgory = void, typename... Args>
         requires(std::is_constructible_v<T, Args...>)
-    T *create_or_get(Args &&...args) {
+    T* create_or_get(Args&&... args) {
         ResourceDescribtor describtor;
         if (auto it = resource_map_.find(
                 {typeid(T).hash_code(), typeid(Catgory).hash_code()});
             it != resource_map_.end()) {
             if (resources_[it->second] != nullptr)
-                return static_cast<T *>(resources_[it->second]);
+                return static_cast<T*>(resources_[it->second]);
             describtor = describtors_[it->second];
             describtor.id = it->second;
-            return (T *)(resources_[it->second] =
-                             new T(std::forward<Args>(args)...));
+            return (T*)(resources_[it->second] =
+                            new T(std::forward<Args>(args)...));
         }
         describtor = ResourceDescribtor{};
         if constexpr (!std::is_trivially_destructible_v<T>) {
@@ -48,7 +49,7 @@ class ResourceTable {
             if (!register_types_destroy_callbacks_.contains(
                     describtor.type_id)) {
                 register_types_destroy_callbacks_[describtor.type_id] =
-                    [](void *ptr) { delete static_cast<T *>(ptr); };
+                    [](void* ptr) { delete static_cast<T*>(ptr); };
             }
         }
         describtor.id = static_cast<uint32_t>(resources_.size());
@@ -57,16 +58,16 @@ class ResourceTable {
         resource_map_[{typeid(T).hash_code(), typeid(Catgory).hash_code()}] =
             static_cast<uint32_t>(describtors_.size() - 1);
 
-        return static_cast<T *>(resources_.back());
+        return static_cast<T*>(resources_.back());
     }
     template <typename T, typename Catgory = void, typename... Args>
         requires(std::is_constructible_v<T, Args...>)
-    T *async_create_or_get(Args &&...args) {
+    T* async_create_or_get(Args&&... args) {
         if (auto it = resource_map_.find(
                 {typeid(T).hash_code(), typeid(Catgory).hash_code()});
             it != resource_map_.end()) {
             if (resources_[it->second] != nullptr)
-                return static_cast<T *>(resources_[it->second]);
+                return static_cast<T*>(resources_[it->second]);
         }
         asyn_create_tasks_.emplace_back(
             [args..., this]() { create_or_get<T, Catgory>(args...); });
@@ -90,11 +91,11 @@ class ResourceTable {
     }
 
     template <typename T, typename Catgory = void>
-    T *get_resource() const {
+    T* get_resource() const {
         auto it = resource_map_.find(
             {typeid(T).hash_code(), typeid(Catgory).hash_code()});
         if (it == resource_map_.end()) return nullptr;
-        return static_cast<T *>(resources_[it->second]);
+        return static_cast<T*>(resources_[it->second]);
     }
 
     bool has_resource(size_t id) const {
@@ -104,7 +105,7 @@ class ResourceTable {
     void release_resource(size_t id) {
         XC_ASSERT(id < resources_.size());
         if (resources_[id] == nullptr) return;
-        auto &describtor = describtors_[id];
+        auto& describtor = describtors_[id];
         if (!describtor.is_trivially_destructible) {
             register_types_destroy_callbacks_[describtor.type_id](
                 resources_[describtor.id]);
@@ -135,14 +136,14 @@ class ResourceTable {
             release_resource(id);
         }
         asyn_release_id_.clear();
-        for (auto &task : asyn_create_tasks_) {
+        for (auto& task : asyn_create_tasks_) {
             task();
         }
         asyn_create_tasks_.clear();
     }
 
     ~ResourceTable() {
-        for (auto &describtor : describtors_) {
+        for (auto& describtor : describtors_) {
             if (describtor.id >= resources_.size() &&
                 resources_[describtor.id] == nullptr)
                 continue;
@@ -155,9 +156,9 @@ class ResourceTable {
     }
 
    private:
-    std::unordered_map<size_t, void (*)(void *)>
+    std::unordered_map<size_t, void (*)(void*)>
         register_types_destroy_callbacks_;
-    std::vector<void *> resources_;
+    std::vector<void*> resources_;
     std::vector<ResourceDescribtor> describtors_;
     std::unordered_map<std::pair<size_t, size_t>, uint32_t, Pairhash>
         resource_map_;

@@ -9,14 +9,14 @@
 #include "glbinding/gl/enum.h"
 using namespace ::gl;
 #elif defined(USE_GLAD)
-#include <glad/glad.h>
+#include <glad/gl.h>
 #define GL_NONE_BIT 0x0
 #define eeeeeeeeeeeeeeee
 #else
 #error \
     "No OpenGL backend defined. Please define either USE_GLBINDING or USE_GLAD"
 #endif
-#include "opengl_wrapper/types.hpp"
+#include "./types.hpp"
 namespace xc::opengl {
 
 template <typename T>

@@ -1,7 +1,7 @@
 #pragma once
-#include <ecs/tyoes.hpp>
+#include <xc/ecs/tyoes.hpp>
 #include <memory>
-#include <opengl_wrapper/shader_program.hpp>
+#include <xc/opengl_wrapper/shader_program.hpp>
 
 namespace xcal_opengl_render {
 using shader_ptr = std::unique_ptr<xc::opengl::ShaderProgram>;

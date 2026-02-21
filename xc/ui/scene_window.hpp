@@ -1,9 +1,8 @@
 #pragma once
-#include <ecs/world.hpp>
-#include <glm/glm.hpp>
+#include <xc/ecs/world.hpp>
 
 #include "./glfw_imgui_window.hpp"
-#include "ecs/event_bus.hpp"
+#include <xc/ecs/event_bus.hpp>
 namespace ecs {
 class ResourceTable;
 }

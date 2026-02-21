@@ -1,8 +1,8 @@
 #include "./mesh.hpp"
 
-#include <ecs/resource_table.hpp>
-#include <ecs/world.hpp>
-#include <xcal/transform/transform.hpp>
+#include <xc/ecs/resource_table.hpp>
+#include <xc/ecs/world.hpp>
+#include <xc/xcal/transform/transform.hpp>
 
 #include "./openglloader.h"
 #include "./shader.hpp"
@@ -34,12 +34,12 @@ void xc::xcal::render::opengl::VertexAttribute::dump(uint32_t location) const {
     _gl glBindBuffer(_gl GL_ARRAY_BUFFER, vbo_id);
     _gl glVertexAttribPointer(location, size, VertexType2Glenum[(uint8_t)type],
                               normalized ? _gl GL_TRUE : _gl GL_FALSE, stride,
-                              (void *)((size_t)offset));
+                              (void*)((size_t)offset));
     _gl glEnableVertexAttribArray(location);
 }
 
 xc::xcal::render::opengl::VertexArrayObject::VertexArrayObject(
-    const VertexLayout &layout, uint32_t ebo) {
+    const VertexLayout& layout, uint32_t ebo) {
     _gl glGenVertexArrays(1, &id);
     _gl glBindVertexArray(id);
     layout.dump();
@@ -49,7 +49,7 @@ xc::xcal::render::opengl::VertexArrayObject::VertexArrayObject(
 
 void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
                                            ecs::ComponentAccessor a,
-                                           ecs::ResourceTable &resources) {
+                                           ecs::ResourceTable& resources) {
     using namespace xc::xcal;
     auto shader = resources.create_or_get<Shader, SingleColorShaderComponent>(
         "res/single_color.vs", "res/single_color.fs");
@@ -59,7 +59,7 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
     // std::println("start render------------");
     a.each<transform::TransformMatrixComponent, SingleColorShaderComponent,
            MeshComponent>(
-        [](auto &t, auto &s, auto &m, auto model_location,
+        [](auto& t, auto& s, auto& m, auto model_location,
            auto color_location) {
             _gl glUniformMatrix4fv(model_location, 1, _gl GL_FALSE,
                                    &t.matrix.T()[0][0]);
@@ -71,7 +71,7 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
                 //              m.draw_count, m.draw_offset);
                 _gl glDrawElements(MeshType2Glenum[(uint32_t)m.type],
                                    m.draw_count, _gl GL_UNSIGNED_INT,
-                                   (const void *)((size_t)m.draw_offset));
+                                   (const void*)((size_t)m.draw_offset));
             } else {
                 // std::println("draw array type {} count {}, offset {}",
                 // m.type,
@@ -87,7 +87,7 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
     model_location = _gl glGetUniformLocation(shader->program, "model");
     a.each<transform::TransformMatrixComponent, VertexColorShaderComponent,
            MeshComponent>(
-        [](auto &t, auto &s, auto &m, auto model_location) {
+        [](auto& t, auto& s, auto& m, auto model_location) {
             _gl glUniformMatrix4fv(model_location, 1, _gl GL_FALSE,
                                    &t.matrix.T()[0][0]);
             _gl glBindVertexArray(m.vao_id);
@@ -97,7 +97,7 @@ void xc::xcal::render::opengl::render_mesh(ecs::Querier q,
                 //              m.draw_count, m.draw_offset);
                 _gl glDrawElements(MeshType2Glenum[(uint32_t)m.type],
                                    m.draw_count, _gl GL_UNSIGNED_INT,
-                                   (const void *)((size_t)m.draw_offset));
+                                   (const void*)((size_t)m.draw_offset));
             } else {
                 // std::println("draw array type {} count {}, offset {}",
                 // m.type,
@@ -120,7 +120,7 @@ xc::xcal::render::opengl::Mesh::mesh_component() const {
         .draw_offset = draw_offset(),
     };
 }
-void xc::xcal::render::opengl::Mesh::set_color(const xcmath::vec4f &color) {
+void xc::xcal::render::opengl::Mesh::set_color(const xcmath::vec4f& color) {
     shader_program = SingleColorShaderComponent{color};
 }
 void xc::xcal::render::opengl::Mesh::use_vertex_color() {

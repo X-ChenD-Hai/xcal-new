@@ -1,17 +1,18 @@
 #include "./camera.hpp"
 
-#include <ecs/event_bus.hpp>
-#include <ecs/resource.hpp>
-#include <ecs/resource_table.hpp>
-#include <ecs/world.hpp>
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/resource.hpp>
+#include <xc/ecs/resource_table.hpp>
+#include <xc/ecs/world.hpp>
 #include <print>
 
 #include "../event/events.hpp"
 
 void xc::xcal::camera::update_camera(ecs::ResourceManager& mgr,
                                      ecs::EventBus& event_bus) {
-    event_bus.each<xc::xcal::event::FrameResize>(
-        [](auto& e, auto& mgr, auto& bus) {
+    event_bus.each(
+        [](xc::xcal::event::FrameResize& e, ecs::ResourceManager& mgr,
+           ecs::EventBus& bus) {
             std::println("resource size {}", mgr.size());
             std::println("resource id {}", mgr.template id<ProjectionConfig>());
             mgr.template get<ProjectionConfig>().aspect =

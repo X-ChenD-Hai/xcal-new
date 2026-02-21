@@ -7,8 +7,8 @@
 #include <print>
 #include <type_traits>
 
-#include "ecs2/scheduler.hpp"
-#include "ecs2/types.hpp"
+#include "./scheduler.hpp"
+#include "./types.hpp"
 
 namespace xc::ecs {
 
@@ -25,9 +25,9 @@ struct Join final {
             [&]<size_t... I>(std::index_sequence<I...>) {
                 (
                     [&]() {
-                        using Otp =
-                            std::decay_t<decltype(std::get<I>(join_.tasks_))>;
-                        using Owp = Otp::wait_type;
+                        // using Otp =
+                            // std::decay_t<decltype(std::get<I>(join_.tasks_))>;
+                        // using Owp = Otp::wait_type;
                         std::get<I>(join_.wait_objects_)
                             .emplace(std::move(std::get<I>(join_.tasks_)),
                                      scheduler, handle);

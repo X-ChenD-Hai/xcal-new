@@ -1,5 +1,5 @@
 #include "render.hpp"
-
+// std
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -7,26 +7,32 @@
 #include <utility>
 #include <vector>
 
-#include "ecs/event_bus.hpp"
-#include "ecs/plugin/core/clock.hpp"
-#include "ecs/world.hpp"
-#include "opengl_support.hpp"
-#include "opengl_wrapper/buffer.hpp"
-#include "opengl_wrapper/draw.hpp"
-#include "opengl_wrapper/shader_program.hpp"
-#include "opengl_wrapper/types.hpp"
-#include "opengl_wrapper/vertex_array.hpp"
-#include "xcal2/camera/camera.hpp"
-#include "xcal2/camera/fps_camera_controler.hpp"
-#include "xcal2/camera/ui_controler/fps_ui_controler.hpp"
-#include "xcal2/events/events.hpp"
-#include "xcal2/object/types.hpp"
-#include "xcal2/transform/transform.hpp"
-#include "xcal_opengl_render/render.hpp"
-#include "xcal_opengl_render/shader.hpp"
-#include "xcal_opengl_render/static_mesh_data.hpp"
-#include "xcmath/mobject/declaration.hpp"
-#include "xcmath/mobject/function.hpp"
+// ext
+
+#include <xcmath/mobject/declaration.hpp>
+#include <xcmath/mobject/function.hpp>
+
+// plugins
+#include <opengl_support/opengl_support.hpp>
+#include <xcal2/camera/camera.hpp>
+#include <xcal2/camera/fps_camera_controler.hpp>
+#include <xcal2/camera/ui_controler/fps_ui_controler.hpp>
+#include <xcal2/events/events.hpp>
+#include <xcal2/object/types.hpp>
+#include <xcal2/transform/transform.hpp>
+#include <xcal_opengl_render/render.hpp>
+#include <xcal_opengl_render/shader.hpp>
+#include <xcal_opengl_render/static_mesh_data.hpp>
+
+// inner
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/plugin/core/clock.hpp>
+#include <xc/ecs/world.hpp>
+#include <xc/opengl_wrapper/buffer.hpp>
+#include <xc/opengl_wrapper/draw.hpp>
+#include <xc/opengl_wrapper/shader_program.hpp>
+#include <xc/opengl_wrapper/types.hpp>
+#include <xc/opengl_wrapper/vertex_array.hpp>
 
 namespace opengl = opengl_support;
 namespace app {

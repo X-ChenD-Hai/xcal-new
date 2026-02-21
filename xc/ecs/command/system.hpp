@@ -1,6 +1,6 @@
 #pragma once
-#include <ecs/command/command.hpp>
-#include <ecs/world.hpp>
+#include <xc/ecs/command/command.hpp>
+#include <xc/ecs/world.hpp>
 namespace ecs::command {
 template <auto system>
 class System : public Command {

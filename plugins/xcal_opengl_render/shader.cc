@@ -1,13 +1,14 @@
 #include "./shader.hpp"
 
-#include <ecs/event_bus.hpp>
-#include <ecs/world.hpp>
 #include <print>
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/world.hpp>
+#include <xc/opengl_wrapper/shader_program.hpp>
+#include <xcal2/camera/camera.hpp>
+#include <xcal2/events/events.hpp>
 
 #include "./static_shader_source.hpp"
-#include "opengl_wrapper/shader_program.hpp"
-#include "xcal2/camera/camera.hpp"
-#include "xcal2/events/events.hpp"
+
 
 xcal_opengl_render::ShaderTable::ShaderTable() {
     using namespace xc::opengl;

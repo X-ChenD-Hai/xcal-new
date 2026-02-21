@@ -57,13 +57,12 @@ struct Entity {
 };
 }  // namespace detail
 
-
 struct Table {};
 template <typename... T>
 struct TableStorage {};
 struct Marker {};
-struct System;
-struct SystemPromise;
+class System;
+class SystemPromise;
 class SystemScheduler;
 template <typename T>
 struct Read {};

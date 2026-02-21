@@ -3,8 +3,8 @@
 #include <GLFW/glfw3.h>
 
 #include <print>
+#include <xc/ecs/event_bus.hpp>
 
-#include "ecs/event_bus.hpp"
 
 namespace glfw_support {
 

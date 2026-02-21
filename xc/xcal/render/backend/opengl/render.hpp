@@ -1,6 +1,6 @@
 #pragma once
-#include <ecs/querier.hpp>
-#include <xcal/transform/transform.hpp>
+#include <xc/ecs/querier.hpp>
+#include <xc/xcal/transform/transform.hpp>
 
 #include "./mesh.hpp"
 
@@ -11,19 +11,19 @@ class World;
 namespace xc::xcal::render::opengl {
 class Render {
     friend class ecs::World;
-    ecs::World &world_;
+    ecs::World& world_;
     xc::xcal::transform::TransformComponent transform_component;
 
    protected:
-    static Render *install(ecs::World &world);
-    static void uninstall(ecs::World &world, Render *render);
+    static Render* install(ecs::World& world);
+    static void uninstall(ecs::World& world, Render* render);
 
-    static ecs::World &run(ecs::World &world);
+    static ecs::World& run(ecs::World& world);
 
-    Render(ecs::World &world) : world_(world) {}
+    Render(ecs::World& world) : world_(world) {}
 
    public:
-    void add_mesh(const Mesh &mesh,
+    void add_mesh(const Mesh& mesh,
                   xc::xcal::transform::TransformComponent transform_component =
                       xc::xcal::transform::TransformComponent{});
 };

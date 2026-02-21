@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <ecs/world.hpp>
+#include <xc/ecs/world.hpp>
 #include <memory>
 #include <print>
 

@@ -1,5 +1,5 @@
 #include "./transformable.hpp"
 
-#include <xcal/transform/transform.hpp>
+#include <xc/ecs/entity.hpp>
+#include <xc/xcal/transform/transform.hpp>
 
-#include "ecs/entity.hpp"

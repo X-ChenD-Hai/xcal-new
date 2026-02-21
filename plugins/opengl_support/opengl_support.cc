@@ -2,7 +2,7 @@
 
 #include <print>
 
-#include "opengl_wrapper/opengl_api.hpp"  // IWYU pragma: keep
+#include <xc/opengl_wrapper/opengl_api.hpp>  // IWYU pragma: keep
 
 namespace opengl_support {
 
@@ -22,7 +22,11 @@ void OpenGLSupport::load(GetProcAddressFunc get_proc_address) {
     std::println("opengl init");
 #else
     std::println("get_proc_address {}", (void*)get_proc_address);
-    if (!gladLoadGLLoader((GLADloadproc)get_proc_address)) {
+    // if (!gladLoadGLLoader((GLADloadproc)get_proc_address)) {
+    //     std::println("gladLoadGLLoader failed");
+    //     throw(std::runtime_error("gladLoadGLLoader failed"));
+    // }
+    if (!gladLoadGL(get_proc_address)) {
         std::println("gladLoadGLLoader failed");
         throw(std::runtime_error("gladLoadGLLoader failed"));
     }

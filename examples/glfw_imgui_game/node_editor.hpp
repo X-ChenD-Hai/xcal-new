@@ -1,7 +1,7 @@
 #pragma once
 #include <imgui_node_editor.h>
 
-#include <ecs/tyoes.hpp>
+#include <xc/ecs/tyoes.hpp>
 #include <memory>
 #include <vector>
 

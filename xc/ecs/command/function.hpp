@@ -1,5 +1,5 @@
 #pragma once
-#include <ecs/command/command.hpp>
+#include <xc/ecs/command/command.hpp>
 #include <functional>
 
 namespace ecs::command {

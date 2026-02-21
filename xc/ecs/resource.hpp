@@ -2,41 +2,40 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <type_map.hpp>
-#include <xc_assert.hpp>
-
+#include <xc/common/type_map.hpp>
+#include <xc/common/xc_assert.hpp>
 
 namespace ecs {
-using Cell_ = std::unique_ptr<void, std::function<void(void *)>>;
+using Cell_ = std::unique_ptr<void, std::function<void(void*)>>;
 class Cell {};
 
 class ResourceManager {
    public:
     template <typename Resource, typename... Args>
-    ResourceManager &add(Args &&...args) noexcept {
+    ResourceManager& add(Args&&... args) noexcept {
         if (resource_id_map_.data<Resource>() == INVALID_RESOURCE_ID) {
             auto idx = resources_.size();
             resource_id_map_.data<Resource>() = idx;
             resources_.emplace_back(
-                (void *)(new Resource(std::forward<Args>(args)...)),
-                [](void *ptr) { delete static_cast<Resource *>(ptr); });
+                (void*)(new Resource(std::forward<Args>(args)...)),
+                [](void* ptr) { delete static_cast<Resource*>(ptr); });
         } else {
             std::cerr << "Resource already exists" << std::endl;
         }
         return *this;
     };
     template <typename Resource>
-    ResourceManager &add(Resource *resource) noexcept {
+    ResourceManager& add(Resource* resource) noexcept {
         if (resource_id_map_.data<Resource>() == INVALID_RESOURCE_ID) {
             resource_id_map_.data<Resource>() = resources_.size();
-            resources_.emplace_back((void *)resource, [](void *ptr) {});
+            resources_.emplace_back((void*)resource, [](void* ptr) {});
         } else {
             std::cerr << "Resource already exists" << std::endl;
         }
         return *this;
     };
     template <typename Resource>
-    ResourceManager &remove() noexcept {
+    ResourceManager& remove() noexcept {
         auto idx = resource_id_map_.data<Resource>();
         if (idx != INVALID_RESOURCE_ID) {
             resource_id_map_.data<Resource>() = INVALID_RESOURCE_ID;
@@ -47,32 +46,32 @@ class ResourceManager {
         return *this;
     };
     template <typename Resource>
-    Resource *try_get() noexcept {
+    Resource* try_get() noexcept {
         auto idx = resource_id_map_.data<Resource>();
         if (idx != INVALID_RESOURCE_ID) {
-            return static_cast<Resource *>(resources_[idx].get());
+            return static_cast<Resource*>(resources_[idx].get());
         } else {
             return nullptr;
         }
     };
     template <typename Resource>
-    const Resource *try_get() const noexcept {
+    const Resource* try_get() const noexcept {
         auto idx = resource_id_map_.data<Resource>();
         if (idx != INVALID_RESOURCE_ID) {
-            return static_cast<const Resource *>(resources_[idx].get());
+            return static_cast<const Resource*>(resources_[idx].get());
         } else {
             return nullptr;
         }
     };
     template <typename Resource>
-    Resource &get() noexcept {
+    Resource& get() noexcept {
         XC_ASSERT(resource_id_map_.data<Resource>() < resources_.size());
-        return *(Resource *)resources_[resource_id_map_.data<Resource>()].get();
+        return *(Resource*)resources_[resource_id_map_.data<Resource>()].get();
     }
     template <typename Resource>
-    const Resource &get() const noexcept {
+    const Resource& get() const noexcept {
         XC_ASSERT(resource_id_map_.data<Resource>() < resources_.size());
-        return *(const Resource *)resources_[resource_id_map_.data<Resource>()]
+        return *(const Resource*)resources_[resource_id_map_.data<Resource>()]
                     .get();
     }
     template <typename Resource>

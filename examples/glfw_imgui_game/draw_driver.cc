@@ -1,19 +1,20 @@
-#include "./draw_driver.hpp"
-
-#include <GLFW/glfw3.h>
 #include <glbinding/gl/gl.h>
+#define __gl_h_
+#include "./draw_driver.hpp"
+//
+#include <GLFW/glfw3.h>
 #include <glbinding/glbinding.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_node_editor.h>
 
-#include <ecs/world.hpp>
 #include <print>
+#include <xc/ecs/entity.hpp>
+#include <xc/ecs/world.hpp>
 
-#include "ecs/entity.hpp"
-#include "ecs/world.hpp"
 #include "glbinding/gl/functions.h"
+
 using namespace ::gl;
 
 // 顶点着色器源码

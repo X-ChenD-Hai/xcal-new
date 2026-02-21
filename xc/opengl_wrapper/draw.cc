@@ -1,6 +1,6 @@
 #include "draw.hpp"
 
-#include "opengl_wrapper/opengl_api.hpp"
+#include "./opengl_api.hpp"
 
 void xc::opengl::draw_arrays(xc::opengl::DrawMode mode, int32_t first,
                              size_t count) {

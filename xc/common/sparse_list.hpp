@@ -69,7 +69,7 @@ class SparseList final {
         indices_buckets_[last_col][last_row] = index;
         values_.pop_back();
     }
-    bool    has_value(value_t value) const {
+    bool has_value(value_t value) const {
         return get_index(value) != InvalidIndex;
     }
     bool has_index(index_t index) const { return index < values_.size(); }

@@ -1,11 +1,12 @@
 #pragma once
 #include <concepts>
-#include <ecs/command/command.hpp>
 #include <memory>
 #include <utility>
 #include <variant>
 
+#include "./command/command.hpp"
 #include "./entity.hpp"
+
 
 namespace ecs {
 class World;

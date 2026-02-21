@@ -1,26 +1,27 @@
-#include <ecs/event_bus.hpp>
-#include <ecs/resource.hpp>
-#include <xcal/camera/camera.hpp>
-#include <xcal/event/events.hpp>
-#include <xcal/object/line.hpp>
-#include <xcal/render/backend/opengl/mesh.hpp>
-#include <xcal/render/backend/opengl/mesh/axis.hpp>
-#include <xcal/render/backend/opengl/mesh/trangle.hpp>
-#include <xcal/render/backend/opengl/render.hpp>
-#include <xcal/transform/transform.hpp>
+#include <xc/ecs/event_bus.hpp>
+#include <xc/ecs/resource.hpp>
+#include <xc/xcal/camera/camera.hpp>
+#include <xc/xcal/event/events.hpp>
+#include <xc/xcal/object/line.hpp>
+#include <xc/xcal/render/backend/opengl/mesh.hpp>
+#include <xc/xcal/render/backend/opengl/mesh/axis.hpp>
+#include <xc/xcal/render/backend/opengl/mesh/trangle.hpp>
+#include <xc/xcal/render/backend/opengl/render.hpp>
+#include <xc/xcal/transform/transform.hpp>
 
 #ifdef USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 
 #define _gl gl::
-#endif
-#ifdef USE_GLAD
-#include <glad/glad.h>
+#elif defined(USE_GLAD)
+#include <glad/gl.h>
 #define _gl
+#else
+#error "No OpenGL loader found"
 #endif
 #include <print>
-#include <xcal/xcal.hpp>
+#include <xc/xcal/xcal.hpp>
 #include <xcmath/xcmath.hpp>
 
 #include "./scene_window.hpp"

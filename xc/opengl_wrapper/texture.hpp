@@ -2,16 +2,16 @@
 
 #include <cstdint>
 
-#include "opengl_wrapper/types.hpp"
+#include "./types.hpp"
 namespace xc::opengl {
 using texture_id_t = uint32_t;
 
 class Texture {
    public:
-    Texture(const Texture &) = delete;
-    Texture(Texture &&) = default;
-    Texture &operator=(const Texture &) = delete;
-    Texture &operator=(Texture &&) = default;
+    Texture(const Texture&) = delete;
+    Texture(Texture&&) = default;
+    Texture& operator=(const Texture&) = delete;
+    Texture& operator=(Texture&&) = default;
 
    public:
     Texture(TextureTarget target);
@@ -26,7 +26,7 @@ class Texture {
 
     void set_image_2d(int32_t level, TextureFormat internal_format,
                       int32_t width, int32_t height, TextureFormat format,
-                      const void *data) const noexcept;
+                      const void* data) const noexcept;
 
    private:
     texture_id_t id_;
