@@ -54,15 +54,24 @@ struct Join final {
 
             handle.promise().end_wait();
         }
-        Join&& await_resume() const {
-            return const_cast<Join&&>(std::move(join_));
+        decltype(auto) await_resume() const {
+            return const_cast<Join&&>(std::move(join_)).values();
         }
         Join join_;
     };
-    decltype(auto) values() {
+
+    decltype(auto) values() && {
         return [this]<size_t... I>(std::index_sequence<I...>) {
-            return std::make_tuple(
-                std::get<I>(wait_objects_).value().await_resume()...);
+            return std::make_tuple([&]() {
+                using Tp =
+                    decltype(std::get<I>(wait_objects_).value().await_resume());
+                if constexpr (std::is_void_v<Tp>) {
+                    std::get<I>(wait_objects_).value().await_resume();
+                    return std::nullopt;
+                } else {
+                    return std::get<I>(wait_objects_).value().await_resume();
+                }
+            }()...);
         }(std::make_index_sequence<sizeof...(T)>());
     }
 
@@ -80,9 +89,9 @@ struct Join final {
         wait_objects_{};
 };
 template <typename T>
-static constexpr bool is_async_json_onject = false;
+static constexpr bool is_async_join_onject = false;
 template <typename... T>
-static constexpr bool is_async_json_onject<Join<T...>> = true;
+static constexpr bool is_async_join_onject<Join<T...>> = true;
 
 template <typename T>
 struct Future final {
@@ -112,14 +121,14 @@ struct Future final {
             handle.promise().end_wait();
         }
 
-        Future&& await_resume() { return std::move(future_); }
+        T&& await_resume() { return std::move(future_).value(); }
         Future future_;
     };
 
    public:
-    T& value() {
+    T&& value() && {
         if (exception_) std::rethrow_exception(exception_);
-        return value_.value();
+        return std::move(value_).value();
     }
 
    public:
@@ -142,7 +151,7 @@ Join(T&&...) -> Join<T...>;
 template <typename A, typename B>
     requires(std::is_class_v<typename std::decay_t<A>::wait_type> &&
              std::is_class_v<typename std::decay_t<B>::wait_type> &&
-             !is_async_json_onject<A> && !is_async_json_onject<B>)
+             !is_async_join_onject<A> && !is_async_join_onject<B>)
 auto operator&&(A&& a, B&& b) -> decltype(auto) {
     return Join{std::forward<A>(a), std::forward<B>(b)};
 }
@@ -174,10 +183,7 @@ struct AsyncForeach {
                 handle.promise().submit_task(task);
             }
         }
-        [[nodiscard("AsyncForeach::get_result 必须被调用")]]
-        const AsyncForeach& await_resume() {
-            return foreach_;
-        }
+        void await_resume() {}
         bool await_ready() const { return false; }
         void await_suspend(system_handle_t handle) {
             handle.promise().end_wait();

@@ -13,14 +13,13 @@
 #include <xc/ecs2/utility.hpp>
 #include <xc/ecs2/world.hpp>
 
-
 using namespace xc::ecs;
 
 System async_foreach() {
     std::vector<int> vec{};
-    vec.resize(10004, 0);
+    vec.resize(10000, 0);
     for (int i = 0; i < vec.size(); ++i) {
-        vec[i] = i;
+        vec[i] = i + 1;
     }
     utility::ClockRecord clock_record;
     clock_record.record();
@@ -48,18 +47,18 @@ System async_foreach() {
         return 12;
     }};
 
-    auto foreach_t = AsyncForeach{vec.begin(), vec.end(), [](int& i) {
-                                      i *= 2;
-                                      std::println("i={}", i);
-                                  }};
+    auto foreach_t = AsyncForeach{vec.begin(), vec.end(),
+                                  [](int& i) { std::println("i={}", i); }};
     // static_assert(std::is_move_constructible_v<std::decay_t<decltype(foreach_t)>::wait_type>,
     // ""); auto s =std::move((foreach_t));
     std::println("foreach_t s");
     // auto [a,b] = (co_await (f2&&f3)).values();
     // auto [a,b] = (co_await (f2&&f3)).values();
-    auto [a, b, d] = (co_await (f1 && f2 && foreach_t)).values();
+    // auto  ss = co_await f1;
+    // auto  ss2 = co_await f2;
+    auto [a, b, d, _] = co_await (f1 && f2 && f3 && foreach_t);
     std::println("foreach_t e");
-    std::println("a {} b {}", a.value(), b.value());
+    std::println("a {} b {}", a, b);
     co_return;
 }
 
@@ -75,26 +74,24 @@ int main(int argc, char* argv[]) {
         thread_count = std::stoi(argv[2]);
     }
     for (size_t i = 0; i < run_count; ++i) {
-        {
-            utility::ClockRecord app_record;
-            app_record.record();
-            utility::ClockRecord clock_record;
-            SystemScheduler scheduler{};
-            clock_record.record();
-            scheduler.start_workers(thread_count);
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        utility::ClockRecord app_record;
+        app_record.record();
+        utility::ClockRecord clock_record;
+        SystemScheduler scheduler{};
+        clock_record.record();
+        scheduler.start_workers(thread_count);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-            std::println("start workers use {} ms", clock_record.duration_ms());
-            clock_record.record();
-            scheduler.add_system(async_foreach);
-            scheduler.update();
-            auto t = clock_record.duration_ms();
-            std::println("run using {} ms", t);
-            clock_record.record();
-            scheduler.stop_workers();
-            std::println("stop using {} s", clock_record.duration());
-            std::println("app using {} s", app_record.duration());
-        }
+        std::println("start workers use {} ms", clock_record.duration_ms());
+        clock_record.record();
+        scheduler.add_system(async_foreach());
+        scheduler.update();
+        auto t = clock_record.duration_ms();
+        std::println("run using {} ms", t);
+        clock_record.record();
+        scheduler.stop_workers();
+        std::println("stop using {} s", clock_record.duration());
+        std::println("app using {} s", app_record.duration());
     }
     std::println("app using {} ms", app_record.duration_ms());
     std::println("time per run {} ms", app_record.duration_ms() / run_count);

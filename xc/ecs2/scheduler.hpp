@@ -16,9 +16,8 @@ class SystemScheduler {
     using system_fn_t = System (*)();
     using worker_paload_t = std::tuple<uint32_t, uint32_t, uint32_t>;
     SystemScheduler() = default;
-    void add_system(system_fn_t system) {
-        systems_.push_back(system);
-        auto sys = std::make_unique<System>(system());
+    void add_system(System&& system) {
+        auto sys = std::make_unique<System>(std::move(system));
         sys->handle.promise().scheduler_ = this;
         submit_handle(sys->handle);
         systems_instencees_.emplace_back(std::move(sys));
@@ -163,7 +162,6 @@ class SystemScheduler {
         if (systems_instencees_.empty()) return;
         _SCHEDULER_DEBUG("Enter Loop");
         std::vector<std::exception_ptr> exceptions;
-        // uint32_t redo_count_ = 0;
         do {
             {
                 std::unique_lock<std::mutex> lock(steal_mutex_);
@@ -205,7 +203,6 @@ class SystemScheduler {
     }
     static constexpr size_t StealUntilMaxUs = 500;
 
-    std::vector<System (*)()> systems_{};
     std::vector<std::unique_ptr<System>> systems_instencees_{};
     std::vector<std::unique_ptr<Worker>> workers_{};
     std::mutex steal_mutex_{};

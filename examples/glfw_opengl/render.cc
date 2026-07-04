@@ -341,7 +341,7 @@ struct RenderHandle {
     double offset;
     ScalarFunctionCurve curve;
     RenderHandle(ecs::World& world)
-        : curve{[this](double x) { return std::sin((x) * 2 * 3.1415); }} {
+        : curve{[](double x) { return std::sin((x) * 2 * 3.1415); }} {
         offset = 0;
         mesh_surface = std::make_unique<MeshSurface>();
 
@@ -360,7 +360,6 @@ struct RenderHandle {
              *mesh_surface.get());
 
         using namespace xc::opengl;
-        auto& view = world.resource<xcal::camera::ViewConfig>();
         camera_controler = std::make_unique<xcal::camera::FpsCameraControler>(
             &world.resource<ecs::EventBus>(),
             &world.resource<xcal::camera::ViewConfig>(),

@@ -55,6 +55,7 @@ class World {
     template <typename Resource>
     Resource& resource();
     template <typename Resource, typename... Args>
+        requires std::is_constructible_v<Resource, Args...>
     World& add_resource(Args&&... args);
     template <auto System>
     World& run_system();
@@ -193,6 +194,7 @@ inline World& World::run_system() {
 }
 
 template <typename Resource, typename... Args>
+    requires std::is_constructible_v<Resource, Args...>
 World& World::add_resource(Args&&... args) {
     resource_manager_.add<Resource>(std::forward<Args>(args)...);
     std::println("add resource: {} , id:{}", typeid(Resource).name(),

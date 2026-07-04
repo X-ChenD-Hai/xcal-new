@@ -147,7 +147,6 @@ void do_async_create_resource(ResourceTable& table) {
 }
 
 int main(int argc, char* argv[]) {
-    MySystem my_system;
     World world;
     world.regist_component<EntityName>()
         .regist_component<EntityUserId>()

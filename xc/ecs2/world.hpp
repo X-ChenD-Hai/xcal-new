@@ -77,6 +77,10 @@ template <typename T>
 struct Where {};
 template <typename... T>
 struct Has {};
-class World {};
 struct Controler {};
+class World {
+   public:
+    World();
+    ~World();
+};
 }  // namespace xc::ecs
