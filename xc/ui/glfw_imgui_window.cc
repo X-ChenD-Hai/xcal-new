@@ -13,8 +13,6 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include <ranges>
-
 static bool render_editor_field(EditorField& field) {
     return std::visit(
         [&](auto&& val) {

@@ -1,5 +1,14 @@
 include(FetchContent)
 FetchContent_Declare(
+    tiny_process_library
+    GIT_REPOSITORY https://gitlab.com/eidheim/tiny-process-library.git
+    GIT_TAG v2.0.4
+    SYSTEM
+)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+FetchContent_MakeAvailable(tiny_process_library)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
+FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG 3.4

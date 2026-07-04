@@ -23,7 +23,7 @@ class TickTask {
     TickTask& operator=(const TickTask&) = delete;
     TickTask& operator=(TickTask&&) = delete;
     TickTask(double tick_duration, ecs::command::command_ptr&& command)
-        : tick_duration_(tick_duration), command_(std::move(command)) {}
+        : command_(std::move(command)), tick_duration_(tick_duration) {}
 
    protected:
     inline void tick(double dt, CommandSubmit& submit) {
@@ -45,7 +45,8 @@ class TickTask {
     bool run_flag_{true};
 };
 
-struct TickHandler {
+class TickHandler {
+   public:
     size_t id{std::numeric_limits<size_t>::max()};
 };
 

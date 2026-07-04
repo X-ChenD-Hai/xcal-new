@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <string>
 #include <xc/ecs/component_accessor.hpp>
 
 #include "./shader.hpp"
