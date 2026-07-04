@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.10..4.1)
 
-set(XC_OpenGL_Loader "glad" CACHE STRING "OpenGL backend")
-set_property(CACHE XC_OpenGL_Loader PROPERTY STRINGS "glad" "glbinding")
 option(XC_BUILD_TESTS "Build tests" OFF)
-option(XC_BUILD_EXAMPLES "Build examples" OFF)
-option(XC_BUILD_BINARIES "Build binaries" OFF)
+
 if(XC_BUILD_TESTS)
-enable_testing()
+    enable_testing()
 endif()
 
 project(xc LANGUAGES CXX)
+set(XC_OpenGL_Loader "glad" CACHE STRING "OpenGL backend")
+set_property(CACHE XC_OpenGL_Loader PROPERTY STRINGS "glad" "glbinding")
+option(XC_BUILD_EXAMPLES "Build examples" OFF)
+option(XC_BUILD_BINARIES "Build binaries" OFF)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
