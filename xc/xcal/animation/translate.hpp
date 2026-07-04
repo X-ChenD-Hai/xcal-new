@@ -1,7 +1,7 @@
 #pragma once
+#include <xc/common/xc_assert.hpp>
 #include <xc/ecs/component_accessor.hpp>
 #include <xc/ecs/event_bus.hpp>
-#include <xc/common/xc_assert.hpp>
 #include <xcmath/xcmath.hpp>
 
 #include "./animation.hpp"

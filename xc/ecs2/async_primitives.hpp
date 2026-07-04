@@ -26,7 +26,7 @@ struct Join final {
                 (
                     [&]() {
                         // using Otp =
-                            // std::decay_t<decltype(std::get<I>(join_.tasks_))>;
+                        // std::decay_t<decltype(std::get<I>(join_.tasks_))>;
                         // using Owp = Otp::wait_type;
                         std::get<I>(join_.wait_objects_)
                             .emplace(std::move(std::get<I>(join_.tasks_)),

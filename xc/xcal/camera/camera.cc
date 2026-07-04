@@ -1,10 +1,10 @@
 #include "./camera.hpp"
 
+#include <print>
 #include <xc/ecs/event_bus.hpp>
 #include <xc/ecs/resource.hpp>
 #include <xc/ecs/resource_table.hpp>
 #include <xc/ecs/world.hpp>
-#include <print>
 
 #include "../event/events.hpp"
 

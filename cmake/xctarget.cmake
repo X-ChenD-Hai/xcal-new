@@ -175,7 +175,3 @@ function(xc_add_bin NAME FILES)
     set_target_properties("bin_${NAME}" PROPERTIES OUTPUT_NAME ${NAME})
     message(STATUS "add bin ${NAME}")
 endfunction(xc_add_bin)
-#[[
-
-[cmake] -- SRC C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/animation/animation.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/animation/translate.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/camera/camera.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/event.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/mesh.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/mesh/axis.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/mesh/trangle.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/render.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/shader.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/render/backend/opengl/uniform.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/transform/transform.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/transform/transformable.cc;C:/Users/xcdh/workspace/xcrtp/xcal-new/xc/xcal/xcal.cc
-]]

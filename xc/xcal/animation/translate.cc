@@ -1,7 +1,7 @@
 #include "./translate.hpp"
 
-#include <xc/ecs/world.hpp>
 #include <print>
+#include <xc/ecs/world.hpp>
 
 #include "../transform/transform.hpp"
 

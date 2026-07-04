@@ -152,10 +152,10 @@ GlfwImguiWindow::~GlfwImguiWindow() {
 void GlfwImguiWindow::render() {};
 GlfwImguiWindow::GlfwImguiWindow(const std::string& title, int width,
                                  int height, int fps)
-    : fps_(fps),
-      AbsWindow(),
+    : AbsWindow(),
       loader_(std::make_unique<GlfwWindowLoader>(loop(), title.c_str(), width,
-                                                 height)) {
+                                                 height)),
+      fps_(fps) {
     loader_->make_current();
 #ifdef USE_GLBINDING
     glbinding::initialize(loader_->get_proc_address(), false);
@@ -164,6 +164,7 @@ GlfwImguiWindow::GlfwImguiWindow(const std::string& title, int width,
 #endif
     ImGui::CreateContext();
     auto io = &ImGui::GetIO();
+    (void)io;  // Avoid unused variable warning
     ImGui_ImplGlfw_InitForOpenGL(loader_->glfw_window_raw_ptr(), true);
     ImGui_ImplOpenGL3_Init();
 }

@@ -1,7 +1,5 @@
 #include "./querier.hpp"
 
-#include <print>
-
 #include "./world.hpp"
 
 std::vector<ecs::Entity> ecs::Querier::entities() const {
@@ -18,7 +16,7 @@ std::vector<ecs::Entity> ecs::Querier::entities() const {
         result.push_back(Entity(entity, 0));
     }
 
-    auto size = result.size();
+    // auto size = result.size();
     result.erase(
         std::remove_if(
             result.begin(), result.end(),

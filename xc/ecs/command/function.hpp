@@ -1,6 +1,6 @@
 #pragma once
-#include <xc/ecs/command/command.hpp>
 #include <functional>
+#include <xc/ecs/command/command.hpp>
 
 namespace ecs::command {
 class Function : public Command {

@@ -6,7 +6,6 @@
 #include <print>
 #include <queue>
 #include <unordered_set>
-
 #include <xc/common/xc_assert.hpp>
 
 thread_local std::vector<EventLoop*> EventLoop::thread_loops_;

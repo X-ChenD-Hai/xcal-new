@@ -25,7 +25,8 @@ struct PinAdapter {
 
 struct PropertyAdapter {
     virtual size_t property_count() const = 0;
-    virtual std::function<void(node::Node*)> property_at(size_t index) const = 0;
+    virtual std::function<void(node::Node*)> property_at(
+        size_t index) const = 0;
     ~PropertyAdapter() = default;
 };
 
@@ -64,7 +65,8 @@ class ConstValueNode : public Node {
     SingleValuePinAdapter pin_adapter_;
 };
 
-struct NodeClass {
+class NodeClass {
+   public:
     virtual const char* name() const = 0;
     virtual node_ptr create_node() = 0;
     virtual ~NodeClass() = default;

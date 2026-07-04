@@ -1,11 +1,11 @@
 #include "./event.hpp"
 
+#include <print>
 #include <xc/ecs/command/attach_components.hpp>
 #include <xc/ecs/command_submit.hpp>
 #include <xc/ecs/event_bus.hpp>
 #include <xc/ecs/resource_table.hpp>
 #include <xc/ecs/world.hpp>
-#include <print>
 #include <xc/xcal/camera/camera.hpp>
 #include <xc/xcal/event/events.hpp>
 #include <xc/xcal/object/line.hpp>

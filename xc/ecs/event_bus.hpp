@@ -7,7 +7,6 @@
 
 #include "./utils/traits.hpp"
 
-
 namespace ecs {
 namespace details {
 template <size_t size, size_t alignment = 1, size_t log2_ = 0>
@@ -24,7 +23,7 @@ struct aligned_size<1, alignment, log2_> {
 };
 }  // namespace details
 
-struct EventBus final {
+class EventBus final {
    private:
     template <size_t cell_size>
     class EventPool {
@@ -454,8 +453,8 @@ struct EventBus final {
         []<size_t... I>(std::index_sequence<I...>, auto& pools) {
             (
                 [](auto& pools) {
-                    using type =
-                        std::remove_reference_t<decltype(*std::get<I>(pools))>;
+                    // using type =
+                    //     std::remove_reference_t<decltype(*std::get<I>(pools))>;
                     std::get<I>(pools)->clear();
                 }(pools),
                 ...);
@@ -466,8 +465,8 @@ struct EventBus final {
         []<size_t... I>(std::index_sequence<I...>, auto& pools) {
             (
                 [](auto& pools) {
-                    using type =
-                        std::remove_reference_t<decltype(*std::get<I>(pools))>;
+                    // using type =
+                    //     std::remove_reference_t<decltype(*std::get<I>(pools))>;
                     std::get<I>(pools)->clear();
                     delete std::get<I>(pools);
                 }(pools),
@@ -488,8 +487,8 @@ struct EventBus final {
         []<size_t... I>(std::index_sequence<I...>, auto& pools) {
             (
                 [](auto& pools) {
-                    using type =
-                        std::remove_reference_t<decltype(*std::get<I>(pools))>;
+                    // using type =
+                    //     std::remove_reference_t<decltype(*std::get<I>(pools))>;
                     std::get<I>(pools)->shrink();
                 }(pools),
                 ...);

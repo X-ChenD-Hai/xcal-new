@@ -13,7 +13,6 @@ class SystemPromise;
 class SystemScheduler;
 class System {
    public:
-
     using promise_type = SystemPromise;
     System(System&& o) : handle(nullptr) {
         _SCHEDULER_DEBUG("move construct system {} @ {}", (void*)this,

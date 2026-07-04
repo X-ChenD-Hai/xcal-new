@@ -7,7 +7,6 @@
 #include "./command/command.hpp"
 #include "./entity.hpp"
 
-
 namespace ecs {
 class World;
 class CommandSubmit {

@@ -72,8 +72,10 @@ struct tvector {
             return (remove_all<_Rt...>*)nullptr;
         }((T*)nullptr))>::type;
     template <class T>
-    static constexpr size_t find =
-        []() { static_assert(false, "not implemented"); return 0; }();
+    static constexpr size_t find = []() {
+        static_assert(false, "not implemented");
+        return 0;
+    }();
     template <size_t... T>
     using subsequence = tvector<at<T>...>;
     template <size_t Start, size_t End>

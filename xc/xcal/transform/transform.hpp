@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdint>
+#include <xc/common/flags.hpp>
 #include <xc/ecs/component_accessor.hpp>
 #include <xc/ecs/querier.hpp>
-#include <xc/common/flags.hpp>
 #include <xcmath/xcmath.hpp>
 
 namespace xc::xcal::transform {

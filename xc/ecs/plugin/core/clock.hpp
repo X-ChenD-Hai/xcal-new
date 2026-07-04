@@ -9,7 +9,6 @@
 #include <xc/ecs/command/function.hpp>
 #include <xc/ecs/command_submit.hpp>
 
-
 namespace ecs {
 class World;
 namespace core {

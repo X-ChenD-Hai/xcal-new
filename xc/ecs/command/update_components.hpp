@@ -1,8 +1,8 @@
 #pragma once
 #include "../command/command.hpp"
+#include "../component_info.hpp"
 #include "../entity.hpp"
 #include "../utils/traits.hpp"
-#include "../component_info.hpp"
 
 namespace ecs::command {
 

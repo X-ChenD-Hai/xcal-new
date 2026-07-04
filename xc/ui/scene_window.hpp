@@ -1,14 +1,14 @@
 #pragma once
+#include <xc/ecs/event_bus.hpp>
 #include <xc/ecs/world.hpp>
 
 #include "./glfw_imgui_window.hpp"
-#include <xc/ecs/event_bus.hpp>
 namespace ecs {
 class ResourceTable;
 }
 struct WorldRequestExitEvent {};
 struct WorldeadyToExitEvent {};
-class UiEditorCacher;
+struct UiEditorCacher;
 class SceneWindow : public GlfwImguiWindow {
    private:
     std::string name_{"Scene Window"};
