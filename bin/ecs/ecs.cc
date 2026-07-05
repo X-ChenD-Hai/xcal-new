@@ -154,7 +154,6 @@ int main(int argc, char* argv[]) {
         .add_resource<ResourceTable>()
         .add_resource<EventBus>()
         .add_resource<Timer>(0);
-    ;
     auto start = std::chrono::high_resolution_clock::now();
     while (!world.resource<EventBus>().exist<Quit>()) {
         world.resource<EventBus>().clear();

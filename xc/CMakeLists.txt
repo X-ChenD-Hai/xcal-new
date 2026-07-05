@@ -2,7 +2,6 @@ xc_add_header_library(libxc common)
 xc_add_header_library(ecs2 ecs2)
 
 xc_add_static_library(cmdline cmdline)
-xc_add_static_library(async_scheduler async_scheduler)
 xc_add_static_library(ecs ecs PUBLIC_LINK libxc)
 xc_add_static_library(event event PUBLIC_LINK libxc)
 xc_add_static_library(opengl_wrapper opengl_wrapper
