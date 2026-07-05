@@ -5,10 +5,12 @@
 #include <iterator>
 #include <optional>
 #include <print>
+#include <thread>
 #include <type_traits>
 
 #include "./scheduler.hpp"
 #include "./types.hpp"
+#include "xc/ecs2/worker.hpp"
 
 namespace xc::ecs {
 
@@ -219,16 +221,67 @@ struct AsyncForeach {
 
 struct Yield final {
     struct wait_type {
+        wait_type(Yield&& _, SystemScheduler* scheduler,
+                  system_handle_t handle) {}
+
         bool await_ready() const noexcept { return false; }
         void await_suspend(system_handle_t handle_) const noexcept {
             handle_.promise().resubmit();
         }
         void await_resume() const noexcept {}
     };
-    static wait_type yield(Yield, SystemScheduler* scheduler,
-                           system_handle_t handle) {
-        return wait_type{};
-    }
+};
+
+struct CurrentWorker {
+    struct wait_type {
+        wait_type(CurrentWorker&& _, SystemScheduler* scheduler,
+                  system_handle_t handle)
+            : ptr(scheduler->current_worker()) {}
+        constexpr bool await_ready() const noexcept { return true; }
+        void await_suspend(system_handle_t handle) const noexcept {}
+        const Worker* await_resume() const noexcept { return ptr; }
+        const Worker* ptr;
+    };
+};
+struct BindWorker {
+    struct wait_type {
+        wait_type(BindWorker&& o, SystemScheduler* scheduler,
+                  system_handle_t handle)
+            : bind(o.bind) {
+            handle.promise().bind(o.bind);
+        }
+        constexpr bool await_ready() const noexcept {
+            return std::this_thread::get_id() == bind->thread_id();
+        }
+        void await_suspend(system_handle_t handle_) const noexcept {
+            handle_.promise().resubmit();
+        }
+        void await_resume() const noexcept {}
+        const Worker* bind;
+    };
+    BindWorker(const Worker* bind) : bind(bind) {}
+    const Worker* bind;
+};
+struct DispatchTo {
+    struct wait_type {
+        wait_type(DispatchTo&& o, SystemScheduler* scheduler,
+                  system_handle_t handle)
+            : last_bind(handle.promise().bind_worker()), handle(handle) {
+            handle.promise().bind(o.dispatch);
+        }
+        constexpr bool await_ready() const noexcept {
+            return std::this_thread::get_id() ==
+                   handle.promise().bind_worker()->thread_id();
+        }
+        void await_suspend(system_handle_t handle_) const noexcept {
+            handle_.promise().resubmit();
+        }
+        void await_resume() const noexcept { handle.promise().bind(last_bind); }
+        const Worker* last_bind;
+        const system_handle_t handle;
+    };
+    DispatchTo(const Worker* dispatch) : dispatch(dispatch) {}
+    const Worker* dispatch;
 };
 
 }  // namespace xc::ecs

@@ -7,6 +7,7 @@
 
 #include "./config.hpp"
 #include "./types.hpp"
+#include "xc/ecs2/worker.hpp"
 
 namespace xc::ecs {
 class SystemPromise;
@@ -40,6 +41,7 @@ class System {
 class SystemPromise {
    public:
     friend class SystemScheduler;
+    friend void invoke_task(task_t&& task);
     System get_return_object() {
         return System{handle_ = system_handle_t::from_promise(*this)};
     };
@@ -81,20 +83,25 @@ class SystemPromise {
     inline void set_scheduler(SystemScheduler* scheduler) {
         scheduler_ = scheduler;
     }
-    void submit_task(const task_t& task);
+    void submit_task(task_t&& task);
     void begin_wait() { remain_task_count_.fetch_add(1); }
     void end_wait() {
         if (remain_task_count_.fetch_sub(1) == 1) {
             handle_.resume();
         }
     }
-    std::exception_ptr exception() const { return exception_; }
+    inline std::exception_ptr exception() const noexcept { return exception_; }
+    inline void bind(const Worker* w) noexcept {
+        bind_worker_ = const_cast<Worker*>(w);
+    }
+    inline const Worker* bind_worker() const noexcept { return bind_worker_; }
 
    private:
     SystemScheduler* scheduler_{nullptr};
     std::exception_ptr exception_{nullptr};
     std::atomic_uint32_t remain_task_count_{};
     system_handle_t handle_{nullptr};
+    Worker* bind_worker_{nullptr};
 };
 inline System::~System() {
     _SCHEDULER_DEBUG("destroy system {} @ {} {}", (void*)this,

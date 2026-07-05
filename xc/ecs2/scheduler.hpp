@@ -1,12 +1,18 @@
 #pragma once
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <mutex>
+#include <thread>
 #include <tuple>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 #include "./config.hpp"
 #include "./system.hpp"
 #include "./worker.hpp"
+#include "types.hpp"
 
 #pragma once
 namespace xc::ecs {
@@ -66,7 +72,9 @@ class SystemScheduler {
         }
         return worker_paloads;
     }
-    bool try_submit_task(const task_t& task) {
+    bool try_submit_task(task_t& task) {
+        auto bind = bind_worker(task);
+        if (bind) return const_cast<Worker*>(bind)->try_enqueue_task(task);
         for (auto& worker : workers_) {
             if (!worker->waiting()) continue;
             if (worker->try_enqueue_task(task)) {
@@ -96,7 +104,7 @@ class SystemScheduler {
         }
         return false;
     }
-    void submit_task(const task_t& task) {
+    void submit_task(task_t&& task) {
         while (!try_submit_task(task)) {
             std::this_thread::yield();
         }
@@ -104,20 +112,7 @@ class SystemScheduler {
     void submit_handle(system_handle_t handle) {
         _SCHEDULER_DEBUG("start submit {}", handle.address());
         if (!handle) return;
-        auto task = [handle]() {
-            assert(!handle.done() && "handle is invalid");
-            _SCHEDULER_DEBUG("start resume {} from submited", handle.address());
-            try {
-                handle.resume();
-                _SCHEDULER_DEBUG("resume {} success with id {}",
-                                 handle.address(), handle.promise().id);
-            } catch (...) {
-                handle.promise().exception_ = std::current_exception();
-                _SCHEDULER_DEBUG("catch exception in {}", handle.address());
-            }
-            _SCHEDULER_DEBUG("end resume {} from submited", handle.address());
-        };
-        submit_task(task);
+        submit_task(handle);
         // handle.promise().waiting.clear();
         _SCHEDULER_DEBUG("submit {} success", handle.address());
     }
@@ -127,7 +122,7 @@ class SystemScheduler {
         lock.unlock();
         steal_cv_.notify_all();
     }
-    inline void work_steal(std::queue<task_t>& task_queue) {
+    inline void work_steal(std::deque<task_t>& task_queue) {
         notify_steal();
         auto worker_paloads = this->worker_paloads();
         auto it = std::max_element(workers_.begin(), workers_.end(),
@@ -138,14 +133,7 @@ class SystemScheduler {
         if (it == workers_.end()) return;
         auto& worker = **it;
         if (worker.waiting()) return;
-        auto count = worker.task_count() / 2;
-        for (uint32_t i = 0; i < count; ++i) {
-            task_t task;
-            if (worker.try_dequeue_task(task)) {
-                task_queue.push(task);
-                _WORKER_DEBUG("steal task from worker {}", worker.worker_id());
-            }
-        }
+        worker.steal(task_queue);
     }
     void flush(std::vector<std::exception_ptr>* exceptions = nullptr) {
         systems_instencees_.erase(
@@ -191,6 +179,13 @@ class SystemScheduler {
             workers_.begin(), workers_.end(),
             [](const auto& worker) { return worker->task_count() == 0; });
     }
+    const Worker* current_worker() {
+        auto id = std::this_thread::get_id();
+        auto it = std::find_if(workers_.begin(), workers_.end(),
+                               [id](auto& w) { return w->thread_id() == id; });
+        if (it != workers_.end()) return it->get();
+        return nullptr;
+    }
     size_t worker_count() const { return workers_.size(); }
     template <typename T>
     static bool all_has_done(const T& tasks) {
@@ -211,18 +206,29 @@ class SystemScheduler {
     alignas(64) std::atomic_flag sync_flag_{};
 };
 
-inline void SystemPromise::submit_task(const task_t& task) {
+inline void SystemPromise::submit_task(task_t&& task) {
     remain_task_count_.fetch_add(1);
     _SCHEDULER_DEBUG("submit task {} remain {}", handle_.address(),
                      remain_task_count_.load());
-    scheduler_->submit_task([this, task = std::move(task)] {
-        task();
+    using Vt = std::variant<std::function<void(void)>, system_handle_t>;
+    auto ot = std::visit(
+        [](auto&& t) -> Vt {
+            using T = std::decay_t<decltype(t)>;
+            if constexpr (std::is_same_v<T, Task>) {
+                return std::move(t.task_);
+            } else {
+                return std::move(t);
+            }
+        },
+        task);
+    scheduler_->submit_task(task_t{Task{[this, task = std::move(ot)] {
+        invoke_task(task);
         if (remain_task_count_.fetch_sub(1) == 1) {
             _SCHEDULER_DEBUG("resume {} remain {}", handle_.address(),
                              remain_task_count_.load());
             handle_.resume();
         }
-    });
+    }}});
 }
 inline void SystemPromise::resubmit() { scheduler_->submit_handle(handle_); }
 }  // namespace xc::ecs

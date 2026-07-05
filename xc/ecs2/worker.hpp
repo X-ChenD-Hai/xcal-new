@@ -1,21 +1,26 @@
 #pragma once
 #include <atomic>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <queue>
+#include <deque>
+#include <ranges>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "./config.hpp"
 #include "./types.hpp"
 
 namespace xc::ecs {
 
-struct Worker {
+class Worker {
+   public:
+    using task_list_t = std::deque<task_t>;
     Worker() = default;
     void worker() {
-        // auto tread_id_ = std::this_thread::get_id();
-        _WORKER_DEBUG("Worker {} start @ {}", worker_id_, tread_id_);
+        thread_id_ = std::this_thread::get_id();
+        _WORKER_DEBUG("Worker {} start @ {}", worker_id_, thread_id_);
         while (!wait_flag_.test_and_set()) {
             wait_flag_.notify_all();
         }
@@ -48,13 +53,16 @@ struct Worker {
                     wait_flag_.clear();
                 }
             }
-            std::function<void(void)> task;
+            task_t task;
             if (queue_flag_.test_and_set()) {
                 continue;
             }
             if (!task_queue_.empty()) {
                 task = std::move(task_queue_.front());
-                task_queue_.pop();
+                assert("task bind worker is not this worker" &&
+                       (bind_worker(task) == this ||
+                        bind_worker(task) == nullptr));
+                task_queue_.pop_front();
                 wait_count_ = 0;
             } else {
                 ++wait_count_;
@@ -64,16 +72,16 @@ struct Worker {
                 _WORKER_DEBUG("worker {} doing tasks , reamin {}", worker_id_,
                               task_count_.load() - 1);
                 current_task_start_time_ = std::chrono::steady_clock::now();
-                task();
+                invoke_task(std::move(task));
                 --task_count_;
             }
         }
-        _WORKER_DEBUG("Worker {} exit @ {}", worker_id_, tread_id_);
+        _WORKER_DEBUG("Worker {} exit @ {}", worker_id_, thread_id_);
     }
-    bool try_enqueue_task(const std::function<void(void)>& task) {
-        assert(task && "task is invalid");
+    bool try_enqueue_task(task_t& task) {
+        // assert(task && "task is invalid");
         if (queue_flag_.test_and_set()) return false;
-        task_queue_.push(task);
+        task_queue_.push_back(std::move(task));
         ++task_count_;
         queue_flag_.clear();
         if (wait_flag_.test_and_set()) {
@@ -91,7 +99,7 @@ struct Worker {
             return false;
         }
         task = std::move(task_queue_.front());
-        task_queue_.pop();
+        task_queue_.pop_front();
         --task_count_;
         queue_flag_.clear();
         return true;
@@ -115,7 +123,7 @@ struct Worker {
     inline std::thread::id thread_id() const noexcept { return thread_id_; }
     inline uint32_t task_count() const noexcept { return task_count_.load(); }
     inline void set_steal_callback(
-        std::function<void(std::queue<task_t>&)> wait_notify) noexcept {
+        std::function<void(task_list_t&)> wait_notify) noexcept {
         steal_callback_ = wait_notify;
     }
     inline bool waiting() const noexcept { return wait_flag_.test(); }
@@ -135,17 +143,36 @@ struct Worker {
     inline void enable_steal() noexcept { steal_flag_ = true; }
     inline void disable_steal() noexcept { steal_flag_ = false; }
     inline bool steal_enabled() const noexcept { return steal_flag_; }
+    size_t steal(task_list_t& target) {
+        size_t c{0};
+        auto count = task_count() / 2;
+        std::vector<task_t> tmp{};
+        if (queue_flag_.test_and_set()) return 0;
+        for (uint32_t i = 0; i < count; ++i) {
+            if (bind_worker(task_queue_.back()) == this) {
+                tmp.push_back(std::move(task_queue_.back()));
+            } else {
+                target.push_front(std::move(task_queue_.back()));
+                ++c;
+            }
+            task_queue_.pop_back();
+        }
+        for (auto& t : std::ranges::reverse_view{tmp})
+            task_queue_.push_back(std::move(t));
+        queue_flag_.clear();
+        return c;
+    }
 
    private:
     std::jthread thread_{};
     uint32_t wait_count_{1};
     uint32_t max_wait_count_{1000};
     std::thread::id thread_id_{};
-    std::queue<task_t> task_queue_{};
+    task_list_t task_queue_{};
     std::atomic_uint32_t task_count_{0};
     bool steal_flag_{};
     uint32_t worker_id_{0};
-    std::function<void(std::queue<task_t>&)> steal_callback_{};
+    std::function<void(task_list_t&)> steal_callback_{};
     std::chrono::steady_clock::time_point current_task_start_time_{};
     alignas(64) std::atomic_flag run_flag_{};
     alignas(64) std::atomic_flag wait_flag_{};

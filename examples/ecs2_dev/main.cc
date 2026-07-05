@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <iostream>
 #include <print>
 #include <thread>
 #include <vector>
@@ -15,50 +16,33 @@
 
 using namespace xc::ecs;
 
-System async_foreach() {
-    std::vector<int> vec{};
-    vec.resize(10000, 0);
-    for (int i = 0; i < vec.size(); ++i) {
-        vec[i] = i + 1;
-    }
-    utility::ClockRecord clock_record;
-    clock_record.record();
-    using namespace std::chrono_literals;
+System async_foreach(int id) {
+    std::vector<size_t> tid{};
+    auto w = co_await CurrentWorker{};
+    auto t = w;
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
+    co_await Yield{};
+    w = co_await CurrentWorker{};
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
+    co_await Yield{};
+    co_await DispatchTo{t};
+    w = co_await CurrentWorker{};
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
+    co_await Yield{};
+    w = co_await CurrentWorker{};
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
+    co_await Yield{};
+    co_await DispatchTo{t};
+    w = co_await CurrentWorker{};
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
 
-    auto f1 = Future{[]() {
-        for (size_t i = 0; i < 100; ++i) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            std::println("a={}", i);
-        }
-        return 11;
-    }};
-    auto f2 = Future{[]() {
-        for (size_t j = 0; j < 100; ++j) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            std::println("b={}", j);
-        }
-        return 12;
-    }};
-    auto f3 = Future{[]() {
-        for (size_t j = 0; j < 100; ++j) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            std::println("c={}", j);
-        }
-        return 12;
-    }};
+    std::println("id:{},tid:{}", id, tid);
 
-    auto foreach_t = AsyncForeach{vec.begin(), vec.end(),
-                                  [](int& i) { std::println("i={}", i); }};
-    // static_assert(std::is_move_constructible_v<std::decay_t<decltype(foreach_t)>::wait_type>,
-    // ""); auto s =std::move((foreach_t));
-    std::println("foreach_t s");
-    // auto [a,b] = (co_await (f2&&f3)).values();
-    // auto [a,b] = (co_await (f2&&f3)).values();
-    // auto  ss = co_await f1;
-    // auto  ss2 = co_await f2;
-    auto [a, b, d, _] = co_await (f1 && f2 && f3 && foreach_t);
-    std::println("foreach_t e");
-    std::println("a {} b {}", a, b);
     co_return;
 }
 
@@ -84,7 +68,11 @@ int main(int argc, char* argv[]) {
 
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
-        scheduler.add_system(async_foreach());
+        scheduler.add_system(async_foreach(1));
+        scheduler.add_system(async_foreach(2));
+        scheduler.add_system(async_foreach(3));
+        scheduler.add_system(async_foreach(4));
+        scheduler.add_system(async_foreach(5));
         scheduler.update();
         auto t = clock_record.duration_ms();
         std::println("run using {} ms", t);
