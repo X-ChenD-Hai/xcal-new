@@ -1,6 +1,7 @@
 #pragma once
 #include <atomic>
 #include <cassert>
+#include <concepts>
 #include <coroutine>
 #include <exception>
 #include <type_traits>
@@ -12,6 +13,71 @@
 namespace xc::ecs {
 class SystemPromise;
 class SystemScheduler;
+class BasePromise {
+    friend class SystemScheduler;
+    template <typename U>
+    friend void invoke_task(U&& task);
+
+   public:
+    std::suspend_always initial_suspend() { return {}; }
+    std::suspend_always await_suspend(std::coroutine_handle<> caller) noexcept {
+        return {};
+    }
+    std::suspend_always final_suspend() noexcept { return {}; }
+    void unhandled_exception() { exception_ = std::current_exception(); }
+    void bind(Worker* worker) { bind_worker_ = worker; }
+    const Worker* bind_worker() const { return bind_worker_; }
+
+   protected:
+    SystemScheduler* scheduler_{nullptr};
+    std::exception_ptr exception_{nullptr};
+    Worker* bind_worker_{nullptr};
+    std::atomic_uint32_t remain_task_count_{};
+};
+
+template <typename Derive>
+class Promise : public BasePromise {
+   public:
+    using handle_t = std::coroutine_handle<Derive>;
+    template <typename T>
+    auto yield_value(T&& t) {
+        if constexpr (std::is_member_function_pointer_v<decltype(&T::yield)>) {
+            return t.yield(scheduler_, handle_);
+        } else {
+            return T::yield(std::forward<T>(t), scheduler_, handle_);
+        }
+    };
+    template <typename T>
+    auto await_transform(T&& t) {
+        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
+                                                   scheduler_, handle_};
+    }
+    template <typename T>
+    auto await_transform(T& t) {
+        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
+                                                   scheduler_, handle_};
+    }
+    template <typename T>
+    auto await_transform(const T& t) {
+        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
+                                                   scheduler_, handle_};
+    }
+
+    void resubmit();
+    inline void set_scheduler(SystemScheduler* scheduler) {
+        scheduler_ = scheduler;
+    }
+    void begin_wait() { remain_task_count_.fetch_add(1); }
+    void end_wait() {
+        if (remain_task_count_.fetch_sub(1) == 1) {
+            handle_.resume();
+        }
+    }
+    void submit_task(task_t&& task);
+
+   protected:
+    handle_t handle_{nullptr};
+};
 class System {
    public:
     using promise_type = SystemPromise;
@@ -38,75 +104,27 @@ class System {
     ~System();
     system_handle_t handle{nullptr};
 };
-class SystemPromise {
+template <typename T>
+concept IsPromise = std::derived_from<T, Promise<T>>;
+
+class SystemPromise : public Promise<SystemPromise> {
    public:
     friend class SystemScheduler;
     friend void invoke_task(task_t&& task);
     System get_return_object() {
         return System{handle_ = system_handle_t::from_promise(*this)};
     };
-    std::suspend_always initial_suspend() { return {}; }
-    std::suspend_always await_suspend(
-        std::coroutine_handle<SystemPromise> caller) noexcept {
-        return {};
-    }
-    std::suspend_always final_suspend() noexcept { return {}; }
-
-    void unhandled_exception() { exception_ = std::current_exception(); }
-
-    template <typename T>
-    auto yield_value(T&& t) {
-        if constexpr (std::is_member_function_pointer_v<decltype(&T::yield)>) {
-            return t.yield(scheduler_, handle_);
-        } else {
-            return T::yield(std::forward<T>(t), scheduler_, handle_);
-        }
-    };
-    template <typename T>
-    auto await_transform(T&& t) {
-        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
-                                                   scheduler_, handle_};
-    }
-    template <typename T>
-    auto await_transform(T& t) {
-        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
-                                                   scheduler_, handle_};
-    }
-    template <typename T>
-    auto await_transform(const T& t) {
-        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
-                                                   scheduler_, handle_};
-    }
-
     void return_void() {}
-    void resubmit();
-    inline void set_scheduler(SystemScheduler* scheduler) {
-        scheduler_ = scheduler;
-    }
-    void submit_task(task_t&& task);
-    void begin_wait() { remain_task_count_.fetch_add(1); }
-    void end_wait() {
-        if (remain_task_count_.fetch_sub(1) == 1) {
-            handle_.resume();
-        }
-    }
+
     inline std::exception_ptr exception() const noexcept { return exception_; }
     inline void bind(const Worker* w) noexcept {
         bind_worker_ = const_cast<Worker*>(w);
     }
     inline const Worker* bind_worker() const noexcept { return bind_worker_; }
-
-   private:
-    SystemScheduler* scheduler_{nullptr};
-    std::exception_ptr exception_{nullptr};
-    std::atomic_uint32_t remain_task_count_{};
-    system_handle_t handle_{nullptr};
-    Worker* bind_worker_{nullptr};
 };
 inline System::~System() {
-    _SCHEDULER_DEBUG("destroy system {} @ {} {}", (void*)this,
-                     (void*)handle.address(),
-                     handle ? handle.promise().id : NAN);
+    _SCHEDULER_DEBUG("destroy system {} @ {}", (void*)this,
+                     (void*)handle.address());
     assert((!handle || handle.done() || handle.promise().exception()) &&
            "system is not done");
     if (handle) handle.destroy();

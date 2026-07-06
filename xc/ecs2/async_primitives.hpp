@@ -1,5 +1,7 @@
 #pragma once
 #include <cassert>
+#include <coroutine>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <iterator>
@@ -10,6 +12,7 @@
 
 #include "./scheduler.hpp"
 #include "./types.hpp"
+#include "system.hpp"
 #include "xc/ecs2/worker.hpp"
 
 namespace xc::ecs {
@@ -95,7 +98,7 @@ static constexpr bool is_async_join_onject = false;
 template <typename... T>
 static constexpr bool is_async_join_onject<Join<T...>> = true;
 
-template <typename T>
+template <typename T, bool = false>
 struct Future final {
     using function_t = std::function<T(void)>;
 
@@ -104,7 +107,6 @@ struct Future final {
     Future(Fn&& fn) : fn_(std::forward<Fn>(fn)) {}
 
    public:
-    struct wait_type;
     struct wait_type {
         wait_type(Future&& future, SystemScheduler* scheduler,
                   system_handle_t handle)
@@ -144,8 +146,80 @@ struct Future final {
     std::exception_ptr exception_{nullptr};
     function_t fn_{};
 };
+template <typename T>
+class FuturePromise;
+template <typename T>
+class FutureWait;
+template <typename T>
+using future_handle_t = std::coroutine_handle<FuturePromise<T>>;
+template <typename T>
+class Future<T, false> final {
+   public:
+    friend FuturePromise<T>;
+    friend FutureWait<T>;
+    using promise_type = FuturePromise<T>;
+    using wait_type = FutureWait<T>;
+
+    future_handle_t<T> handle_;
+};
+
+template <typename T>
+class FutureWait {
+   public:
+    FutureWait(const FutureWait&) = delete;
+    FutureWait& operator=(const FutureWait&) = delete;
+    template <IsPromise H>
+    using handle_t = std::coroutine_handle<H>;
+    template <IsPromise H>
+    FutureWait(Future<T>&& future, SystemScheduler* scheduler,
+               handle_t<H> handle)
+        : future_(std::move(future)) {
+        future_.handle_.promise().set_scheduler(scheduler);
+        handle.promise().begin_wait();
+    }
+    bool await_ready() { return future_.handle_.done(); }
+    template <IsPromise P>
+    void await_suspend(handle_t<P> handle) {
+        std::println("----------== future {} suspend",
+                     future_.handle_.address());
+        handle.promise().submit_task(future_.handle_);
+        handle.promise().end_wait();
+    }
+    T&& await_resume() {
+        std::println("-------== future {} resume", future_.handle_.address());
+        return future_.handle_.promise().value();
+    }
+    ~FutureWait() {
+        if (future_.handle_) {
+            std::println("--------== destroy future {}",
+                         future_.handle_.address());
+            assert("future is not done" && future_.handle_.done());
+            future_.handle_.destroy();
+        }
+    }
+    Future<T, false> future_{nullptr};
+};
+template <typename T>
+class FuturePromise : public Promise<FuturePromise<T>> {
+   public:
+    Future<T> get_return_object() {
+        return Future<T, false>{
+            this->handle_ =
+                std::coroutine_handle<FuturePromise>::from_promise(*this)};
+    }
+    void return_value(T&& v) { value_ = std::forward<T>(v); }
+    T&& value() {
+        if (this->exception_) std::rethrow_exception(this->exception_);
+        return std::move(value_).value();
+    }
+    bool done() { return this->exception_ || (value_ != std::nullopt); }
+
+   private:
+    std::optional<T> value_;
+};
+
 template <typename Fn, typename Rtp = std::invoke_result_t<Fn>>
-Future(Fn&&) -> Future<Rtp>;
+Future(Fn&&) -> Future<Rtp, true>;
 
 template <typename... T>
 Join(T&&...) -> Join<T...>;

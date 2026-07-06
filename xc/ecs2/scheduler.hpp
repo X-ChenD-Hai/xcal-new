@@ -205,30 +205,33 @@ class SystemScheduler {
     bool steal_flag_{true};
     alignas(64) std::atomic_flag sync_flag_{};
 };
-
-inline void SystemPromise::submit_task(task_t&& task) {
+template <typename Derive>
+inline void Promise<Derive>::submit_task(task_t&& task) {
     remain_task_count_.fetch_add(1);
     _SCHEDULER_DEBUG("submit task {} remain {}", handle_.address(),
                      remain_task_count_.load());
-    using Vt = std::variant<std::function<void(void)>, system_handle_t>;
+    using Vt = std::variant<std::function<void(void)>, HandleTask>;
     auto ot = std::visit(
         [](auto&& t) -> Vt {
             using T = std::decay_t<decltype(t)>;
-            if constexpr (std::is_same_v<T, Task>) {
+            if constexpr (std::is_same_v<T, FuncTask>) {
                 return std::move(t.task_);
             } else {
                 return std::move(t);
             }
         },
         task);
-    scheduler_->submit_task(task_t{Task{[this, task = std::move(ot)] {
+    scheduler_->submit_task(task_t{FuncTask{[this, task = std::move(ot)] {
         invoke_task(task);
         if (remain_task_count_.fetch_sub(1) == 1) {
-            _SCHEDULER_DEBUG("resume {} remain {}", handle_.address(),
-                             remain_task_count_.load());
+            _SCHEDULER_DEBUG("resume {} remain {} @ {}", handle_.address(),
+                             remain_task_count_.load(), (void*)this);
             handle_.resume();
         }
     }}});
 }
-inline void SystemPromise::resubmit() { scheduler_->submit_handle(handle_); }
+template <typename T>
+inline void Promise<T>::resubmit() {
+    scheduler_->submit_handle(handle_);
+}
 }  // namespace xc::ecs
