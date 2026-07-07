@@ -1,7 +1,16 @@
 #include <print>  // IWYU pragma: export
-#define DEBUG(...) std::println(__VA_ARGS__)
+#define ENABLE_LOC
+#ifdef ENABLE_LOC
+#define LOC std::print("[{}:{}] ", __FILE__, __LINE__);
+#else
+#define LOC
+#endif
+#define DEBUG(...)                     \
+    do {                               \
+        LOC std::println(__VA_ARGS__); \
+    } while (0)
 // #define WORKER_DEBUG
-#define SCHEDULER_DEBUG
+// #define SCHEDULER_DEBUG
 
 #ifdef WORKER_DEBUG
 #define _WORKER_DEBUG DEBUG

@@ -14,7 +14,6 @@
 #include "glbinding/gl/functions.h"
 #include "node_editor.hpp"
 
-
 namespace render::gl {
 ecs::Entity create_object(ecs::World& world) {
     auto e = world.create_entity();

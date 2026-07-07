@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <iostream>
 #include <print>
 #include <thread>
 #include <vector>
@@ -44,20 +45,35 @@ System async_foreach(int id) {
 
     co_return;
 }
-Future<int> future1(int id) {
-    std::println("----- call future 1");
-    std::println("------- future 1 return");
+Future<int> future3(int id) {
+    // std::println("----- call future 3");
+    // std::println("------- future 3 return");
     co_return id;
 }
 Future<int> future2(int id) {
-    std::println("------- call future 2");
-    auto d = co_await future1(1);
-    std::println("------- future 2 return");
+    // std::println("----- call future 2");
+    auto d = co_await future3(1);
+    // std::println("------- future 2 return");
+    co_return id + d;
+}
+Future<int> future1(int id) {
+    // std::println("------- call future 1");
+    auto d = co_await future2(1);
+    // std::println("------- future 1 return");
     co_return id + d;
 }
 System test_future(int id) {
+    utility::ClockRecord r;
     std::println("------ test future");
-    auto v = co_await future2(id);
+    auto v = co_await future1(id);
+    auto c = 10000;
+    r.record();
+    for (size_t i = c; i != 0; i--) {
+        v += co_await future3(id);
+    }
+    auto us = r.duration_us();
+    std::println("test {} future use {}us per {}us", c, us, us / c);
+    // v += co_await future2(id) + v;
     std::println("----------v = {}----------", v);
     co_return;
 }
@@ -72,6 +88,7 @@ int main(int argc, char* argv[]) {
     if (argc > 3) {
         thread_count = std::stoi(argv[2]);
     }
+
     for (size_t i = 0; i < run_count; ++i) {
         utility::ClockRecord app_record;
         app_record.record();
@@ -84,10 +101,6 @@ int main(int argc, char* argv[]) {
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
         scheduler.add_system(test_future(1));
-        // scheduler.add_system(async_foreach(2));
-        // scheduler.add_system(async_foreach(3));
-        // scheduler.add_system(async_foreach(4));
-        // scheduler.add_system(async_foreach(5));
         scheduler.update();
         auto t = clock_record.duration_ms();
         std::println("run using {} ms", t);

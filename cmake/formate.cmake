@@ -4,7 +4,13 @@ if(NOT FORMAT_EXE)
     message(FATAL_ERROR "clang-format not found")
 endif()
 
-set(FORMAT_DIRS ${CMAKE_SOURCE_DIR}/xc/)
+list(APPEND FORMAT_DIRS
+    "${CMAKE_SOURCE_DIR}/xc/"
+    "${CMAKE_SOURCE_DIR}/examples/"
+    "${CMAKE_SOURCE_DIR}/test/"
+    "${CMAKE_SOURCE_DIR}/bin/"
+    "${CMAKE_SOURCE_DIR}/plugins/")
+
 foreach(DIR ${FORMAT_DIRS})
     file(GLOB_RECURSE SRC "${DIR}/*.hpp" "${DIR}/*.cc")
     list(APPEND FORMAT_FILES ${SRC})
@@ -15,4 +21,5 @@ add_custom_target(
     COMMAND ${FORMAT_EXE} -i ${FORMAT_FILES}
     COMMENT "Formatting all sources"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS ${FORMAT_FILES}
 )

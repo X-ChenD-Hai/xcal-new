@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <xc/ecs/world.hpp>
 #include <memory>
 #include <print>
+#include <xc/ecs/world.hpp>
 
 #include "imgui.h"
 #include "imgui_node_editor.h"

@@ -1,9 +1,9 @@
 #pragma once
 #include <imgui_node_editor.h>
 
-#include <xc/ecs/tyoes.hpp>
 #include <memory>
 #include <vector>
+#include <xc/ecs/tyoes.hpp>
 
 #include "./node_types.hpp"
 
@@ -23,11 +23,13 @@ struct NodeEditor {
     };
 
    protected:
-    void draw_node(node::Node*node);
-    void draw_node_header(node::Node*node);
-    void draw_input_adapter(const node::PinAdapter* pin_adapter,ax::NodeEditor::NodeId node_id);
+    void draw_node(node::Node* node);
+    void draw_node_header(node::Node* node);
+    void draw_input_adapter(const node::PinAdapter* pin_adapter,
+                            ax::NodeEditor::NodeId node_id);
     void draw_node_properties(node::Node* node);
-    void draw_output_adapter(const node::PinAdapter* pin_adapter,ax::NodeEditor::NodeId node_id);
+    void draw_output_adapter(const node::PinAdapter* pin_adapter,
+                             ax::NodeEditor::NodeId node_id);
 
     void handle_create_link();
     void handle_delete_link();
@@ -39,9 +41,6 @@ struct NodeEditor {
     void popup_node_context();
     void popup_link_context();
     void popup_pin_context();
-
-
-
 
     ax::NodeEditor::LinkId create_link(ax::NodeEditor::PinId input,
                                        ax::NodeEditor::PinId output);

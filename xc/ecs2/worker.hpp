@@ -11,6 +11,8 @@
 
 #include "./config.hpp"
 #include "./types.hpp"
+#include "promise.hpp"
+#include "task.hpp"
 
 namespace xc::ecs {
 

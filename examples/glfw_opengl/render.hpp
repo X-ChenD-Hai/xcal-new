@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-
 #include <xc/ecs/event_bus.hpp>
 #include <xc/ecs/world.hpp>
 

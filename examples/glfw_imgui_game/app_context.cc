@@ -1,4 +1,5 @@
 #include "./app_context.hpp"
+
 #include <glbinding/gl/gl.h>
 #define __gl_h_
 #include <GLFW/glfw3.h>
@@ -147,7 +148,8 @@ bool AppContext::init_imgui() {
     // for documentation purpose)
 #if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 3
     // io.ConfigDpiScaleFonts =
-    //     true;  // [Experimental] Automatically overwrite style.FontScaleDpi in
+    //     true;  // [Experimental] Automatically overwrite style.FontScaleDpi
+    //     in
     //            // Begin() when Monitor DPI changes. This will scale fonts but
     //            // _NOT_ scale sizes/padding for now.
     // io.ConfigDpiScaleViewports =
