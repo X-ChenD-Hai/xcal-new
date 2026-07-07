@@ -372,5 +372,27 @@ struct DispatchTo {
     DispatchTo(const Worker* dispatch) : dispatch(dispatch) {}
     const Worker* dispatch;
 };
+struct Sleep {
+    Sleep(time_duration_t duration)
+        : until(time_point_t::clock::now() + duration) {}
+    Sleep(time_point_t until_time) : until(until_time) {}
+    struct wait_type {
+        template <IsPromise P>
+        wait_type(Sleep&& o, SystemScheduler* scheduler,
+                  std::coroutine_handle<P> handle)
+            : until(o.until) {}
+        constexpr bool await_ready() const noexcept {
+            return time_point_t::clock::now() >= until;
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
+            handle_.promise().submit_timeout_task(ResumeUntilOnceTask{handle_},
+                                                  until);
+        }
+        void await_resume() const noexcept {}
+        time_point_t until;
+    };
+    time_point_t until;
+};
 
 }  // namespace xc::ecs

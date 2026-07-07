@@ -42,6 +42,8 @@ class BasePromise {
             if (parent_) parent_->end_wait();
         }
     }
+    void submit_timeout_task(task_t&& task, time_point_t until);
+    void submit_timeout_task(task_t&& task, time_duration_t delay);
 
    protected:
     SystemScheduler* scheduler_{nullptr};

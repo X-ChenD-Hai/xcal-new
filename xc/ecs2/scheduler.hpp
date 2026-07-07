@@ -4,6 +4,7 @@
 #include <coroutine>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <tuple>
@@ -16,36 +17,35 @@
 #include "./task.hpp"
 #include "./types.hpp"
 #include "./worker.hpp"
+#include "timer_woker.hpp"
 
-#pragma once
 namespace xc::ecs {
 
 class SystemScheduler {
    public:
+    static constexpr size_t StealUntilMaxUs = 500;
     using system_fn_t = System (*)();
     using worker_paload_t = std::tuple<uint32_t, uint32_t, uint32_t>;
     SystemScheduler() = default;
-    void add_system(System&& system) {
-        auto sys = std::make_unique<System>(std::move(system));
-        sys->handle.promise().scheduler_ = this;
-        submit_task(ResumeUntilOnceTask{sys->handle});
-        systems_instencees_.emplace_back(std::move(sys));
-    }
-    void start_workers(uint32_t num_workers = -1) {
-        _SCHEDULER_DEBUG("Before start {} workers", num_workers);
-        if (num_workers == -1) {
-            num_workers = std::thread::hardware_concurrency();
-        }
-        _SCHEDULER_DEBUG("Start {} workers", num_workers);
-        workers_.reserve(num_workers);
-
-        for (uint32_t i = 0; i < num_workers; ++i) {
+    void start_workers(uint32_t count = std::thread::hardware_concurrency()) {
+        _SCHEDULER_DEBUG("Start {} workers", count);
+        workers_.reserve(count);
+        for (uint32_t i = 0; i < count; ++i) {
             workers_.emplace_back(std::make_unique<Worker>());
             workers_.back()->set_steal_callback(std::bind(
                 &SystemScheduler::work_steal, this, std::placeholders::_1));
             workers_.back()->start(i);
         }
         _SCHEDULER_DEBUG("All workers started");
+        timer_worker_ = std::make_unique<TimerWorker>(
+            std::bind(&SystemScheduler::submit_expired_task, this,
+                      std::placeholders::_1));
+    }
+    void add_system(System&& system) {
+        auto sys = std::make_unique<System>(std::move(system));
+        sys->handle.promise().scheduler_ = this;
+        submit_task(ResumeUntilOnceTask{sys->handle});
+        systems_instencees_.emplace_back(std::move(sys));
     }
     void stop_workers() {
         _SCHEDULER_DEBUG("Stop all workers");
@@ -58,22 +58,6 @@ class SystemScheduler {
         }
         workers_.clear();
         _SCHEDULER_DEBUG("All workers stopped");
-    }
-    inline auto rand_worker() -> Worker& {
-        return *workers_[std::rand() % workers_.size()];
-    }
-    inline std::vector<worker_paload_t> worker_paloads() const noexcept {
-        std::vector<worker_paload_t> worker_paloads;
-        worker_paloads.reserve(workers_.size());
-        for (auto& worker : workers_) {
-            worker_paloads.emplace_back(
-                worker->task_count() +
-                    uint32_t(worker->current_task_duration_us() /
-                             StealUntilMaxUs),
-                worker->max_wait_count() - worker->wait_count(),
-                worker->worker_id());
-        }
-        return worker_paloads;
     }
     bool try_submit_task(task_t& task) {
         _SCHEDULER_DEBUG("try submit task");
@@ -123,34 +107,6 @@ class SystemScheduler {
             std::this_thread::yield();
         }
     }
-    inline void notify_steal() {
-        std::unique_lock<std::mutex> lock(steal_mutex_);
-        steal_flag_ = true;
-        lock.unlock();
-        steal_cv_.notify_all();
-    }
-    inline void work_steal(std::deque<task_t>& task_queue) {
-        notify_steal();
-        auto worker_paloads = this->worker_paloads();
-        auto it = std::max_element(workers_.begin(), workers_.end(),
-                                   [&](const auto& a, const auto& b) {
-                                       return worker_paloads[a->worker_id()] <
-                                              worker_paloads[b->worker_id()];
-                                   });
-        if (it == workers_.end()) return;
-        auto& worker = **it;
-        if (worker.waiting()) return;
-        worker.steal(task_queue);
-    }
-    void flush(std::vector<std::exception_ptr>* exceptions = nullptr) {
-        systems_instencees_.erase(
-            std::remove_if(systems_instencees_.begin(),
-                           systems_instencees_.end(),
-                           [&](std::unique_ptr<System>& sys) {
-                               return sys->handle.done();
-                           }),
-            systems_instencees_.end());
-    }
     void update() {
         _SCHEDULER_DEBUG("Run scheduler");
         assert(!workers_.empty());
@@ -195,19 +151,64 @@ class SystemScheduler {
         return nullptr;
     }
     size_t worker_count() const { return workers_.size(); }
-    template <typename T>
-    static bool all_has_done(const T& tasks) {
-        for (auto& task : tasks) {
-            if (!task.handle.done()) {
-                return false;
-            }
-        }
-        return true;
+    void submit_timeout_task(task_t&& task, time_point_t time) {
+        timer_worker_->publish({std::move(task), time});
     }
-    static constexpr size_t StealUntilMaxUs = 500;
+    void submit_timeout_task(task_t&& task, time_duration_t delay) {
+        timer_worker_->publish({std::move(task), delay});
+    }
 
+   private:
+    inline auto rand_worker() -> Worker& {
+        return *workers_[std::rand() % workers_.size()];
+    }
+    inline std::vector<worker_paload_t> worker_paloads() const noexcept {
+        std::vector<worker_paload_t> worker_paloads;
+        worker_paloads.reserve(workers_.size());
+        for (auto& worker : workers_) {
+            worker_paloads.emplace_back(
+                worker->task_count() +
+                    uint32_t(worker->current_task_duration_us() /
+                             StealUntilMaxUs),
+                worker->max_wait_count() - worker->wait_count(),
+                worker->worker_id());
+        }
+        return worker_paloads;
+    }
+    inline void work_steal(std::deque<task_t>& task_queue) {
+        notify_steal();
+        auto worker_paloads = this->worker_paloads();
+        auto it = std::max_element(workers_.begin(), workers_.end(),
+                                   [&](const auto& a, const auto& b) {
+                                       return worker_paloads[a->worker_id()] <
+                                              worker_paloads[b->worker_id()];
+                                   });
+        if (it == workers_.end()) return;
+        auto& worker = **it;
+        if (worker.waiting()) return;
+        worker.steal(task_queue);
+    }
+    inline void notify_steal() {
+        std::unique_lock<std::mutex> lock(steal_mutex_);
+        steal_flag_ = true;
+        lock.unlock();
+        steal_cv_.notify_all();
+    }
+    void flush(std::vector<std::exception_ptr>* exceptions = nullptr) {
+        systems_instencees_.erase(
+            std::remove_if(systems_instencees_.begin(),
+                           systems_instencees_.end(),
+                           [&](std::unique_ptr<System>& sys) {
+                               return sys->handle.done();
+                           }),
+            systems_instencees_.end());
+    }
+    void submit_expired_task(task_t&& task) { submit_task(std::move(task)); }
+
+   private:
     std::vector<std::unique_ptr<System>> systems_instencees_{};
     std::vector<std::unique_ptr<Worker>> workers_{};
+    std::unique_ptr<TimerWorker> timer_worker_{};
     std::mutex steal_mutex_{};
     std::condition_variable steal_cv_{};
     bool steal_flag_{true};
@@ -240,4 +241,14 @@ template <typename Derive>
 inline void Promise<Derive>::resubmit() {
     scheduler_->submit_task(ResumeUntilOnceTask{handle_});
 }
+
+inline void BasePromise::submit_timeout_task(task_t&& task,
+                                             time_point_t until) {
+    scheduler_->submit_timeout_task(std::move(task), until);
+}
+inline void BasePromise::submit_timeout_task(task_t&& task,
+                                             time_duration_t delay) {
+    scheduler_->submit_timeout_task(std::move(task), delay);
+}
+
 }  // namespace xc::ecs

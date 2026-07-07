@@ -14,6 +14,8 @@
 #include <xc/ecs2/utility.hpp>
 #include <xc/ecs2/world.hpp>
 
+#include "xc/ecs2/system.hpp"
+
 using namespace xc::ecs;
 
 System async_foreach(int id) {
@@ -64,6 +66,7 @@ Future<int> future1(int id) {
 }
 System test_future(int id) {
     utility::ClockRecord r;
+    using namespace std::chrono_literals;
     std::println("------ test future");
     auto v = co_await future1(id);
     auto c = 10000;
@@ -73,10 +76,20 @@ System test_future(int id) {
     }
     auto us = r.duration_us();
     std::println("test {} future use {}us per {}us", c, us, us / c);
+    co_await Sleep{10ms};
     // v += co_await future2(id) + v;
     std::println("----------v = {}----------", v);
     co_return;
 }
+
+System test_sleep() {
+    using namespace std::chrono_literals;
+    std::println("---start test_sleep");
+    co_await Sleep{1s};
+    std::println("=====end test_sleep");
+    co_return;
+}
+
 int main(int argc, char* argv[]) {
     utility::ClockRecord app_record;
     app_record.record();
@@ -100,7 +113,15 @@ int main(int argc, char* argv[]) {
 
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
+        // scheduler.add_system(test_future(1));
+        scheduler.add_system(test_sleep());
+        scheduler.add_system(test_sleep());
+        scheduler.add_system(test_sleep());
+        scheduler.add_system(test_sleep());
+        scheduler.add_system(test_sleep());
         scheduler.add_system(test_future(1));
+        scheduler.add_system(test_future(2));
+        scheduler.add_system(test_future(3));
         scheduler.update();
         auto t = clock_record.duration_ms();
         std::println("run using {} ms", t);
