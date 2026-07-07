@@ -1,8 +1,7 @@
-#include <glfw_support/glfw_support.hpp>
-
 #include <GLFW/glfw3.h>
 #include <gtest/gtest.h>
 
+#include <glfw_support/glfw_support.hpp>
 #include <xc/ecs/world.hpp>
 
 using namespace ecs;

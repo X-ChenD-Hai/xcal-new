@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <print>
 #include <xc/event/event.hpp>
 #include <xc/event/timer.hpp>
-#include <print>
 
 class CustomListener : public EventListener {
    public:

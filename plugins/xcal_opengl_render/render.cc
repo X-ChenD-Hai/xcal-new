@@ -1,7 +1,7 @@
 #include "./render.hpp"
 
-#include <xc/ecs/world.hpp>
 #include <opengl_support/opengl_support.hpp>
+#include <xc/ecs/world.hpp>
 
 #include "./shader.hpp"
 

@@ -5,7 +5,6 @@
 #include <print>
 #include <xc/ecs/event_bus.hpp>
 
-
 namespace glfw_support {
 
 static Key glfw_to_key(int glfwKeycode) {

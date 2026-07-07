@@ -31,11 +31,11 @@ class BasePromise {
     void begin_wait() {
         remain_task_count_.fetch_add(1);
         _SCHEDULER_DEBUG("{} begin wait remain {}", (void*)this,
-                     remain_task_count_.load());
+                         remain_task_count_.load());
     }
     void end_wait() {
         _SCHEDULER_DEBUG("{} end wait remain {}", (void*)this,
-                     remain_task_count_.load());
+                         remain_task_count_.load());
         if (remain_task_count_.fetch_sub(1) == 1) {
             _SCHEDULER_DEBUG("{} end wait toggle resume", (void*)this);
             if (!handle().done()) handle().resume();

@@ -1,5 +1,5 @@
-#include <xc/ecs/event_bus.hpp>
 #include <iostream>
+#include <xc/ecs/event_bus.hpp>
 
 struct MyEvent {
     int value;

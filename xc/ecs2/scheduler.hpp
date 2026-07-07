@@ -17,7 +17,6 @@
 #include "./types.hpp"
 #include "./worker.hpp"
 
-
 #pragma once
 namespace xc::ecs {
 

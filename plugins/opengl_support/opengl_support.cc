@@ -1,7 +1,6 @@
 #include "opengl_support.hpp"
 
 #include <print>
-
 #include <xc/opengl_wrapper/opengl_api.hpp>  // IWYU pragma: keep
 
 namespace opengl_support {

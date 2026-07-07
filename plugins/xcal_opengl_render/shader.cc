@@ -9,7 +9,6 @@
 
 #include "./static_shader_source.hpp"
 
-
 xcal_opengl_render::ShaderTable::ShaderTable() {
     using namespace xc::opengl;
     pos_then_uniform_color_shader = make_shader(

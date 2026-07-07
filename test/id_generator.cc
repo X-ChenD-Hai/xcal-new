@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <xc/common/id_generator.hpp>
 #include <print>
+#include <xc/common/id_generator.hpp>
 namespace category {
 class Component;
 class Resource;

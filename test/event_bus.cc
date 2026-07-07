@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <xc/ecs/event_bus.hpp>
 #include <xc/common/type_map.hpp>
 #include <xc/common/xc_assert.hpp>
+#include <xc/ecs/event_bus.hpp>
 using namespace ecs;
 
 struct Event {

@@ -16,7 +16,6 @@
 #include "system.hpp"
 #include "worker.hpp"
 
-
 namespace xc::ecs {
 
 template <typename... T>
@@ -51,7 +50,8 @@ struct Join final {
                             _SCHEDULER_DEBUG("await_ready {} {}", I, (void*)&o);
                             handle.promise().end_wait();
                         } else {
-                            _SCHEDULER_DEBUG("await_suspend {} {}", I, (void*)&o);
+                            _SCHEDULER_DEBUG("await_suspend {} {}", I,
+                                             (void*)&o);
                             o.await_suspend(handle);
                         }
                     }(),

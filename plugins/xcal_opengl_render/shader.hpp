@@ -1,6 +1,6 @@
 #pragma once
-#include <xc/ecs/tyoes.hpp>
 #include <memory>
+#include <xc/ecs/tyoes.hpp>
 #include <xc/opengl_wrapper/shader_program.hpp>
 
 namespace xcal_opengl_render {

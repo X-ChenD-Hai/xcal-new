@@ -1,5 +1,5 @@
-#include <xc/event/event.hpp>
 #include <print>
+#include <xc/event/event.hpp>
 #include <xc/ui/scene_window.hpp>
 
 static void editor_fn(std::string name, int value) {

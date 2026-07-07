@@ -1,6 +1,11 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <print>
+#include <queue>
+#include <vector>
 #include <xc/ecs/command/attach_components.hpp>
 #include <xc/ecs/command/command.hpp>
 #include <xc/ecs/command/system.hpp>
@@ -9,11 +14,6 @@
 #include <xc/ecs/component_accessor.hpp>
 #include <xc/ecs/plugin/core/clock.hpp>
 #include <xc/ecs/world.hpp>
-#include <functional>
-#include <memory>
-#include <print>
-#include <queue>
-#include <vector>
 struct Posion {
     float x;
     float y;

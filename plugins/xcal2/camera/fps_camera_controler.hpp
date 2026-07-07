@@ -52,4 +52,4 @@ class FpsCameraControler {
     void zoom(float dzoom);
     void resize(int width, int height);
 };
-}
+}  // namespace xcal::camera

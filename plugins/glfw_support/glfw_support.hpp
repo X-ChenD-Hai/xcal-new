@@ -1,10 +1,9 @@
 #pragma once
+#include <ui_protocol/types.hpp>
 #include <xc/ecs/command/command.hpp>
 #include <xc/ecs/command_submit.hpp>
 #include <xc/ecs/event_bus.hpp>
 #include <xc/ecs/world.hpp>
-
-#include <ui_protocol/types.hpp>
 
 struct GLFWwindow;
 namespace glfw_support {
@@ -24,7 +23,7 @@ class GLFWSupport {
     void set_input_mode(InputMode mode);
     void poll_events(double timeout_s = 0.0);
     void swap_buffers() const;
-    void handle_extern_event() ;
+    void handle_extern_event();
 
     // 输入处理接口
     bool is_key_pressed(int key) const;
@@ -58,7 +57,8 @@ class GLFWSupport {
                                     double ypos);
     static void wheel_callback(GLFWwindow* window, double xoffset,
                                double yoffset);
-    static void mouse_move_callback(GLFWwindow* window, double xpos, double ypos);
+    static void mouse_move_callback(GLFWwindow* window, double xpos,
+                                    double ypos);
 
    private:
     GLFWwindow* window_;

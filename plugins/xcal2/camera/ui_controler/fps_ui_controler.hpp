@@ -4,7 +4,6 @@
 
 #include "../fps_camera_controler.hpp"
 
-
 namespace xcal::camera::ui_controler {
 class FPSUIControler {
     FPSUIControler(const FPSUIControler&) = default;

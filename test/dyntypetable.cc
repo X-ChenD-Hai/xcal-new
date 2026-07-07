@@ -6,7 +6,6 @@
 #include <xc/common/sparse_list.hpp>
 #include <xc/common/type_map.hpp>
 
-
 // t[tid][cid]=data
 
 TEST(DynTypeTable, get_type_id) {
