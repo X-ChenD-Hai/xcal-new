@@ -44,6 +44,8 @@ class BasePromise {
     }
     void submit_timeout_task(task_t&& task, time_point_t until);
     void submit_timeout_task(task_t&& task, time_duration_t delay);
+    const SystemScheduler* scheduler() const noexcept { return scheduler_; }
+    SystemScheduler* scheduler() noexcept { return scheduler_; }
 
    protected:
     SystemScheduler* scheduler_{nullptr};

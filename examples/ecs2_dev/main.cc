@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <print>
-#include <ranges>
 #include <thread>
 #include <vector>
 #include <xc/ecs2/async_primitives.hpp>
@@ -105,20 +104,22 @@ System test_join() {
     co_return;
 }
 
-// System test_all_done() {
-//     std::println("test_all_done");
-//     std::vector<Future<int, true>> f1{};
-//     f1.emplace_back([]() { return 1; });
-//     f1.emplace_back([]() { return 1; });
-//     f1.emplace_back([]() { return 1; });
-//     f1.emplace_back([]() { return 1; });
+System test_when_all() {
+    std::println("test_all_done");
+    std::vector<Future<int, true>> f1{};
+    f1.emplace_back([]() { return 1; });
+    f1.emplace_back([]() { return 1; });
+    f1.emplace_back([]() { return 1; });
+    f1.emplace_back([]() { return 1; });
 
-//     std::println("wait all done");
-//     auto n = co_await AllDone{f1};
-//     std::println("n = {}", n);
+    std::println("wait all done");
+    auto n = WhenAll{f1};
+    std::println("c = {}", f1.empty());
+    auto v = co_await n;
+    std::println("n = {}", v);
 
-//     co_return;
-// }
+    co_return;
+}
 
 int main(int argc, char* argv[]) {
     utility::ClockRecord app_record;
@@ -147,7 +148,7 @@ int main(int argc, char* argv[]) {
         scheduler.add_system(test_future(2));
         scheduler.add_system(test_sleep());
         scheduler.add_system(test_join());
-        // scheduler.add_system(test_all_done());
+        scheduler.add_system(test_when_all());
         scheduler.update();
         auto t = clock_record.duration_ms();
         std::println("run using {} ms", t);

@@ -9,6 +9,7 @@
 #include <functional>
 #include <iterator>
 #include <optional>
+#include <print>
 #include <ranges>
 #include <thread>
 #include <tuple>
@@ -119,7 +120,11 @@ struct Future final {
         template <IsPromise P>
         wait_type(Future&& future, SystemScheduler* scheduler,
                   std::coroutine_handle<P> handle)
-            : future_(std::move(future)) {
+            : future_(std::move(future)) {}
+        bool await_ready() { return false; }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) {
+            assert(future_.fn_ && "future fn is null");
             handle.promise().submit_task(FuncTask{[this]() {
                 try {
                     assert(future_.fn_ && "future fn is null");
@@ -129,9 +134,6 @@ struct Future final {
                 }
             }});
         }
-        bool await_ready() { return false; }
-        template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle) {}
 
         T&& await_resume() { return std::move(future_).value(); }
         Future future_;
@@ -170,7 +172,6 @@ class Future<T, false> final {
 
     future_handle_t<T> handle_;
 };
-
 template <typename T>
 class FutureWait {
    public:
@@ -246,13 +247,17 @@ template <typename T, typename Fn>
 struct AsyncForeach {
     AsyncForeach(T begin, T end, Fn&& fn) : begin(begin), end(end), fn(fn) {}
     struct wait_type final {
-        wait_type(wait_type&& o) : foreach_(std::move(o.foreach_)) {}
         template <typename U, IsPromise P>
         wait_type(U&& foreach, SystemScheduler* scheduler,
                   std::coroutine_handle<P> handle)
-            : foreach_(std::forward<U>(foreach)) {
+            : foreach_(std::forward<U>(foreach)) {}
+        void await_resume() {}
+        bool await_ready() const { return false; }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) {
             const auto count = std::distance(foreach_.begin, foreach_.end);
-            const auto worker_count = scheduler->worker_count();
+            const auto worker_count =
+                handle.promise().scheduler()->worker_count();
             const auto mod = count % worker_count;
             const auto count_per_worker =
                 (count + worker_count - 1) / worker_count - (mod != 0);
@@ -268,10 +273,6 @@ struct AsyncForeach {
                 handle.promise().submit_task(task);
             }
         }
-        void await_resume() {}
-        bool await_ready() const { return false; }
-        template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle) {}
 
        private:
         template <typename _Fn, typename _T, typename _Offset>
@@ -398,5 +399,49 @@ struct Sleep {
 };
 template <typename T>
 using resume_type = std::invoke_result_t<decltype(&T::await_resume), T*>;
+
+template <typename T>
+struct WhenAll {
+    using wait_value_t = T::wait_type;
+    using resume_value_t = resume_type<wait_value_t>;
+    struct wait_type {
+        template <IsPromise P>
+        wait_type(WhenAll&& o, SystemScheduler* scheduler,
+                  std::coroutine_handle<P> handle) {
+            for (auto& v : o.view) {
+                view.emplace_back(std::move(v), scheduler, handle);
+            }
+            for (auto&& [i, v] : view | std::views::enumerate) {
+                if (!v.await_ready()) {
+                    unready_indices.push_back(i);
+                }
+            }
+        }
+        constexpr bool await_ready() noexcept {
+            std::println("unready_indices:{}", unready_indices);
+            return unready_indices.empty();
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {
+            handle.promise().begin_wait();
+            for (auto i : unready_indices) {
+                view[i].await_suspend(handle);
+            }
+            handle.promise().end_wait();
+        }
+        decltype(auto) await_resume() noexcept {
+            return view | std::views::transform([](auto&& v) {
+                       return v.await_resume();
+                   }) |
+                   std::ranges::to<std::vector>();
+        }
+        std::vector<wait_value_t> view{};
+        std::vector<size_t> unready_indices{};
+    };
+
+    WhenAll(std::vector<T>& view) : view(std::move(view)) {}
+
+    std::vector<T> view{};
+};
 
 }  // namespace xc::ecs
