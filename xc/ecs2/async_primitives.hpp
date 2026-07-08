@@ -1,4 +1,7 @@
 #pragma once
+#include <malloc.h>
+
+#include <algorithm>
 #include <cassert>
 #include <coroutine>
 #include <cstddef>
@@ -6,8 +9,11 @@
 #include <functional>
 #include <iterator>
 #include <optional>
+#include <ranges>
 #include <thread>
+#include <tuple>
 #include <type_traits>
+#include <vector>
 
 #include "./scheduler.hpp"
 #include "./task.hpp"
@@ -21,7 +27,8 @@ namespace xc::ecs {
 template <typename... T>
 struct Join final {
     struct wait_type;
-    Join(T&&... tasks) : tasks_(std::forward_as_tuple(tasks...)) {}
+    template <typename... Args>
+    Join(Args&&... tasks) : tasks_(std::forward_as_tuple(tasks...)) {}
 
     struct wait_type {
         template <IsPromise P>
@@ -63,7 +70,7 @@ struct Join final {
         decltype(auto) await_resume() const {
             return const_cast<Join&&>(std::move(join_)).values();
         }
-        Join join_;
+        Join&& join_;
     };
 
     decltype(auto) values() && {
@@ -90,7 +97,7 @@ struct Join final {
     }
 
    private:
-    std::tuple<const T&...> tasks_{};
+    std::tuple<T...> tasks_{};
     std::tuple<std::optional<typename std::decay_t<T>::wait_type>...>
         wait_objects_{};
 };
@@ -113,20 +120,18 @@ struct Future final {
         wait_type(Future&& future, SystemScheduler* scheduler,
                   std::coroutine_handle<P> handle)
             : future_(std::move(future)) {
-            handle.promise().begin_wait();
-            handle.promise().submit_task([this]() {
+            handle.promise().submit_task(FuncTask{[this]() {
                 try {
-                    future_.value_ = std::move(future_.fn_());
+                    assert(future_.fn_ && "future fn is null");
+                    future_.value_ = future_.fn_();
                 } catch (...) {
                     future_.exception_ = std::current_exception();
                 }
-            });
+            }});
         }
         bool await_ready() { return false; }
         template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle) {
-            handle.promise().end_wait();
-        }
+        void await_suspend(std::coroutine_handle<P> handle) {}
 
         T&& await_resume() { return std::move(future_).value(); }
         Future future_;
@@ -246,7 +251,6 @@ struct AsyncForeach {
         wait_type(U&& foreach, SystemScheduler* scheduler,
                   std::coroutine_handle<P> handle)
             : foreach_(std::forward<U>(foreach)) {
-            handle.promise().begin_wait();
             const auto count = std::distance(foreach_.begin, foreach_.end);
             const auto worker_count = scheduler->worker_count();
             const auto mod = count % worker_count;
@@ -267,9 +271,7 @@ struct AsyncForeach {
         void await_resume() {}
         bool await_ready() const { return false; }
         template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle) {
-            handle.promise().end_wait();
-        }
+        void await_suspend(std::coroutine_handle<P> handle) {}
 
        private:
         template <typename _Fn, typename _T, typename _Offset>
@@ -394,5 +396,7 @@ struct Sleep {
     };
     time_point_t until;
 };
+template <typename T>
+using resume_type = std::invoke_result_t<decltype(&T::await_resume), T*>;
 
 }  // namespace xc::ecs

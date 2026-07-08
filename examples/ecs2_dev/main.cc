@@ -4,8 +4,8 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <print>
+#include <ranges>
 #include <thread>
 #include <vector>
 #include <xc/ecs2/async_primitives.hpp>
@@ -18,7 +18,7 @@
 
 using namespace xc::ecs;
 
-System async_foreach(int id) {
+System test_dispatch(int id) {
     std::vector<size_t> tid{};
     auto w = co_await CurrentWorker{};
     auto t = w;
@@ -89,6 +89,36 @@ System test_sleep() {
     std::println("=====end test_sleep");
     co_return;
 }
+System test_join() {
+    std::println("test_join");
+    Future f1{[]() { return 1; }};
+    Future f2{[]() { return 2; }};
+    auto v1 = co_await f1;
+    auto v2 = co_await f2;
+    std::println("v1 = {}, v2 = {}", v1, v2);
+    Future f11{[]() { return 11; }};
+    Future f12{[]() { return 12; }};
+    auto [v11, v12, v13, v14] =
+        co_await (f11 && f12 && future1(1) && future1(3));
+    std::println("v111 = {}, v12 = {}, v13 = {}, v14 = {}", v11, v12, v13, v14);
+
+    co_return;
+}
+
+// System test_all_done() {
+//     std::println("test_all_done");
+//     std::vector<Future<int, true>> f1{};
+//     f1.emplace_back([]() { return 1; });
+//     f1.emplace_back([]() { return 1; });
+//     f1.emplace_back([]() { return 1; });
+//     f1.emplace_back([]() { return 1; });
+
+//     std::println("wait all done");
+//     auto n = co_await AllDone{f1};
+//     std::println("n = {}", n);
+
+//     co_return;
+// }
 
 int main(int argc, char* argv[]) {
     utility::ClockRecord app_record;
@@ -113,15 +143,11 @@ int main(int argc, char* argv[]) {
 
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
-        // scheduler.add_system(test_future(1));
-        scheduler.add_system(test_sleep());
-        scheduler.add_system(test_sleep());
-        scheduler.add_system(test_sleep());
-        scheduler.add_system(test_sleep());
-        scheduler.add_system(test_sleep());
-        scheduler.add_system(test_future(1));
+        scheduler.add_system(test_dispatch(1));
         scheduler.add_system(test_future(2));
-        scheduler.add_system(test_future(3));
+        scheduler.add_system(test_sleep());
+        scheduler.add_system(test_join());
+        // scheduler.add_system(test_all_done());
         scheduler.update();
         auto t = clock_record.duration_ms();
         std::println("run using {} ms", t);
