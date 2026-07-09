@@ -2,10 +2,12 @@
 #include <malloc.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <coroutine>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <iterator>
 #include <optional>
@@ -14,12 +16,14 @@
 #include <thread>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "./scheduler.hpp"
 #include "./task.hpp"
 #include "./types.hpp"
 #include "config.hpp"
+#include "structure/ring_buffer.hpp"
 #include "system.hpp"
 #include "worker.hpp"
 
@@ -27,16 +31,16 @@ namespace xc::ecs {
 
 template <typename... T>
 struct Join final {
-    struct wait_type;
+    using tuple_t = std::tuple<std::remove_reference_t<T>...>;
+
     template <typename... Args>
-    Join(Args&&... tasks) : tasks_(std::forward_as_tuple(tasks...)) {}
+    Join(Args&&... tasks) : tasks_(std::move(tasks)...) {}
 
     struct wait_type {
         template <IsPromise P>
         wait_type(Join&& join, SystemScheduler* scheduler,
                   std::coroutine_handle<P> handle)
             : join_(std::move(join)) {
-            handle.promise().begin_wait();
             [&]<size_t... I>(std::index_sequence<I...>) {
                 (
                     [&]() {
@@ -47,7 +51,17 @@ struct Join final {
                     ...);
             }(std::make_index_sequence<sizeof...(T)>());
         }
-        bool await_ready() const { return false; }
+        bool await_ready() const {
+            return [&]<size_t... I>(std::index_sequence<I...>) {
+                return ([&]() {
+                    return std::get<I>(join_.wait_objects_)
+                        .value()
+                        .await_ready();
+                }() && ...);
+            }(std::make_index_sequence<sizeof...(T)>());
+
+            ;
+        }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle) {
             [&]<size_t... I>(std::index_sequence<I...>) {
@@ -98,14 +112,24 @@ struct Join final {
     }
 
    private:
-    std::tuple<T...> tasks_{};
+    tuple_t tasks_{};
     std::tuple<std::optional<typename std::decay_t<T>::wait_type>...>
         wait_objects_{};
 };
+template <typename... T>
+Join(T&&...) -> Join<T...>;
 template <typename T>
 static constexpr bool is_async_join_onject = false;
 template <typename... T>
 static constexpr bool is_async_join_onject<Join<T...>> = true;
+
+template <typename A, typename B>
+    requires(std::is_class_v<typename std::decay_t<A>::wait_type> &&
+             std::is_class_v<typename std::decay_t<B>::wait_type> &&
+             !is_async_join_onject<A> && !is_async_join_onject<B>)
+auto operator&&(A&& a, B&& b) -> decltype(auto) {
+    return Join{std::forward<A>(a), std::forward<B>(b)};
+}
 
 template <typename T, bool = false>
 struct Future final {
@@ -169,14 +193,28 @@ class Future<T, false> final {
     friend FutureWait<T>;
     using promise_type = FuturePromise<T>;
     using wait_type = FutureWait<T>;
-
-    future_handle_t<T> handle_;
+    Future() = default;
+    Future(const Future&) = delete;
+    Future& operator=(const Future&) = delete;
+    Future(Future&& o) noexcept { std::swap(o.handle_, handle_); }
+    Future& operator=(Future&& o) noexcept {
+        std::swap(o.handle_, handle_);
+        return *this;
+    };
+    Future(future_handle_t<T> handle) : handle_(handle) {}
+    ~Future() { handle_ = nullptr; }
+    future_handle_t<T> handle_{nullptr};
 };
 template <typename T>
 class FutureWait {
    public:
     FutureWait(const FutureWait&) = delete;
     FutureWait& operator=(const FutureWait&) = delete;
+    FutureWait(FutureWait&& o) noexcept { std::swap(o.future_, future_); }
+    FutureWait& operator=(FutureWait&& o) noexcept {
+        std::swap(o.future_, future_);
+        return *this;
+    }
     template <IsPromise H>
     using handle_t = std::coroutine_handle<H>;
     template <IsPromise H>
@@ -193,11 +231,13 @@ class FutureWait {
     void await_suspend(handle_t<P> handle) {
         _SCHEDULER_DEBUG("future {} suspend",
                          (void*)&future_.handle_.promise());
-        handle.promise().submit_task(ResumeUntilDoneTask{future_.handle_});
+        handle.promise().submit_task(
+            ResumeUntilOnceTask{&future_.handle_.promise()});
     }
     T&& await_resume() {
         _SCHEDULER_DEBUG("future {} resume", (void*)&future_.handle_.promise());
-        assert("future is not done" && future_.handle_.done());
+        auto done = future_.handle_.promise().done();
+        assert("future is not done" && done);
         return future_.handle_.promise().value();
     }
     ~FutureWait() {
@@ -223,25 +263,14 @@ class FuturePromise : public Promise<FuturePromise<T>> {
         if (this->exception_) std::rethrow_exception(this->exception_);
         return std::move(value_).value();
     }
-    bool done() { return this->exception_ || (value_ != std::nullopt); }
+    bool done() { return this->exception_ || value_.has_value(); }
 
    private:
-    std::optional<T> value_;
+    std::optional<T> value_{std::nullopt};
 };
 
 template <typename Fn, typename Rtp = std::invoke_result_t<Fn>>
 Future(Fn&&) -> Future<Rtp, true>;
-
-template <typename... T>
-Join(T&&...) -> Join<T...>;
-
-template <typename A, typename B>
-    requires(std::is_class_v<typename std::decay_t<A>::wait_type> &&
-             std::is_class_v<typename std::decay_t<B>::wait_type> &&
-             !is_async_join_onject<A> && !is_async_join_onject<B>)
-auto operator&&(A&& a, B&& b) -> decltype(auto) {
-    return Join{std::forward<A>(a), std::forward<B>(b)};
-}
 
 template <typename T, typename Fn>
 struct AsyncForeach {
@@ -325,7 +354,9 @@ struct CurrentWorker {
             : ptr(scheduler->current_worker()) {}
         constexpr bool await_ready() const noexcept { return true; }
         template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle) const noexcept {}
+        void await_suspend(std::coroutine_handle<P> handle) const noexcept {
+            assert(false && "await_suspend not implemented");
+        }
         const Worker* await_resume() const noexcept { return ptr; }
         const Worker* ptr;
     };
@@ -349,7 +380,7 @@ struct BindWorker {
         const Worker* bind;
     };
     BindWorker(const Worker* bind) : bind(bind) {}
-    const Worker* bind;
+    const Worker* bind{nullptr};
 };
 struct DispatchTo {
     struct wait_type {
@@ -373,7 +404,7 @@ struct DispatchTo {
         BasePromise* const primise;
     };
     DispatchTo(const Worker* dispatch) : dispatch(dispatch) {}
-    const Worker* dispatch;
+    const Worker* dispatch{nullptr};
 };
 struct Sleep {
     Sleep(time_duration_t duration)
@@ -389,9 +420,10 @@ struct Sleep {
         }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
-            handle_.promise().submit_timeout_task(ResumeUntilOnceTask{handle_},
-                                                  until);
+            handle_.promise().submit_timeout_task(
+                ResumeUntilOnceTask{&handle_.promise()}, until);
         }
+
         void await_resume() const noexcept {}
         time_point_t until;
     };
@@ -411,13 +443,13 @@ struct WhenAll {
             for (auto& v : o.view) {
                 view.emplace_back(std::move(v), scheduler, handle);
             }
+        }
+        constexpr bool await_ready() noexcept {
             for (auto&& [i, v] : view | std::views::enumerate) {
                 if (!v.await_ready()) {
                     unready_indices.push_back(i);
                 }
             }
-        }
-        constexpr bool await_ready() noexcept {
             std::println("unready_indices:{}", unready_indices);
             return unready_indices.empty();
         }
@@ -443,5 +475,149 @@ struct WhenAll {
 
     std::vector<T> view{};
 };
+
+template <typename T, size_t N>
+class Channel {
+   public:
+    Channel(const Channel&) = delete;
+    Channel(Channel&&) = delete;
+    Channel& operator=(const Channel&) = delete;
+    Channel& operator=(Channel&&) = delete;
+
+   public:
+    struct RecvWait {
+       public:
+        RecvWait(const RecvWait&) = delete;
+        RecvWait& operator=(const RecvWait&) = delete;
+        RecvWait& operator=(RecvWait&&) = delete;
+        RecvWait(RecvWait&& o) : channel(o.channel) {
+            std::swap(v, o.v);
+            std::swap(promise, o.promise);
+        }
+
+       public:
+        RecvWait(Channel& ch) : channel(ch) {}
+        constexpr bool await_ready() noexcept {
+            v = channel.try_recv();
+            return v.has_value();
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {
+            promise = &handle.promise();
+            channel.add_recv(this);
+        }
+        T&& await_resume() noexcept { return std::move(v.value()); }
+        ~RecvWait() {}
+        Channel& channel;
+        std::optional<T> v{};
+        BasePromise* promise{nullptr};
+    };
+    struct SendWait {
+       public:
+        SendWait(const SendWait&) = delete;
+        SendWait& operator=(const SendWait&) = delete;
+        SendWait& operator=(SendWait&&) = delete;
+        SendWait(SendWait&& o) : channel(o.channel) {
+            std::swap(value, o.value);
+            std::swap(promise, o.promise);
+        }
+
+       public:
+        SendWait(Channel& ch, T&& value);
+        constexpr bool await_ready() noexcept {
+            return channel.try_send(value);
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {
+            promise = &handle.promise();
+            channel.add_send(this);
+        }
+        void await_resume() noexcept {}
+        Channel& channel;
+        BasePromise* promise{nullptr};
+        T value;
+    };
+
+    Channel() {
+        recv_flag_.clear();
+        send_flag_.clear();
+    }
+
+    RecvWait recv() { return RecvWait(*this); }
+    template <typename... Args>
+    SendWait send(Args&&... args) {
+        return SendWait(*this, std::forward<Args>(args)...);
+    }
+
+   protected:
+    void add_recv(RecvWait* p) {
+        if (!p) return;
+        p->promise->begin_wait();
+        while (recv_flag_.test_and_set());
+        recv_promises_.push_back(p);
+        recv_flag_.clear();
+    }
+    void add_send(SendWait* p) {
+        if (!p) return;
+        p->promise->begin_wait();
+        while (send_flag_.test_and_set());
+        send_promises_.push_back(p);
+        send_flag_.clear();
+    }
+
+    std::optional<T> try_recv() {
+        T tmp;
+        if (buffer_.try_dequeue(tmp)) {
+            notify_sender();
+            return tmp;
+        }
+        return std::nullopt;
+    }
+    bool try_send(T& value) {
+        if (buffer_.try_enqueue(value)) {
+            notify_recv();
+            return true;
+        }
+        return false;
+    }
+    void notify_recv() {
+        while (recv_flag_.test_and_set());
+        BasePromise* p{nullptr};
+        if (!recv_promises_.empty()) {
+            auto v = try_recv();
+            if (v.has_value()) {
+                recv_promises_.front()->v = std::move(v.value());
+                p = recv_promises_.front()->promise;
+                recv_promises_.pop_front();
+            }
+        }
+        recv_flag_.clear();
+        if (p) p->end_wait();
+    }
+
+    void notify_sender() {
+        while (send_flag_.test_and_set());
+        BasePromise* p{nullptr};
+        if (!send_promises_.empty()) {
+            SendWait* s = send_promises_.front();
+            if (try_send(s->value)) {
+                p = s->promise;
+                send_promises_.pop_front();
+            }
+        }
+        send_flag_.clear();
+        if (p) p->end_wait();
+    }
+
+   private:
+    alignas(64) std::atomic_flag recv_flag_{};
+    alignas(64) std::atomic_flag send_flag_{};
+    structure::RingBuffer<T, N> buffer_{};
+    std::deque<RecvWait*> recv_promises_{};
+    std::deque<SendWait*> send_promises_{};
+};
+template <typename T, size_t N>
+inline Channel<T, N>::SendWait::SendWait(Channel& ch, T&& value)
+    : channel(ch), value(std::move(value)) {}
 
 }  // namespace xc::ecs

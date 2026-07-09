@@ -1,22 +1,22 @@
 #pragma once
 #include <concepts>
 #include <functional>
+#include <string_view>
 #include <type_traits>
+#include <variant>
 
 #include "promise.hpp"
 #include "types.hpp"
 
 namespace xc::ecs {
 struct ResumeUntilOnceTask {
-    std::coroutine_handle<> handle{nullptr};
     BasePromise* promise{nullptr};
-    template <typename H>
-    ResumeUntilOnceTask(std::coroutine_handle<H> h)
-        : handle(h), promise(&h.promise()) {}
+    ResumeUntilOnceTask(BasePromise* promise) : promise(promise) {}
     ~ResumeUntilOnceTask() {}
+    void set_exception(std::exception_ptr e) const { promise->exception_ = e; }
     void operator()() const {
         try {
-            handle.resume();
+            promise->resume();
             _SCHEDULER_DEBUG("resume {} success from until once handle",
                              (void*)promise);
         } catch (...) {
@@ -25,21 +25,9 @@ struct ResumeUntilOnceTask {
         }
     }
 };
-struct ResumeUntilDoneTask : public ResumeUntilOnceTask {
+struct AsyncEndWaitTask : public ResumeUntilOnceTask {
     using ResumeUntilOnceTask::ResumeUntilOnceTask;
-    void operator()() const {
-        try {
-            promise->begin_wait();
-            handle.resume();
-            _SCHEDULER_DEBUG("resume {} success from until done handle",
-                             (void*)promise);
-            promise->end_wait();
-        } catch (...) {
-            promise->exception_ = std::current_exception();
-            _SCHEDULER_DEBUG("catch exception in {}", (void*)promise);
-            promise->end_wait();
-        }
-    }
+    void operator()() const { promise->end_wait(); }
 };
 
 class FuncTask {
@@ -73,6 +61,14 @@ template <typename T>
 constexpr bool
     is_visitable<T, decltype(std::visit([](auto&&) {}, std::declval<T>()))> =
         true;
+template <typename U>
+inline const std::string_view task_type(const U& t) {
+    if constexpr (is_visitable<U>) {
+        return std::visit([](auto&& t) { return typeid(t).name(); }, t);
+    } else {
+        return typeid(t).name();
+    }
+}
 
 template <typename U>
 const Worker* bind_worker(const U& task) {
@@ -92,6 +88,7 @@ const Worker* bind_worker(const U& task) {
 
 template <typename U>
 void invoke_task(U&& task) {
+    _SCHEDULER_DEBUG("invoke task {}", task_type(task));
     if constexpr (is_visitable<U>) {
         std::visit([](auto&& task) { invoke_task(task); }, task);
     } else {

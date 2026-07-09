@@ -1,11 +1,11 @@
 #pragma once
 #include <algorithm>
 #include <cassert>
-#include <coroutine>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <print>
 #include <thread>
 #include <tuple>
 #include <type_traits>
@@ -44,7 +44,7 @@ class SystemScheduler {
     void add_system(System&& system) {
         auto sys = std::make_unique<System>(std::move(system));
         sys->handle.promise().scheduler_ = this;
-        submit_task(ResumeUntilOnceTask{sys->handle});
+        submit_task(ResumeUntilOnceTask{&sys->handle.promise()});
         systems_instencees_.emplace_back(std::move(sys));
     }
     void stop_workers() {
@@ -53,20 +53,25 @@ class SystemScheduler {
             worker->disable_steal();
             worker->stop();
         }
+        std::println("join workers");
         for (auto& worker : workers_) {
+            std::println("worker {} join", worker->worker_id());
             worker->join();
+            std::println("worker {} join done", worker->worker_id());
         }
+        std::println("workers join done");
         workers_.clear();
+        std::println("workers cleared");
         _SCHEDULER_DEBUG("All workers stopped");
     }
     bool try_submit_task(task_t& task) {
-        _SCHEDULER_DEBUG("try submit task");
+        _SCHEDULER_DEBUG("try submit {}", task_type(task));
         auto bind = bind_worker(task);
         assert("bind worker is not nullptr or not in workers" &&
                (bind == nullptr ||
                 std::count_if(workers_.begin(), workers_.end(),
-                              [bind](auto& w) { return w.get() == bind; })) ==
-                   1);
+                              [bind](auto& w) { return w.get() == bind; })) >
+                   0);
         if (bind) {
             _SCHEDULER_DEBUG("submit task to worker {} which is bind",
                              bind->worker_id());
@@ -217,8 +222,8 @@ class SystemScheduler {
 template <typename Derive>
 inline void Promise<Derive>::submit_task(task_t&& task) {
     begin_wait();
-    _SCHEDULER_DEBUG("submit task {} remain {}", handle_.address(),
-                     remain_task_count_.load());
+    _SCHEDULER_DEBUG("submit {} {} remain {}", task_type(task),
+                     handle_.address(), remain_task_count_.load());
     std::visit(
         [&](auto&& t) {
             using T = std::decay_t<decltype(t)>;
@@ -239,7 +244,7 @@ inline void Promise<Derive>::submit_task(task_t&& task) {
 }
 template <typename Derive>
 inline void Promise<Derive>::resubmit() {
-    scheduler_->submit_task(ResumeUntilOnceTask{handle_});
+    scheduler_->submit_task(ResumeUntilOnceTask{&handle_.promise()});
 }
 
 inline void BasePromise::submit_timeout_task(task_t&& task,
@@ -249,6 +254,10 @@ inline void BasePromise::submit_timeout_task(task_t&& task,
 inline void BasePromise::submit_timeout_task(task_t&& task,
                                              time_duration_t delay) {
     scheduler_->submit_timeout_task(std::move(task), delay);
+}
+
+inline void BasePromise::async_end_wait() {
+    scheduler_->submit_task(AsyncEndWaitTask{this});
 }
 
 }  // namespace xc::ecs

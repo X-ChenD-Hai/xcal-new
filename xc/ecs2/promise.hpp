@@ -1,24 +1,47 @@
 #pragma once
 #include <atomic>
+#include <cassert>
 #include <coroutine>
 #include <exception>
+#include <print>
+#include <type_traits>
 #include <utility>
 
 #include "types.hpp"
 
 namespace xc::ecs {
+
+template <typename T, typename = void>
+constexpr bool is_waitable = false;
+template <typename T>
+constexpr bool is_waitable<
+    T, std::void_t<decltype(void(std::declval<T>().await_ready()))>> = true;
+
 class Worker;
 class BasePromise {
     friend class SystemScheduler;
     friend struct ResumeUntilOnceTask;
-    friend struct ResumeUntilDoneTask;
 
     template <typename U>
     friend void invoke_task(U&& task);
 
    public:
+    BasePromise() = default;
+    BasePromise(const BasePromise&) = delete;
+    BasePromise(BasePromise&&) = delete;
+    BasePromise& operator=(const BasePromise&) = delete;
+    BasePromise& operator=(BasePromise&&) = delete;
+
+    virtual ~BasePromise() {
+        _SCHEDULER_DEBUG("destory Promise {}", (void*)this);
+    }
+
+   public:
     std::suspend_always initial_suspend() { return {}; }
-    std::suspend_always final_suspend() noexcept { return {}; }
+    std::suspend_always final_suspend() noexcept {
+        if (parent_) parent_->async_end_wait();
+        return {};
+    }
     void set_parent(BasePromise* parent) { parent_ = parent; }
     void unhandled_exception() { exception_ = std::current_exception(); }
     void bind(const Worker* worker) { bind_worker_ = worker; }
@@ -27,7 +50,7 @@ class BasePromise {
     inline void set_scheduler(SystemScheduler* scheduler) {
         scheduler_ = scheduler;
     }
-    virtual std::coroutine_handle<> handle() = 0;
+    virtual std::coroutine_handle<> handle() const = 0;
     void begin_wait() {
         remain_task_count_.fetch_add(1);
         _SCHEDULER_DEBUG("{} begin wait remain {}", (void*)this,
@@ -38,14 +61,21 @@ class BasePromise {
                          remain_task_count_.load());
         if (remain_task_count_.fetch_sub(1) == 1) {
             _SCHEDULER_DEBUG("{} end wait toggle resume", (void*)this);
-            if (!handle().done()) handle().resume();
-            if (parent_) parent_->end_wait();
+            assert(handle() && "handle is null");
+            if (!done()) resume();
         }
     }
+    void async_end_wait();
     void submit_timeout_task(task_t&& task, time_point_t until);
     void submit_timeout_task(task_t&& task, time_duration_t delay);
     const SystemScheduler* scheduler() const noexcept { return scheduler_; }
     SystemScheduler* scheduler() noexcept { return scheduler_; }
+    void resume() {
+        assert(handle() && "handle is null");
+        assert(!handle().done() && "handle is done");
+        handle().resume();
+    }
+    bool done() const { return handle().done(); }
 
    protected:
     SystemScheduler* scheduler_{nullptr};
@@ -68,21 +98,34 @@ class Promise : public BasePromise {
     };
     template <typename T>
     auto await_transform(T&& t) {
-        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
-                                                   scheduler_, handle_};
+        if constexpr (is_waitable<T>) {
+            return std::forward<T>(t);
+        } else {
+            return typename std::decay_t<T>::wait_type{std::forward<T>(t),
+                                                       scheduler_, handle_};
+        }
     }
     template <typename T>
     auto await_transform(T& t) {
-        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
-                                                   scheduler_, handle_};
+        if constexpr (is_waitable<T>) {
+            return t;
+        } else {
+            return typename std::decay_t<T>::wait_type{std::forward<T>(t),
+
+                                                       scheduler_, handle_};
+        }
     }
     template <typename T>
     auto await_transform(const T& t) {
-        return typename std::decay_t<T>::wait_type{std::forward<T>(t),
-                                                   scheduler_, handle_};
+        if constexpr (is_waitable<T>) {
+            return t;
+        } else {
+            return typename std::decay_t<T>::wait_type{std::forward<T>(t),
+                                                       scheduler_, handle_};
+        }
     }
 
-    std::coroutine_handle<> handle() override { return handle_; }
+    std::coroutine_handle<> handle() const override { return handle_; }
 
     void resubmit();
 
