@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -11,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "./config.hpp"
 #include "./system.hpp"
@@ -49,19 +51,7 @@ class SystemScheduler {
     }
     void stop_workers() {
         _SCHEDULER_DEBUG("Stop all workers");
-        for (auto& worker : workers_) {
-            worker->disable_steal();
-            worker->stop();
-        }
-        std::println("join workers");
-        for (auto& worker : workers_) {
-            std::println("worker {} join", worker->worker_id());
-            worker->join();
-            std::println("worker {} join done", worker->worker_id());
-        }
-        std::println("workers join done");
-        workers_.clear();
-        std::println("workers cleared");
+        destroy_workers();
         _SCHEDULER_DEBUG("All workers stopped");
     }
     bool try_submit_task(task_t& task) {
@@ -164,6 +154,15 @@ class SystemScheduler {
     }
 
    private:
+    void destroy_workers() {
+        std::vector<std::jthread> threads;
+        for (auto& worker : workers_)
+            threads.emplace_back([worker = std::move(worker)]() {
+                worker->disable_steal();
+                worker->stop();
+            });
+        workers_.clear();
+    }
     inline auto rand_worker() -> Worker& {
         return *workers_[std::rand() % workers_.size()];
     }

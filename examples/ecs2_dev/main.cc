@@ -175,17 +175,17 @@ void run_system() {
         const auto test_count = 100000;
         try {
             for (size_t i = 0; i < test_count; ++i) {
-                scheduler.add_system(test_dispatch(1)); /* ok */
-                scheduler.add_system(test_future(2));   /* ok*/
-                scheduler.add_system(test_sleep());     /* ok*/
+                // scheduler.add_system(test_dispatch(1)); /* ok */
+                // scheduler.add_system(test_future(2));   /* ok*/
+                // scheduler.add_system(test_sleep());     /* ok*/
                 // scheduler.add_system(
                 //     test_join()); /* bug Assertion failed: "future is not
                 //     done"
                 //                      && done, file
                 //                      D:\workspace\xcrtp\xcal-new\xc/ecs2/async_primitives.hpp,
                 //                      line 240 */
-                // scheduler.add_system(
-                //     test_when_all()); /* bug Unknown exception */
+                scheduler.add_system(
+                    test_when_all()); /* bug Unknown exception */
                 // scheduler.add_system(
                 //     test_channel()); /* bug unknown exception */
             }

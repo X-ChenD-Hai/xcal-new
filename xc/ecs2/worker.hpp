@@ -21,6 +21,7 @@ class Worker {
    public:
     using task_list_t = std::deque<task_t>;
     Worker() = default;
+    ~Worker() = default;
     void worker() {
         thread_id_ = std::this_thread::get_id();
         _WORKER_DEBUG("Worker {} start @ {}", worker_id_, thread_id_);
