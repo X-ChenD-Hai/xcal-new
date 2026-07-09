@@ -2,6 +2,7 @@
 #include <malloc.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <coroutine>
@@ -54,24 +55,20 @@ struct Join final {
         bool await_ready() const {
             return [&]<size_t... I>(std::index_sequence<I...>) {
                 return ([&]() {
-                    return std::get<I>(join_.wait_objects_)
-                        .value()
-                        .await_ready();
+                    return join_.ready_[I] = std::get<I>(join_.wait_objects_)
+                                                 .value()
+                                                 .await_ready();
                 }() && ...);
             }(std::make_index_sequence<sizeof...(T)>());
-
-            ;
         }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle) {
+            handle.promise().begin_wait();
             [&]<size_t... I>(std::index_sequence<I...>) {
                 (
                     [&]() {
                         auto& o = std::get<I>(join_.wait_objects_).value();
-                        if (o.await_ready()) {
-                            _SCHEDULER_DEBUG("await_ready {} {}", I, (void*)&o);
-                            handle.promise().end_wait();
-                        } else {
+                        if (!join_.ready_[I]) {
                             _SCHEDULER_DEBUG("await_suspend {} {}", I,
                                              (void*)&o);
                             o.await_suspend(handle);
@@ -79,7 +76,6 @@ struct Join final {
                     }(),
                     ...);
             }(std::make_index_sequence<sizeof...(T)>());
-
             handle.promise().end_wait();
         }
         decltype(auto) await_resume() const {
@@ -115,6 +111,7 @@ struct Join final {
     tuple_t tasks_{};
     std::tuple<std::optional<typename std::decay_t<T>::wait_type>...>
         wait_objects_{};
+    std::array<bool, sizeof...(T)> ready_{};
 };
 template <typename... T>
 Join(T&&...) -> Join<T...>;
@@ -236,8 +233,7 @@ class FutureWait {
     }
     T&& await_resume() {
         _SCHEDULER_DEBUG("future {} resume", (void*)&future_.handle_.promise());
-        auto done = future_.handle_.promise().done();
-        assert("future is not done" && done);
+        assert("future is not done" && future_.handle_.promise().done());
         return future_.handle_.promise().value();
     }
     ~FutureWait() {
@@ -290,6 +286,7 @@ struct AsyncForeach {
             const auto mod = count % worker_count;
             const auto count_per_worker =
                 (count + worker_count - 1) / worker_count - (mod != 0);
+            handle.promise().begin_wait();
             for (uint32_t i = 0; i < worker_count; ++i) {
                 auto a = foreach_.begin + i * count_per_worker;
                 auto b = (i == worker_count - 1) ? foreach_.end
@@ -301,6 +298,7 @@ struct AsyncForeach {
                 };
                 handle.promise().submit_task(task);
             }
+            handle.promise().end_wait();
         }
 
        private:
@@ -369,7 +367,7 @@ struct BindWorker {
             : bind(o.bind) {
             handle.promise().bind(o.bind);
         }
-        constexpr bool await_ready() const noexcept {
+        bool await_ready() const noexcept {
             return std::this_thread::get_id() == bind->thread_id();
         }
         template <IsPromise P>
@@ -391,7 +389,7 @@ struct DispatchTo {
               primise(&handle.promise()) {
             handle.promise().bind(o.dispatch);
         }
-        constexpr bool await_ready() const noexcept {
+        bool await_ready() const noexcept {
             return std::this_thread::get_id() ==
                    primise->bind_worker()->thread_id();
         }
@@ -420,8 +418,9 @@ struct Sleep {
         }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
+            handle_.promise().begin_wait();
             handle_.promise().submit_timeout_task(
-                ResumeUntilOnceTask{&handle_.promise()}, until);
+                AsyncEndWaitTask{&handle_.promise()}, until);
         }
 
         void await_resume() const noexcept {}
@@ -441,11 +440,11 @@ struct WhenAll {
         wait_type(WhenAll&& o, SystemScheduler* scheduler,
                   std::coroutine_handle<P> handle) {
             for (auto& v : o.view) {
-                view.emplace_back(std::move(v), scheduler, handle);
+                wait_objects_.emplace_back(std::move(v), scheduler, handle);
             }
         }
         constexpr bool await_ready() noexcept {
-            for (auto&& [i, v] : view | std::views::enumerate) {
+            for (auto&& [i, v] : wait_objects_ | std::views::enumerate) {
                 if (!v.await_ready()) {
                     unready_indices.push_back(i);
                 }
@@ -457,21 +456,22 @@ struct WhenAll {
         void await_suspend(std::coroutine_handle<P> handle) noexcept {
             handle.promise().begin_wait();
             for (auto i : unready_indices) {
-                view[i].await_suspend(handle);
+                wait_objects_[i].await_suspend(handle);
             }
             handle.promise().end_wait();
         }
         decltype(auto) await_resume() noexcept {
-            return view | std::views::transform([](auto&& v) {
+            return wait_objects_ | std::views::transform([](auto&& v) {
                        return v.await_resume();
                    }) |
                    std::ranges::to<std::vector>();
         }
-        std::vector<wait_value_t> view{};
+        std::vector<wait_value_t> wait_objects_{};
         std::vector<size_t> unready_indices{};
     };
 
     WhenAll(std::vector<T>& view) : view(std::move(view)) {}
+    WhenAll(std::vector<T>&& view) : view(std::move(view)) {}
 
     std::vector<T> view{};
 };

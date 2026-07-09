@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
-#include <print>
 #include <ranges>
 #include <thread>
 #include <utility>
@@ -45,6 +44,8 @@ class Worker {
                 if (steal_callback_ && steal_flag_) {
                     _WORKER_DEBUG("Worker {} start steal tasks", worker_id_);
                     steal_callback_(task_queue_);
+                    task_count_.fetch_add(task_queue_.size(),
+                                          std::memory_order_relaxed);
                 }
                 auto empty = task_queue_.empty();
                 queue_flag_.clear();
@@ -86,7 +87,21 @@ class Worker {
         // assert(task && "task is invalid");
         if (queue_flag_.test_and_set()) return false;
         task_queue_.push_back(std::move(task));
-        ++task_count_;
+        task_count_.fetch_add(1, std::memory_order_relaxed);
+        queue_flag_.clear();
+        if (wait_flag_.test_and_set()) {
+            wait_flag_.clear();
+            wait_flag_.notify_all();
+        }
+        wait_flag_.notify_all();
+        wait_flag_.clear();
+        return true;
+    }
+    bool try_enqueue_prior_task(task_t& task) {
+        // assert(task && "task is invalid");
+        if (queue_flag_.test_and_set()) return false;
+        task_queue_.push_front(std::move(task));
+        task_count_.fetch_add(1, std::memory_order_relaxed);
         queue_flag_.clear();
         if (wait_flag_.test_and_set()) {
             wait_flag_.clear();
@@ -104,7 +119,7 @@ class Worker {
         }
         task = std::move(task_queue_.front());
         task_queue_.pop_front();
-        --task_count_;
+        task_count_.fetch_sub(1, std::memory_order_relaxed);
         queue_flag_.clear();
         return true;
     }
@@ -163,6 +178,7 @@ class Worker {
         }
         for (auto& t : std::ranges::reverse_view{tmp})
             task_queue_.push_back(std::move(t));
+        task_count_.fetch_sub(c, std::memory_order_relaxed);
         queue_flag_.clear();
         return c;
     }

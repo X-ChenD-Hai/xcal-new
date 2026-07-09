@@ -93,8 +93,8 @@ System test_sleep() {
     std::println("=====end test_sleep");
     co_return;
 }
-System test_join() {
-    std::println("test_join");
+System test_join_async_func_future() {
+    std::println("test_join_async_func_future");
     Future f1{[]() { return 1; }};
     Future f2{[]() { return 2; }};
     auto v1 = co_await f1;
@@ -109,7 +109,7 @@ System test_join() {
     co_return;
 }
 
-System test_when_all() {
+System test_when_all_func_future() {
     std::println("test_all_done");
     std::vector<Future<int, true>> f1{};
     f1.emplace_back([]() { return 1; });
@@ -125,7 +125,21 @@ System test_when_all() {
 
     co_return;
 }
-
+System test_when_all_async_future() {
+    using namespace std::chrono_literals;
+    std::println("test_when_all_async_future");
+    std::vector<Future<int>> f1{};
+    for (size_t i = 0; i < (std::rand() % 10); i++) {
+        f1.emplace_back([]() -> Future<int> {
+            auto x = std::rand() % 1000;
+            co_await Sleep{1us * x};
+            co_return x;
+        }());
+    }
+    auto v = co_await WhenAll{std::move(f1)};
+    std::println("v = {}", v);
+    co_return;
+}
 using channel_t = Channel<int, 16>;
 Future<int> producer(channel_t& ch) {
     for (size_t i = 0; i < 10; i++) {
@@ -144,7 +158,7 @@ Future<int> consumer(channel_t& ch) {
     co_return 0;
 }
 
-System test_channel() {
+System test_channel_future_when_all() {
     std::println("test_channel");
     channel_t ch;
     auto v = std::vector<Future<int>>{};
@@ -154,12 +168,23 @@ System test_channel() {
     std::println("q = {}", q);
     co_return;
 }
+System test_channel_future_join() {
+    std::println("test_channel");
+    channel_t ch;
+    auto v = std::vector<Future<int>>{};
+    v.emplace_back(producer(ch));
+    v.emplace_back(consumer(ch));
+    auto q = co_await (producer(ch) && consumer(ch));
+    std::println("q = {}", q);
+    co_return;
+}
 
 void run_system() {
     utility::ClockRecord app_record;
     app_record.record();
     auto run_count = 1;
     auto thread_count = 1.5 * std::thread::hardware_concurrency();
+    // auto thread_count = 4;
 
     for (size_t i = 0; i < run_count; ++i) {
         utility::ClockRecord app_record;
@@ -179,15 +204,15 @@ void run_system() {
                 // scheduler.add_system(test_future(2));   /* ok*/
                 // scheduler.add_system(test_sleep());     /* ok*/
                 // scheduler.add_system(
-                //     test_join()); /* bug Assertion failed: "future is not
-                //     done"
-                //                      && done, file
-                //                      D:\workspace\xcrtp\xcal-new\xc/ecs2/async_primitives.hpp,
-                //                      line 240 */
-                scheduler.add_system(
-                    test_when_all()); /* bug Unknown exception */
+                //     test_join_async_func_future()); /* ok */
+                // scheduler.add_system(test_when_all_func_future()); /* ok */
+                scheduler.add_system(test_when_all_async_future()); /* bug on
+                                     lldb debugger 0x8000000003*/
                 // scheduler.add_system(
-                //     test_channel()); /* bug unknown exception */
+                //     test_channel_future_when_all()); /* bug on lldb debugger
+                //     0x8000000003 */
+                // scheduler.add_system(test_channel_future_join()); /* bug on
+                // lldb debugger 0x8000000003*/
             }
             scheduler.update();
         } catch (std::exception e) {

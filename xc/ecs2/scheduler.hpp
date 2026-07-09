@@ -6,7 +6,6 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <print>
 #include <thread>
 #include <tuple>
 #include <type_traits>
@@ -97,11 +96,63 @@ class SystemScheduler {
         }
         return false;
     }
+    bool try_submit_prior_task(task_t& task) {
+        _SCHEDULER_DEBUG("try submit prior {}", task_type(task));
+        auto bind = bind_worker(task);
+        assert("bind worker is not nullptr or not in workers" &&
+               (bind == nullptr ||
+                std::count_if(workers_.begin(), workers_.end(),
+                              [bind](auto& w) { return w.get() == bind; })) >
+                   0);
+        if (bind) {
+            _SCHEDULER_DEBUG("submit prior task to worker {} which is bind",
+                             bind->worker_id());
+            return const_cast<Worker*>(bind)->try_enqueue_prior_task(task);
+        }
+        for (auto& worker : workers_) {
+            if (!worker->waiting()) continue;
+            if (worker->try_enqueue_prior_task(task)) {
+                _SCHEDULER_DEBUG(
+                    "submit prior task to worker {} which is waiting",
+                    worker->worker_id());
+                return true;
+            }
+        }
+        auto worker_paloads = this->worker_paloads();
+        auto min_worker =
+            std::min_element(workers_.begin(), workers_.end(),
+                             [&](const auto& a, const auto& b) {
+                                 return worker_paloads[a->worker_id()] <
+                                        worker_paloads[b->worker_id()];
+                             });
+
+        if (min_worker != workers_.end() &&
+            (*min_worker)->try_enqueue_prior_task(task)) {
+            _SCHEDULER_DEBUG(
+                "submit prior task to worker {} which is spin waiting",
+                (*min_worker)->worker_id());
+            return true;
+        }
+        if (auto& worker = rand_worker(); worker.try_enqueue_prior_task(task)) {
+            _SCHEDULER_DEBUG(
+                "submit  prior task to worker {} which is doing other tasks",
+                worker.worker_id());
+            return true;
+        }
+        return false;
+    }
+
     void submit_task(task_t&& task) {
         while (!try_submit_task(task)) {
             std::this_thread::yield();
         }
     }
+    void submit_prior_task(task_t&& task) {
+        while (!try_submit_prior_task(task)) {
+            std::this_thread::yield();
+        }
+    }
+
     void update() {
         _SCHEDULER_DEBUG("Run scheduler");
         assert(!workers_.empty());
@@ -156,11 +207,18 @@ class SystemScheduler {
    private:
     void destroy_workers() {
         std::vector<std::jthread> threads;
-        for (auto& worker : workers_)
-            threads.emplace_back([worker = std::move(worker)]() {
-                worker->disable_steal();
-                worker->stop();
+        for (auto& worker : workers_) {
+            worker->disable_steal();
+            worker->stop();
+            threads.emplace_back([worker = std::move(worker)]() mutable {
+                SCHEDULER_DEBUG(auto id = worker->worker_id();)
+                _SCHEDULER_DEBUG("join worker {} ", id);
+                worker->join();
+                _SCHEDULER_DEBUG("reset worker {} ", id);
+                worker.reset();
+                _SCHEDULER_DEBUG("worker {} reset done", id);
             });
+        }
         workers_.clear();
     }
     inline auto rand_worker() -> Worker& {
@@ -207,7 +265,9 @@ class SystemScheduler {
                            }),
             systems_instencees_.end());
     }
-    void submit_expired_task(task_t&& task) { submit_task(std::move(task)); }
+    void submit_expired_task(task_t&& task) {
+        submit_prior_task(std::move(task));
+    }
 
    private:
     std::vector<std::unique_ptr<System>> systems_instencees_{};

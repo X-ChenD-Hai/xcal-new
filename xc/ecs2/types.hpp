@@ -3,8 +3,6 @@
 #include <chrono>
 #include <variant>
 
-#include "config.hpp"
-
 namespace xc::ecs {
 class SystemScheduler;
 class System;
