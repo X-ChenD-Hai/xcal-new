@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "./config.hpp"
+#include "./promise.hpp"
 #include "./system.hpp"
 #include "./task.hpp"
 #include "./types.hpp"
@@ -44,8 +45,8 @@ class SystemScheduler {
     }
     void add_system(System&& system) {
         auto sys = std::make_unique<System>(std::move(system));
-        sys->handle.promise().scheduler_ = this;
-        submit_task(ResumeUntilOnceTask{&sys->handle.promise()});
+        sys->state_->promise->set_scheduler(this);
+        submit_task(ResumeUntilOnceTask{sys->state_->promise});
         systems_instencees_.emplace_back(std::move(sys));
     }
     void stop_workers() {
@@ -206,6 +207,7 @@ class SystemScheduler {
 
    private:
     void destroy_workers() {
+        timer_worker_.reset();
         std::vector<std::jthread> threads;
         for (auto& worker : workers_) {
             worker->disable_steal();
@@ -224,6 +226,7 @@ class SystemScheduler {
     inline auto rand_worker() -> Worker& {
         return *workers_[std::rand() % workers_.size()];
     }
+    [[gnu::no_sanitize("thread")]]
     inline std::vector<worker_paload_t> worker_paloads() const noexcept {
         std::vector<worker_paload_t> worker_paloads;
         worker_paloads.reserve(workers_.size());
@@ -256,12 +259,13 @@ class SystemScheduler {
         lock.unlock();
         steal_cv_.notify_all();
     }
+
     void flush(std::vector<std::exception_ptr>* exceptions = nullptr) {
         systems_instencees_.erase(
             std::remove_if(systems_instencees_.begin(),
                            systems_instencees_.end(),
                            [&](std::unique_ptr<System>& sys) {
-                               return sys->handle.done();
+                               return sys->state_.use_count() == 1;
                            }),
             systems_instencees_.end());
     }
@@ -288,7 +292,7 @@ inline void Promise<Derive>::submit_task(task_t&& task) {
             using T = std::decay_t<decltype(t)>;
             if constexpr (std::is_same_v<T, FuncTask>) {
                 auto bind = xc::ecs::bind_worker(task);
-                scheduler_->submit_task(
+                scheduler()->submit_task(
                     FuncTask{[this, t = std::move(t.task_)]() {
                                  t();
                                  end_wait();
@@ -296,27 +300,31 @@ inline void Promise<Derive>::submit_task(task_t&& task) {
                              bind});
             } else {
                 t.promise->set_parent(this);
-                scheduler_->submit_task(t);
+                scheduler()->submit_task(t);
             }
         },
         task);
 }
 template <typename Derive>
 inline void Promise<Derive>::resubmit() {
-    scheduler_->submit_task(ResumeUntilOnceTask{&handle_.promise()});
+    begin_wait();
+    scheduler()->submit_task(AsyncEndWaitTask{this});
 }
 
 inline void BasePromise::submit_timeout_task(task_t&& task,
                                              time_point_t until) {
-    scheduler_->submit_timeout_task(std::move(task), until);
+    scheduler()->submit_timeout_task(std::move(task), until);
 }
 inline void BasePromise::submit_timeout_task(task_t&& task,
                                              time_duration_t delay) {
-    scheduler_->submit_timeout_task(std::move(task), delay);
+    scheduler()->submit_timeout_task(std::move(task), delay);
 }
 
 inline void BasePromise::async_end_wait() {
-    scheduler_->submit_task(AsyncEndWaitTask{this});
+    scheduler()->submit_task(AsyncEndWaitTask{this});
+}
+inline void BasePromise::async_resume() {
+    scheduler()->submit_task(ResumeUntilOnceTask{this});
 }
 
 }  // namespace xc::ecs

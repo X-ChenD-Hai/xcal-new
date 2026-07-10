@@ -146,21 +146,37 @@ class Worker {
         steal_callback_ = wait_notify;
     }
     inline bool waiting() const noexcept { return wait_flag_.test(); }
-    inline uint32_t wait_count() const noexcept { return wait_count_; }
-    inline uint32_t max_wait_count() const noexcept { return max_wait_count_; }
+    [[gnu::no_sanitize("thread")]]
+    inline uint32_t wait_count() const noexcept {
+        return wait_count_;
+    }
+    [[gnu::no_sanitize("thread")]]
+    inline uint32_t max_wait_count() const noexcept {
+        return max_wait_count_;
+    }
     inline void set_max_wait_count(uint32_t max_wait_count) noexcept {
         max_wait_count_ = max_wait_count;
     }
+    [[gnu::no_sanitize("thread")]]
+    inline auto current_task_start_time() const noexcept {
+        return current_task_start_time_;
+    }
     inline auto current_task_duration_us() const noexcept {
-        return wait_count_
+        return wait_count()
                    ? 0
                    : std::chrono::duration_cast<std::chrono::microseconds>(
                          std::chrono::steady_clock::now() -
-                         current_task_start_time_)
+                         current_task_start_time())
                          .count();
     }
-    inline void enable_steal() noexcept { steal_flag_ = true; }
-    inline void disable_steal() noexcept { steal_flag_ = false; }
+    [[gnu::no_sanitize("thread")]]
+    inline void enable_steal() noexcept {
+        steal_flag_ = true;
+    }
+    [[gnu::no_sanitize("thread")]]
+    inline void disable_steal() noexcept {
+        steal_flag_ = false;
+    }
     inline bool steal_enabled() const noexcept { return steal_flag_; }
     size_t steal(task_list_t& target) {
         size_t c{0};

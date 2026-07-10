@@ -5,12 +5,14 @@
 #include <array>
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <coroutine>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <print>
 #include <ranges>
@@ -24,14 +26,23 @@
 #include "./task.hpp"
 #include "./types.hpp"
 #include "config.hpp"
+#include "promise.hpp"
 #include "structure/ring_buffer.hpp"
 #include "system.hpp"
 #include "worker.hpp"
 
 namespace xc::ecs {
-
+template <typename Derived>
+struct MoveAsWaitable {
+    template <IsPromise P>
+    auto get_awaitable(SystemScheduler* scheduler,
+                       std::coroutine_handle<P> handle) {
+        return typename Derived::wait_type{
+            std::move(*static_cast<Derived*>(this)), scheduler, handle};
+    }
+};
 template <typename... T>
-struct Join final {
+struct Join final : public MoveAsWaitable<Join<T...>> {
     using tuple_t = std::tuple<std::remove_reference_t<T>...>;
 
     template <typename... Args>
@@ -63,7 +74,7 @@ struct Join final {
         }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle) {
-            handle.promise().begin_wait();
+            PromisLockGuard lk(handle.promise());
             [&]<size_t... I>(std::index_sequence<I...>) {
                 (
                     [&]() {
@@ -76,7 +87,6 @@ struct Join final {
                     }(),
                     ...);
             }(std::make_index_sequence<sizeof...(T)>());
-            handle.promise().end_wait();
         }
         decltype(auto) await_resume() const {
             return const_cast<Join&&>(std::move(join_)).values();
@@ -129,7 +139,9 @@ auto operator&&(A&& a, B&& b) -> decltype(auto) {
 }
 
 template <typename T, bool = false>
-struct Future final {
+struct Future;
+template <typename T>
+struct Future<T, true> final : public MoveAsWaitable<Future<T, true>> {
     using function_t = std::function<T(void)>;
 
    public:
@@ -184,23 +196,33 @@ class FutureWait;
 template <typename T>
 using future_handle_t = std::coroutine_handle<FuturePromise<T>>;
 template <typename T>
-class Future<T, false> final {
+class Future<T, false> final : public MoveAsWaitable<Future<T, false>> {
    public:
     friend FuturePromise<T>;
     friend FutureWait<T>;
     using promise_type = FuturePromise<T>;
     using wait_type = FutureWait<T>;
     Future() = default;
-    Future(const Future&) = delete;
-    Future& operator=(const Future&) = delete;
-    Future(Future&& o) noexcept { std::swap(o.handle_, handle_); }
-    Future& operator=(Future&& o) noexcept {
-        std::swap(o.handle_, handle_);
-        return *this;
-    };
-    Future(future_handle_t<T> handle) : handle_(handle) {}
-    ~Future() { handle_ = nullptr; }
-    future_handle_t<T> handle_{nullptr};
+    Future(future_handle_t<T> handle, std::shared_ptr<std::optional<T>> v)
+        : state_(handle.promise().state()), value_(v) {
+        assert(state_ && "future state is null");
+    }
+    T& value() {
+        assert(value_ && "value is null");
+        return value_->value();
+    }
+    ~Future() {
+        if (state_) {
+            assert("future is submitted but not done" &&
+                   (state_->done() || state_->remain_task_count.load(
+                                          std::memory_order_acquire) == 0));
+        }
+    }
+
+   private:
+    std::shared_ptr<PromiseState> state_{nullptr};
+    std::shared_ptr<std::optional<T>> value_{
+        std::make_shared<std::optional<T>>()};
 };
 template <typename T>
 class FutureWait {
@@ -208,68 +230,56 @@ class FutureWait {
     FutureWait(const FutureWait&) = delete;
     FutureWait& operator=(const FutureWait&) = delete;
     FutureWait(FutureWait&& o) noexcept { std::swap(o.future_, future_); }
-    FutureWait& operator=(FutureWait&& o) noexcept {
-        std::swap(o.future_, future_);
-        return *this;
-    }
     template <IsPromise H>
     using handle_t = std::coroutine_handle<H>;
     template <IsPromise H>
     FutureWait(Future<T>&& future, SystemScheduler* scheduler,
                handle_t<H> handle)
-        : future_(std::move(future)) {
-        future_.handle_.promise().set_scheduler(scheduler);
-    }
-    bool await_ready() {
-        auto done = future_.handle_.done();
-        return done;
-    }
+        : future_(std::move(future)) {}
+    bool await_ready() { return false; }
     template <IsPromise P>
     void await_suspend(handle_t<P> handle) {
         _SCHEDULER_DEBUG("future {} suspend",
                          (void*)&future_.handle_.promise());
-        handle.promise().submit_task(
-            ResumeUntilOnceTask{&future_.handle_.promise()});
+        assert(future_.state_ && future_.state_->promise &&
+               "future state is null or promise is null");
+        handle.promise().add_child(*future_.state_->promise);
     }
     T&& await_resume() {
         _SCHEDULER_DEBUG("future {} resume", (void*)&future_.handle_.promise());
-        assert("future is not done" && future_.handle_.promise().done());
-        return future_.handle_.promise().value();
+        assert("future is not done" && future_.state_->promise == nullptr);
+        return std::move(future_.value());
     }
-    ~FutureWait() {
-        if (future_.handle_) {
-            _SCHEDULER_DEBUG("destroy future {} @ {}",
-                             (void*)&future_.handle_.promise(), (void*)this);
-            future_.handle_.destroy();
-        }
-    }
-    Future<T, false> future_{nullptr};
+    ~FutureWait() = default;
+    Future<T, false> future_{};
 };
 template <typename T>
 class FuturePromise : public Promise<FuturePromise<T>> {
+    using Super = Promise<FuturePromise<T>>;
+
    public:
     Future<T> get_return_object() {
         _SCHEDULER_DEBUG("future get_return_object {}", (void*)this);
-        return Future<T, false>{
-            this->handle_ =
-                std::coroutine_handle<FuturePromise>::from_promise(*this)};
+        auto v{std::make_shared<std::optional<T>>()};
+        value_ = v;
+        return Future<T, false>{Super::init_handle(), v};
     }
-    void return_value(T&& v) { value_ = std::forward<T>(v); }
-    T&& value() {
-        if (this->exception_) std::rethrow_exception(this->exception_);
-        return std::move(value_).value();
+    void return_value(T&& v) {
+        if (value_.use_count()) {
+            *value_.lock() = std::move(v);
+        }
     }
-    bool done() { return this->exception_ || value_.has_value(); }
+    ~FuturePromise() {}
 
    private:
-    std::optional<T> value_{std::nullopt};
+    std::weak_ptr<std::optional<T>> value_{};
 };
 
 template <typename Fn, typename Rtp = std::invoke_result_t<Fn>>
 Future(Fn&&) -> Future<Rtp, true>;
 
 template <typename T, typename Fn>
-struct AsyncForeach {
+struct AsyncForeach : public MoveAsWaitable<AsyncForeach<T, Fn>> {
     AsyncForeach(T begin, T end, Fn&& fn) : begin(begin), end(end), fn(fn) {}
     struct wait_type final {
         template <typename U, IsPromise P>
@@ -330,21 +340,15 @@ struct AsyncForeach {
 };
 
 struct Yield final {
-    struct wait_type {
-        template <IsPromise P>
-        wait_type(Yield&& _, SystemScheduler* scheduler,
-                  std::coroutine_handle<P> handle) {}
-
-        bool await_ready() const noexcept { return false; }
-        template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
-            handle_.promise().resubmit();
-        }
-        void await_resume() const noexcept {}
-    };
+    bool await_ready() const noexcept { return false; }
+    template <IsPromise P>
+    void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
+        handle_.promise().resubmit();
+    }
+    void await_resume() const noexcept {}
 };
 
-struct CurrentWorker {
+struct CurrentWorker : public MoveAsWaitable<CurrentWorker> {
     struct wait_type {
         template <IsPromise P>
         wait_type(CurrentWorker&& _, SystemScheduler* scheduler,
@@ -359,7 +363,7 @@ struct CurrentWorker {
         const Worker* ptr;
     };
 };
-struct BindWorker {
+struct BindWorker : public MoveAsWaitable<BindWorker> {
     struct wait_type {
         template <IsPromise P>
         wait_type(BindWorker&& o, SystemScheduler* scheduler,
@@ -380,7 +384,7 @@ struct BindWorker {
     BindWorker(const Worker* bind) : bind(bind) {}
     const Worker* bind{nullptr};
 };
-struct DispatchTo {
+struct DispatchTo : public MoveAsWaitable<DispatchTo> {
     struct wait_type {
         template <IsPromise P>
         wait_type(DispatchTo&& o, SystemScheduler* scheduler,
@@ -408,31 +412,25 @@ struct Sleep {
     Sleep(time_duration_t duration)
         : until(time_point_t::clock::now() + duration) {}
     Sleep(time_point_t until_time) : until(until_time) {}
-    struct wait_type {
-        template <IsPromise P>
-        wait_type(Sleep&& o, SystemScheduler* scheduler,
-                  std::coroutine_handle<P> handle)
-            : until(o.until) {}
-        constexpr bool await_ready() const noexcept {
-            return time_point_t::clock::now() >= until;
-        }
-        template <IsPromise P>
-        void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
-            handle_.promise().begin_wait();
-            handle_.promise().submit_timeout_task(
-                AsyncEndWaitTask{&handle_.promise()}, until);
-        }
 
-        void await_resume() const noexcept {}
-        time_point_t until;
-    };
+    constexpr bool await_ready() const noexcept {
+        return time_point_t::clock::now() >= until;
+    }
+    template <IsPromise P>
+    void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
+        handle_.promise().begin_wait();
+        handle_.promise().submit_timeout_task(
+            AsyncEndWaitTask{&handle_.promise()}, until);
+    }
+
+    void await_resume() const noexcept {}
     time_point_t until;
 };
 template <typename T>
 using resume_type = std::invoke_result_t<decltype(&T::await_resume), T*>;
 
 template <typename T>
-struct WhenAll {
+struct WhenAll : public MoveAsWaitable<WhenAll<T>> {
     using wait_value_t = T::wait_type;
     using resume_value_t = resume_type<wait_value_t>;
     struct wait_type {
@@ -449,16 +447,14 @@ struct WhenAll {
                     unready_indices.push_back(i);
                 }
             }
-            std::println("unready_indices:{}", unready_indices);
             return unready_indices.empty();
         }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle) noexcept {
-            handle.promise().begin_wait();
+            PromisLockGuard lk(handle.promise());
             for (auto i : unready_indices) {
                 wait_objects_[i].await_suspend(handle);
             }
-            handle.promise().end_wait();
         }
         decltype(auto) await_resume() noexcept {
             return wait_objects_ | std::views::transform([](auto&& v) {
@@ -506,7 +502,10 @@ class Channel {
             promise = &handle.promise();
             channel.add_recv(this);
         }
-        T&& await_resume() noexcept { return std::move(v.value()); }
+        T&& await_resume() noexcept {
+            channel.remain_msg_.fetch_sub(1, std::memory_order_release);
+            return std::move(v.value());
+        }
         ~RecvWait() {}
         Channel& channel;
         std::optional<T> v{};
@@ -556,6 +555,7 @@ class Channel {
         while (recv_flag_.test_and_set());
         recv_promises_.push_back(p);
         recv_flag_.clear();
+        notify_sender();
     }
     void add_send(SendWait* p) {
         if (!p) return;
@@ -563,6 +563,7 @@ class Channel {
         while (send_flag_.test_and_set());
         send_promises_.push_back(p);
         send_flag_.clear();
+        notify_recv();
     }
 
     std::optional<T> try_recv() {
@@ -592,9 +593,8 @@ class Channel {
             }
         }
         recv_flag_.clear();
-        if (p) p->end_wait();
+        if (p) p->async_end_wait();
     }
-
     void notify_sender() {
         while (send_flag_.test_and_set());
         BasePromise* p{nullptr};
@@ -606,7 +606,7 @@ class Channel {
             }
         }
         send_flag_.clear();
-        if (p) p->end_wait();
+        if (p) p->async_end_wait();
     }
 
    private:
@@ -615,6 +615,7 @@ class Channel {
     structure::RingBuffer<T, N> buffer_{};
     std::deque<RecvWait*> recv_promises_{};
     std::deque<SendWait*> send_promises_{};
+    std::atomic_uint32_t remain_msg_{0};
 };
 template <typename T, size_t N>
 inline Channel<T, N>::SendWait::SendWait(Channel& ch, T&& value)

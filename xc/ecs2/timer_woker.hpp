@@ -1,9 +1,11 @@
 #pragma once
 
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <stop_token>
 #include <thread>
 
 #include "./task.hpp"  // IWYU pragma: keep
@@ -28,11 +30,12 @@ class TimerWorker {
    public:
     using publish_callback_t = std::function<void(task_t&&)>;
     TimerWorker(publish_callback_t expired_callback)
-        : running_flag_(true), expired_callback_(expired_callback) {
-        thread_ = std::jthread(std::bind(&TimerWorker::worker, this));
+        : expired_callback_(expired_callback) {
+        thread_ = std::jthread(
+            std::bind(&TimerWorker::worker, this, std::placeholders::_1));
     }
     ~TimerWorker() {
-        running_flag_ = false;
+        thread_.request_stop();
         cv_.notify_all();
     };
 
@@ -45,23 +48,24 @@ class TimerWorker {
     }
 
    protected:
-    void worker() {
+    void worker(std::stop_token st) {
         using namespace std::chrono_literals;
         auto lock = std::unique_lock{mtx_};
         lock.unlock();
-        while (running_flag_) {
+        while (!st.stop_requested()) {
             lock.lock();
             if (!timer_queue_.empty()) {
                 last_time_ = timer_queue_.top().until_time;
             } else {
                 last_time_ = std::chrono::high_resolution_clock::now() + 100s;
             }
-            if (cv_.wait_until(lock, last_time_, [this]() {
-                    return !running_flag_ ||
+            if (cv_.wait_until(lock, last_time_, [&]() {
+                    return st.stop_requested() ||
                            (!timer_queue_.empty() &&
                             timer_queue_.top().until_time < last_time_);
                 })) {
-                if (running_flag_) last_time_ = timer_queue_.top().until_time;
+                if (!st.stop_requested())
+                    last_time_ = timer_queue_.top().until_time;
                 lock.unlock();
             } else if (timer_queue_.empty()) {
                 lock.unlock();
@@ -79,7 +83,6 @@ class TimerWorker {
                         std::greater<TimerTask>>
         timer_queue_{};
 
-    bool running_flag_{};
     std::mutex mtx_{};
     std::condition_variable cv_{};
     std::jthread thread_{};

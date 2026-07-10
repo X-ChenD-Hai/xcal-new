@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
+#include <type_traits>
 namespace xc::ecs::structure {
 template <typename T, size_t Capacity>
 class RingBuffer {
@@ -38,10 +39,10 @@ class RingBuffer {
         } while (!tail_.compare_exchange_weak(current_tail, next_tail,
                                               std::memory_order_acq_rel,
                                               std::memory_order_relaxed));
-        // 标记槽为已占用
-        current_slot->ready.store(true, std::memory_order_release);
         // 构造元素
         new (&current_slot->data) T(std::forward<Args>(args)...);
+        // 标记槽为已占用
+        current_slot->ready.store(true, std::memory_order_release);
         return true;
     }
 
@@ -68,7 +69,9 @@ class RingBuffer {
         value = std::move(current_slot->data);
 
         // 析构并标记为空
-        current_slot->data.~T();
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            current_slot->data.~T();
+
         current_slot->ready.store(false, std::memory_order_release);
         return true;
     }

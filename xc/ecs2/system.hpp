@@ -1,10 +1,15 @@
 #pragma once
+#include <atomic>
 #include <cassert>
 #include <concepts>
+#include <cstdint>
+#include <memory>
+#include <utility>
 
 #include "./config.hpp"
 #include "./promise.hpp"
 #include "./types.hpp"
+
 namespace xc::ecs {
 class SystemPromise;
 class SystemScheduler;
@@ -12,28 +17,19 @@ using system_handle_t = std::coroutine_handle<SystemPromise>;
 class System {
    public:
     using promise_type = SystemPromise;
-    System(System&& o) : handle(nullptr) {
-        _SCHEDULER_DEBUG("move construct system {} @ {}", (void*)this,
-                         (void*)o.handle.address());
-        std::swap(handle, o.handle);
-    }
-    System& operator=(System&& o) {
-        _SCHEDULER_DEBUG("move assign system {} @ {}", (void*)this,
-                         (void*)o.handle.address());
-        std::swap(handle, o.handle);
-        return *this;
-    }
     System(const System&) = delete;
     System& operator=(const System&) = delete;
-    System() noexcept : handle(nullptr) {
+    System(System&&) = default;
+    System& operator=(System&&) = default;
+    System() noexcept {
         _SCHEDULER_DEBUG("default construct system {}", (void*)this);
     };
-    System(system_handle_t handle) noexcept : handle(handle) {
+    System(std::shared_ptr<PromiseState> state) noexcept : state_(state) {
         _SCHEDULER_DEBUG("construct system {} @ {}", (void*)this,
                          (void*)handle.address());
     }
     ~System();
-    system_handle_t handle{nullptr};
+    std::shared_ptr<PromiseState> state_{};
 };
 template <typename T>
 concept IsPromise = std::derived_from<T, Promise<T>>;
@@ -43,15 +39,13 @@ class SystemPromise : public Promise<SystemPromise> {
     friend class SystemScheduler;
     friend void invoke_task(task_t&& task);
     System get_return_object() {
-        return System{handle_ = system_handle_t::from_promise(*this)};
+        address_ = handle_t::from_promise(*this).address();
+        return System{state_};
     };
     void return_void() {}
 };
 inline System::~System() {
     _SCHEDULER_DEBUG("destroy system {} @ {}", (void*)this,
                      (void*)handle.address());
-    assert((!handle || handle.done() || handle.promise().exception()) &&
-           "system is not done");
-    if (handle) handle.destroy();
 }
 }  // namespace xc::ecs

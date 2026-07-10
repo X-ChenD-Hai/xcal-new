@@ -52,20 +52,22 @@ System test_dispatch(int id) {
     co_return;
 }
 Future<int> future3(int id) {
-    // std::println("----- call future 3");
-    // std::println("------- future 3 return");
+    std::println("----- call future 3");
+    std::println("------- future 3 return");
     co_return id;
 }
 Future<int> future2(int id) {
-    // std::println("----- call future 2");
+    using namespace std::chrono_literals;
+    std::println("----- call future 2");
+    co_await Sleep{1ms * (std::rand() % 10)};
     auto d = co_await future3(1);
-    // std::println("------- future 2 return");
+    std::println("------- future 2 return");
     co_return id + d;
 }
 Future<int> future1(int id) {
-    // std::println("------- call future 1");
+    std::println("------- call future 1");
     auto d = co_await future2(1);
-    // std::println("------- future 1 return");
+    std::println("------- future 1 return");
     co_return id + d;
 }
 System test_future(int id) {
@@ -93,18 +95,36 @@ System test_sleep() {
     std::println("=====end test_sleep");
     co_return;
 }
-System test_join_async_func_future() {
-    std::println("test_join_async_func_future");
+System test_join_func_future() {
+    std::println("test_join_func_future");
     Future f1{[]() { return 1; }};
     Future f2{[]() { return 2; }};
+    Future f3{[]() { return 3; }};
+    Future f4{[]() { return 4; }};
     auto v1 = co_await f1;
     auto v2 = co_await f2;
+    auto v3 = co_await f3;
+    auto v4 = co_await f4;
     std::println("v1 = {}, v2 = {}", v1, v2);
     Future f11{[]() { return 11; }};
     Future f12{[]() { return 12; }};
-    auto [v11, v12, v13, v14] =
-        co_await (f11 && f12 && future1(1) && future1(3));
+    Future f13{[]() { return 13; }};
+    Future f14{[]() { return 14; }};
+    auto [v11, v12, v13, v14] = co_await (f11 && f12 && f13 && f14);
     std::println("v111 = {}, v12 = {}, v13 = {}, v14 = {}", v11, v12, v13, v14);
+
+    co_return;
+}
+System test_join_async_and_func_future() {
+    std::println("test_join_async_func_future");
+    auto [v11, v12, v13, v14] =
+        co_await (future3(3) && future2(2) && future1(1) && future1(3));
+    std::println("v111 = {}, v12 = {}, v13 = {}, v14 = {}", v11, v12, v13, v14);
+    Future ff12{[]() { return 12; }};
+    Future ff13{[]() { return 13; }};
+    auto [f11, f12, f13, f14] =
+        co_await (future3(3) && ff13 && future1(1) && ff12);
+    std::println("f111 = {}, f12 = {}, f13 = {}, f14 = {}", v11, v12, v13, v14);
 
     co_return;
 }
@@ -142,7 +162,7 @@ System test_when_all_async_future() {
 }
 using channel_t = Channel<int, 16>;
 Future<int> producer(channel_t& ch) {
-    for (size_t i = 0; i < 10; i++) {
+    for (size_t i = 0; i < 1; i++) {
         std::println("send {}", i);
         co_await ch.send(i);
         std::println("send done {}", i);
@@ -151,7 +171,7 @@ Future<int> producer(channel_t& ch) {
     co_return 0;
 }
 Future<int> consumer(channel_t& ch) {
-    for (size_t i = 0; i < 10; i++) {
+    for (size_t i = 0; i < 1; i++) {
         auto v = co_await ch.recv();
         std::println("v = {}", v);
     }
@@ -171,9 +191,6 @@ System test_channel_future_when_all() {
 System test_channel_future_join() {
     std::println("test_channel");
     channel_t ch;
-    auto v = std::vector<Future<int>>{};
-    v.emplace_back(producer(ch));
-    v.emplace_back(consumer(ch));
     auto q = co_await (producer(ch) && consumer(ch));
     std::println("q = {}", q);
     co_return;
@@ -197,22 +214,28 @@ void run_system() {
 
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
-        const auto test_count = 100000;
+        const auto test_count = 10000;
+        // const auto test_count = 1;
         try {
             for (size_t i = 0; i < test_count; ++i) {
-                // scheduler.add_system(test_dispatch(1)); /* ok */
-                // scheduler.add_system(test_future(2));   /* ok*/
-                // scheduler.add_system(test_sleep());     /* ok*/
-                // scheduler.add_system(
-                //     test_join_async_func_future()); /* ok */
-                // scheduler.add_system(test_when_all_func_future()); /* ok */
-                scheduler.add_system(test_when_all_async_future()); /* bug on
-                                     lldb debugger 0x8000000003*/
-                // scheduler.add_system(
-                //     test_channel_future_when_all()); /* bug on lldb debugger
-                //     0x8000000003 */
-                // scheduler.add_system(test_channel_future_join()); /* bug on
-                // lldb debugger 0x8000000003*/
+                // ok
+                scheduler.add_system(test_dispatch(1));
+                // ok
+                scheduler.add_system(test_future(2));
+                // ok
+                scheduler.add_system(test_sleep());
+                // ok
+                scheduler.add_system(test_join_func_future());
+                // ok
+                scheduler.add_system(test_join_async_and_func_future());
+                // ok
+                scheduler.add_system(test_when_all_func_future());
+                // ok
+                scheduler.add_system(test_when_all_async_future());
+                // dead wait
+                // scheduler.add_system(test_channel_future_when_all());
+                // dead wait
+                // scheduler.add_system(test_channel_future_join());
             }
             scheduler.update();
         } catch (std::exception e) {
@@ -232,8 +255,8 @@ void run_system() {
 void test_ring_buffer() {
     RingBuffer<int, 16> buffer;
     const size_t producer_count = 3;
-    const size_t consumer_count = 3;
-    const size_t count_per_producer = 1000;
+    const size_t consumer_count = 5;
+    const size_t count_per_producer = 10000;
     const size_t expect_count = producer_count * count_per_producer;
     std::atomic_size_t comsumed = 0;
 
@@ -284,6 +307,7 @@ void test_ring_buffer() {
 }
 
 int main(int argc, char* argv[]) {
+    // test_ring_buffer();
     run_system();
     return 0;
 }

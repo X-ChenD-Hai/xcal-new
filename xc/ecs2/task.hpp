@@ -13,14 +13,17 @@ struct ResumeUntilOnceTask {
     BasePromise* promise{nullptr};
     ResumeUntilOnceTask(BasePromise* promise) : promise(promise) {}
     ~ResumeUntilOnceTask() {}
-    void set_exception(std::exception_ptr e) const { promise->exception_ = e; }
+    void set_exception(std::exception_ptr e) const {
+        promise->set_exception(e);
+    }
     void operator()() const {
         try {
+            assert("task is done" && !promise->done());
             promise->resume();
             _SCHEDULER_DEBUG("resume {} success from until once handle",
                              (void*)promise);
         } catch (...) {
-            promise->exception_ = std::current_exception();
+            set_exception(std::current_exception());
             _SCHEDULER_DEBUG("catch exception in {}", (void*)promise);
         }
     }
