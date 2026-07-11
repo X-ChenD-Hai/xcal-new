@@ -191,18 +191,26 @@ System test_when_all_async_future() {
 }
 using channel_t = Channel<int, 16>;
 Future<int> producer(channel_t& ch) {
+    using namespace std::chrono_literals;
     for (size_t i = 0; i < 10; i++) {
         std::println("send {}", i);
-        co_await ch.send(i);
-        std::println("send done {}", i);
+        if (co_await ch.send(i).until(300us)) {
+            std::println("send done {}", i);
+        } else {
+            std::println("send timeout");
+        }
     }
 
     co_return 0;
 }
 Future<int> consumer(channel_t& ch) {
+    using namespace std::chrono_literals;
     for (size_t i = 0; i < 10; i++) {
-        auto v = co_await ch.recv();
-        std::println("v = {}", v);
+        auto v = co_await ch.recv().until(1s);
+        if (v.has_value())
+            std::println("v = {}", v.value());
+        else
+            std::println("recv timeout");
     }
     co_return 0;
 }

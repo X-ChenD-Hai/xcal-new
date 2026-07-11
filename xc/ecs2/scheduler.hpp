@@ -26,6 +26,7 @@ namespace xc::ecs {
 class SystemScheduler {
    public:
     static constexpr size_t StealUntilMaxUs = 500;
+    static constexpr auto TaskSize = sizeof(task_t);
     using system_fn_t = System (*)();
     using worker_paload_t = std::tuple<uint32_t, uint32_t, uint32_t>;
     SystemScheduler() = default;
@@ -143,7 +144,6 @@ class SystemScheduler {
         }
         return false;
     }
-
     void submit_task(task_t&& task) {
         while (!try_submit_task(task)) {
             std::this_thread::yield();
@@ -286,28 +286,13 @@ class SystemScheduler {
     bool steal_flag_{true};
     alignas(64) std::atomic_flag sync_flag_{};
 };
-template <typename Derive>
-inline void Promise<Derive>::submit_task(task_t&& task) {
+
+inline void BasePromise::submit_task(task_t&& task) {
     begin_wait();
     _SCHEDULER_DEBUG("submit {} {} remain {}", task_type(task),
                      handle_.address(), remain_task_count_.load());
-    std::visit(
-        [&](auto&& t) {
-            using T = std::decay_t<decltype(t)>;
-            if constexpr (std::is_same_v<T, FuncTask>) {
-                auto bind = xc::ecs::bind_worker(task);
-                scheduler()->submit_task(
-                    FuncTask{[this, t = std::move(t.task_)]() {
-                                 t();
-                                 end_wait();
-                             },
-                             bind});
-            } else {
-                t.promise->set_parent(this);
-                scheduler()->submit_task(t);
-            }
-        },
-        task);
+    std::visit([&](auto& t) { t.set_parent(this); }, task);
+    scheduler()->submit_task(std::move(task));
 }
 template <typename Derive>
 inline void Promise<Derive>::resubmit() {
@@ -330,5 +315,44 @@ inline void BasePromise::async_end_wait() {
 inline void BasePromise::async_resume() {
     scheduler()->submit_task(ResumeUntilOnceTask{this});
 }
+inline CancelTask BasePromise::submit_cancelable_task(task_t&& task) {
+    return submit_cancelable_task(std::move(task), CancelToken{});
+}
+inline CancelTask BasePromise::submit_cancelable_task(
+    task_t&& task, const CancelToken& token) {
+    begin_wait();
+    return std::visit(
+        [&](auto& t) {
+            using T = std::decay_t<decltype(t)>;
+            auto concelable = CancelAbleTask<T>(std::move(t), token);
+            concelable.set_parent(this);
+            auto task = CancelTask{concelable};
+            task.set_target_parent(this);
+            return task;
+        },
+        task);
+}
+inline CancelTask BasePromise::submit_cancelable_task(
+    task_t&& task, std::function<void(void)> rollback) {
+    return submit_cancelable_task(std::move(task), rollback, CancelToken{});
+}
 
+inline CancelTask BasePromise::submit_cancelable_task(
+    task_t&& task, std::function<void(void)> rollback,
+    const CancelToken& token) {
+    begin_wait();
+    return std::visit(
+        [&](auto& t) {
+            using T = std::decay_t<decltype(t)>;
+            auto concelable = CancelAbleTask<T>(std::move(t), token);
+            concelable.set_parent(this);
+            auto task = CancelWithRollbackTask{concelable, rollback};
+            task.set_target_parent(this);
+            return task;
+        },
+        task);
+}
+inline void BasePromise::submit_unwait_cancel_task(CancelTask&& task) {
+    scheduler()->submit_task(std::move(task));
+}
 }  // namespace xc::ecs

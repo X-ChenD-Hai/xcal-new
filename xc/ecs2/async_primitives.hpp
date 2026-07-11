@@ -14,7 +14,6 @@
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <print>
 #include <ranges>
 #include <thread>
 #include <tuple>
@@ -314,7 +313,7 @@ struct AsyncForeach : public MoveAsWaitable<AsyncForeach<T, Fn>> {
             const auto mod = count % worker_count;
             const auto count_per_worker =
                 (count + worker_count - 1) / worker_count - (mod != 0);
-            handle.promise().begin_wait();
+            PromisLockGuard lk{handle.promise()};
             for (uint32_t i = 0; i < worker_count; ++i) {
                 auto a = foreach_.begin + i * count_per_worker;
                 auto b = (i == worker_count - 1) ? foreach_.end
@@ -326,7 +325,6 @@ struct AsyncForeach : public MoveAsWaitable<AsyncForeach<T, Fn>> {
                 };
                 handle.promise().submit_task(task);
             }
-            handle.promise().end_wait();
         }
 
        private:
@@ -562,6 +560,7 @@ class Channel {
     Channel& operator=(Channel&&) = delete;
 
    public:
+    struct TryRecvWait;
     struct RecvWait {
        public:
         RecvWait(const RecvWait&) = delete;
@@ -581,17 +580,29 @@ class Channel {
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle) noexcept {
             promise = &handle.promise();
-            channel.add_recv(this);
+            channel.add_recv(this, until_, with_timeout_);
         }
-        T&& await_resume() noexcept {
-            channel.remain_msg_count_.fetch_sub(1, std::memory_order_release);
-            return std::move(v.value());
+        T&& await_resume() noexcept { return std::move(v.value()); }
+        TryRecvWait&& until(time_duration_t times) {
+            with_timeout_ = true;
+            until_ = time_point_t::clock::now() + times;
+            return static_cast<TryRecvWait&&>(*this);
         }
+
         ~RecvWait() {}
         Channel& channel;
         std::optional<T> v{};
         BasePromise* promise{nullptr};
+        time_point_t until_{};
+        bool with_timeout_{false};
     };
+
+    struct TryRecvWait : public RecvWait {
+        std::optional<T>&& await_resume() noexcept {
+            return std::move(RecvWait::v);
+        }
+    };
+
     struct SendWait {
        public:
         SendWait(const SendWait&) = delete;
@@ -605,17 +616,27 @@ class Channel {
        public:
         SendWait(Channel& ch, T&& value);
         constexpr bool await_ready() noexcept {
-            return channel.try_send(value);
+            return sended_ = channel.try_send(value);
         }
         template <IsPromise P>
         void await_suspend(std::coroutine_handle<P> handle) noexcept {
             promise = &handle.promise();
-            channel.add_send(this);
+            channel.add_send(this, until_, with_timeout_);
         }
-        void await_resume() noexcept {}
+        bool await_resume() noexcept { return sended_; }
+
+        SendWait&& until(time_duration_t times) {
+            with_timeout_ = true;
+            until_ = time_point_t::clock::now() + times;
+            return std::move(*this);
+        }
+
         Channel& channel;
         BasePromise* promise{nullptr};
         T value;
+        time_point_t until_{};
+        bool with_timeout_{false};
+        bool sended_{false};
     };
 
     Channel() {
@@ -630,24 +651,52 @@ class Channel {
     }
 
    protected:
-    void add_recv(RecvWait* p) {
+    void remove_send(SendWait* p) {
+        while (send_flag_.test_and_set());
+        auto it = std::find(send_promises_.begin(), send_promises_.end(), p);
+        if (it != send_promises_.end()) {
+            *it = nullptr;
+        }
+        send_flag_.clear();
+        remain_msg_count_.fetch_sub(1, std::memory_order_relaxed);
+        p->promise->async_end_wait();
+    }
+    void remove_recv(RecvWait* p) {
+        while (recv_flag_.test_and_set());
+        auto it = std::find(recv_promises_.begin(), recv_promises_.end(), p);
+        if (it != recv_promises_.end()) {
+            *it = nullptr;
+        }
+        recv_flag_.clear();
+        p->promise->async_end_wait();
+    }
+
+    void add_recv(RecvWait* p, time_point_t until, bool with_timeout_) {
         if (!p) return;
         p->promise->begin_wait();
         while (recv_flag_.test_and_set());
         recv_promises_.push_back(p);
         recv_flag_.clear();
+        if (with_timeout_) {
+            p->promise->submit_timeout_task(
+                FuncTask{std::bind(&Channel::remove_recv, this, p)}, until);
+        }
         notify_sender();
     }
-    void add_send(SendWait* p) {
+
+    void add_send(SendWait* p, time_point_t until, bool with_timeout_) {
         if (!p) return;
         p->promise->begin_wait();
         while (send_flag_.test_and_set());
         send_promises_.push_back(p);
         send_flag_.clear();
+        if (with_timeout_) {
+            p->promise->submit_timeout_task(
+                FuncTask{std::bind(&Channel::remove_send, this, p)}, until);
+        }
         remain_msg_count_.fetch_add(1, std::memory_order_release);
         notify_recv();
     }
-
     std::optional<T> try_recv() {
         auto v = buffer_.try_dequeue();
         if (v.has_value()) {
@@ -672,6 +721,10 @@ class Channel {
     void notify_recv() {
         while (recv_flag_.test_and_set());
         while (!recv_promises_.empty()) {
+            if (recv_promises_.front() == nullptr) {
+                recv_promises_.pop_front();
+                continue;
+            }
             if (remain_msg_count_.load(std::memory_order_acquire) == 0) break;
             auto v = buffer_.try_dequeue();
             if (!v.has_value()) {
@@ -689,10 +742,15 @@ class Channel {
         while (send_flag_.test_and_set());
         while (!send_promises_.empty()) {
             SendWait* s = send_promises_.front();
+            if (s == nullptr) {
+                send_promises_.pop_front();
+                continue;
+            }
             if (!buffer_.try_enqueue(s->value)) {
                 if (buffer_.full()) break;
                 continue;
             }
+            s->sended_ = true;
             s->promise->async_end_wait();
             send_promises_.pop_front();
         }

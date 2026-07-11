@@ -1,6 +1,7 @@
 #pragma once
 #include <atomic>
 #include <cassert>
+#include <concepts>
 #include <coroutine>
 #include <cstddef>
 #include <cstdint>
@@ -118,6 +119,15 @@ class BasePromise {
         }
     }
     void async_end_wait();
+    void submit_task(task_t&& task);
+    void submit_unwait_cancel_task(CancelTask&& task);
+    CancelTask submit_cancelable_task(task_t&& task, const CancelToken& token);
+    CancelTask submit_cancelable_task(task_t&& task,
+                                      std::function<void(void)> rollback);
+    CancelTask submit_cancelable_task(task_t&& task,
+                                      std::function<void(void)> rollback,
+                                      const CancelToken& token);
+    CancelTask submit_cancelable_task(task_t&& task);
     void submit_timeout_task(task_t&& task, time_point_t until);
     void submit_timeout_task(task_t&& task, time_duration_t delay);
     const SystemScheduler* scheduler() const noexcept { return scheduler_; }
@@ -130,7 +140,15 @@ class BasePromise {
     }
     void resume() {
         assert(!done() && "handle is done");
-        handle().resume();
+        try {
+            assert("task is done" && !done());
+            handle().resume();
+            _SCHEDULER_DEBUG("resume {} success from until once handle",
+                             (void*)promise);
+        } catch (...) {
+            set_exception(std::current_exception());
+            _SCHEDULER_DEBUG("catch exception in {}", (void*)promise);
+        }
     }
     bool done() const {
         return state_->remain_task_count.load(std::memory_order_acquire) ==
@@ -172,8 +190,6 @@ class Promise : public BasePromise {
 
     void resubmit();
 
-    void submit_task(task_t&& task);
-
    protected:
     handle_t init_handle() {
         auto handle = handle_t::from_promise(*static_cast<Derived*>(this));
@@ -206,4 +222,5 @@ class PromisLockGuard {
    private:
     BasePromise* promise_{nullptr};
 };
+
 }  // namespace xc::ecs
