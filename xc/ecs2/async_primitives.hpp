@@ -41,6 +41,24 @@ struct MoveAsWaitable {
             std::move(*static_cast<Derived*>(this)), scheduler, handle};
     }
 };
+template <typename Derived>
+struct RefAsWaitable {
+    template <IsPromise P>
+    auto get_awaitable(SystemScheduler* scheduler,
+                       std::coroutine_handle<P> handle) {
+        return typename Derived::wait_type{*static_cast<Derived*>(this),
+                                           scheduler, handle};
+    }
+};
+template <typename Derived>
+struct EmptyAsWaitable {
+    template <IsPromise P>
+    auto get_awaitable(SystemScheduler* scheduler,
+                       std::coroutine_handle<P> handle) {
+        return typename Derived::wait_type{scheduler, handle};
+    }
+};
+
 template <typename... T>
 struct Join final : public MoveAsWaitable<Join<T...>> {
     using tuple_t = std::tuple<std::remove_reference_t<T>...>;
@@ -348,11 +366,10 @@ struct Yield final {
     void await_resume() const noexcept {}
 };
 
-struct CurrentWorker : public MoveAsWaitable<CurrentWorker> {
+struct CurrentWorker : public EmptyAsWaitable<CurrentWorker> {
     struct wait_type {
         template <IsPromise P>
-        wait_type(CurrentWorker&& _, SystemScheduler* scheduler,
-                  std::coroutine_handle<P> handle)
+        wait_type(SystemScheduler* scheduler, std::coroutine_handle<P> handle)
             : ptr(scheduler->current_worker()) {}
         constexpr bool await_ready() const noexcept { return true; }
         template <IsPromise P>
@@ -363,6 +380,23 @@ struct CurrentWorker : public MoveAsWaitable<CurrentWorker> {
         const Worker* ptr;
     };
 };
+struct Workers : public EmptyAsWaitable<Workers> {
+    struct wait_type {
+        template <IsPromise P>
+        wait_type(SystemScheduler* scheduler, std::coroutine_handle<P> handle)
+            : workers_(&scheduler->workers()) {}
+        constexpr bool await_ready() const noexcept { return true; }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) const noexcept {
+            assert(false && "await_suspend not implemented");
+        }
+        const std::vector<const Worker*>& await_resume() const noexcept {
+            return *workers_;
+        }
+        const std::vector<const Worker*>* workers_;
+    };
+};
+
 struct BindWorker : public MoveAsWaitable<BindWorker> {
     struct wait_type {
         template <IsPromise P>
@@ -384,6 +418,53 @@ struct BindWorker : public MoveAsWaitable<BindWorker> {
     BindWorker(const Worker* bind) : bind(bind) {}
     const Worker* bind{nullptr};
 };
+struct ScopeBind {
+    friend struct wait_type;
+    struct wait_type {
+        template <IsPromise P>
+        wait_type(ScopeBind&& o, SystemScheduler* scheduler,
+                  std::coroutine_handle<P> handle)
+            : o(std::move(o)) {
+            assert(!o.promise && "ScopeBind just be wait once");
+            o.last_bind = handle.promise().bind_worker();
+            o.promise = &handle.promise();
+            handle.promise().bind(o.bind);
+        }
+        bool await_ready() const noexcept {
+            return std::this_thread::get_id() == o.bind->thread_id();
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle_) const noexcept {
+            handle_.promise().resubmit();
+        }
+        ScopeBind&& await_resume() const noexcept { return std::move(o); }
+        ScopeBind&& o;
+    };
+
+    void release() {
+        if (promise) {
+            promise->bind(last_bind);
+        }
+    }
+    ScopeBind(ScopeBind&& o) { std::swap(promise, o.promise); }
+    ScopeBind& operator=(ScopeBind&&) = delete;
+    ScopeBind(const ScopeBind&) = delete;
+    ScopeBind& operator=(const ScopeBind&) = delete;
+    ScopeBind(const Worker* bind) : bind(bind) {}
+    ~ScopeBind() { release(); }
+    template <IsPromise P>
+    auto get_awaitable(SystemScheduler* scheduler,
+                       std::coroutine_handle<P> handle) && {
+        return wait_type{std::move(*static_cast<ScopeBind*>(this)), scheduler,
+                         handle};
+    }
+
+   private:
+    const Worker* bind{nullptr};
+    const Worker* last_bind{nullptr};
+    BasePromise* promise{nullptr};
+};
+
 struct DispatchTo : public MoveAsWaitable<DispatchTo> {
     struct wait_type {
         template <IsPromise P>
@@ -503,7 +584,7 @@ class Channel {
             channel.add_recv(this);
         }
         T&& await_resume() noexcept {
-            channel.remain_msg_.fetch_sub(1, std::memory_order_release);
+            channel.remain_msg_count_.fetch_sub(1, std::memory_order_release);
             return std::move(v.value());
         }
         ~RecvWait() {}
@@ -563,59 +644,68 @@ class Channel {
         while (send_flag_.test_and_set());
         send_promises_.push_back(p);
         send_flag_.clear();
+        remain_msg_count_.fetch_add(1, std::memory_order_release);
         notify_recv();
     }
 
     std::optional<T> try_recv() {
-        T tmp;
-        if (buffer_.try_dequeue(tmp)) {
+        auto v = buffer_.try_dequeue();
+        if (v.has_value()) {
+            remain_msg_count_.fetch_sub(1, std::memory_order_release);
+        } else if (remain_msg_count_.load(std::memory_order_acquire) > 0) {
             notify_sender();
-            return tmp;
+            auto v = buffer_.try_dequeue();
+            if (v.has_value())
+                remain_msg_count_.fetch_sub(1, std::memory_order_release);
+            return v;
         }
-        return std::nullopt;
+        return v;
     }
     bool try_send(T& value) {
-        if (buffer_.try_enqueue(value)) {
+        auto success = buffer_.try_enqueue(value);
+        if (success) {
+            remain_msg_count_.fetch_add(1, std::memory_order_release);
             notify_recv();
-            return true;
         }
-        return false;
+        return success;
     }
     void notify_recv() {
         while (recv_flag_.test_and_set());
-        BasePromise* p{nullptr};
-        if (!recv_promises_.empty()) {
-            auto v = try_recv();
-            if (v.has_value()) {
-                recv_promises_.front()->v = std::move(v.value());
-                p = recv_promises_.front()->promise;
-                recv_promises_.pop_front();
+        while (!recv_promises_.empty()) {
+            if (remain_msg_count_.load(std::memory_order_acquire) == 0) break;
+            auto v = buffer_.try_dequeue();
+            if (!v.has_value()) {
+                notify_sender();
+                continue;
             }
+            remain_msg_count_.fetch_sub(1, std::memory_order_release);
+            recv_promises_.front()->v = std::move(v.value());
+            recv_promises_.front()->promise->async_end_wait();
+            recv_promises_.pop_front();
         }
         recv_flag_.clear();
-        if (p) p->async_end_wait();
     }
     void notify_sender() {
         while (send_flag_.test_and_set());
-        BasePromise* p{nullptr};
-        if (!send_promises_.empty()) {
+        while (!send_promises_.empty()) {
             SendWait* s = send_promises_.front();
-            if (try_send(s->value)) {
-                p = s->promise;
-                send_promises_.pop_front();
+            if (!buffer_.try_enqueue(s->value)) {
+                if (buffer_.full()) break;
+                continue;
             }
+            s->promise->async_end_wait();
+            send_promises_.pop_front();
         }
         send_flag_.clear();
-        if (p) p->async_end_wait();
     }
 
    private:
     alignas(64) std::atomic_flag recv_flag_{};
     alignas(64) std::atomic_flag send_flag_{};
     structure::RingBuffer<T, N> buffer_{};
-    std::deque<RecvWait*> recv_promises_{};
     std::deque<SendWait*> send_promises_{};
-    std::atomic_uint32_t remain_msg_{0};
+    std::deque<RecvWait*> recv_promises_{};
+    std::atomic_uint32_t remain_msg_count_{0};
 };
 template <typename T, size_t N>
 inline Channel<T, N>::SendWait::SendWait(Channel& ch, T&& value)

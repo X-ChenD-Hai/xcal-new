@@ -156,9 +156,9 @@ class Promise : public BasePromise {
             return std::forward<T>(t);
         } else {
             using Tp = std::decay_t<T>;
-            if constexpr (is_waitable<decltype(t.get_awaitable(scheduler_,
-                                                               handle()))>) {
-                return t.get_awaitable(scheduler_, handle());
+            if constexpr (is_waitable<decltype(std::forward<T>(t).get_awaitable(
+                              scheduler_, handle()))>) {
+                return std::forward<T>(t).get_awaitable(scheduler_, handle());
             } else if constexpr (is_waitable<decltype(T::get_awaitable(
                                      std::forward<T>(t), scheduler_,
                                      handle()))>) {

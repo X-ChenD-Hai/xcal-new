@@ -9,6 +9,7 @@
 #include <future>
 #include <optional>
 #include <print>
+#include <ranges>
 #include <thread>
 #include <vector>
 #include <xc/ecs2/async_primitives.hpp>
@@ -46,9 +47,37 @@ System test_dispatch(int id) {
     w = co_await CurrentWorker{};
     std::println("fid {} tid {}", id, w->worker_id());
     tid.push_back(w->worker_id());
+    co_await Yield{};
+    w = co_await CurrentWorker{};
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
+    {
+        auto sc = co_await ScopeBind{t};
+        std::println("fid {} on scope bind tid {}", id, w->worker_id());
+        co_await Yield{};
+        w = co_await CurrentWorker{};
+        std::println("fid {} tid {}", id, w->worker_id());
+        tid.push_back(w->worker_id());
+        co_await Yield{};
+        w = co_await CurrentWorker{};
+        std::println("fid {} tid {}", id, w->worker_id());
+        tid.push_back(w->worker_id());
+        co_await Yield{};
+        w = co_await CurrentWorker{};
+        std::println("fid {} tid {}", id, w->worker_id());
+        tid.push_back(w->worker_id());
+    }
+    co_await Yield{};
+    w = co_await CurrentWorker{};
+    std::println("fid {} tid {}", id, w->worker_id());
+    tid.push_back(w->worker_id());
 
     std::println("id:{},tid:{}", id, tid);
 
+    auto workers = co_await Workers{};
+    std::println("workers {}", workers | std::views::transform([](auto w) {
+                                   return w->worker_id();
+                               }));
     co_return;
 }
 Future<int> future3(int id) {
@@ -162,7 +191,7 @@ System test_when_all_async_future() {
 }
 using channel_t = Channel<int, 16>;
 Future<int> producer(channel_t& ch) {
-    for (size_t i = 0; i < 1; i++) {
+    for (size_t i = 0; i < 10; i++) {
         std::println("send {}", i);
         co_await ch.send(i);
         std::println("send done {}", i);
@@ -171,7 +200,7 @@ Future<int> producer(channel_t& ch) {
     co_return 0;
 }
 Future<int> consumer(channel_t& ch) {
-    for (size_t i = 0; i < 1; i++) {
+    for (size_t i = 0; i < 10; i++) {
         auto v = co_await ch.recv();
         std::println("v = {}", v);
     }
@@ -215,7 +244,7 @@ void run_system() {
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
         const auto test_count = 10000;
-        // const auto test_count = 1;
+        // const auto test_count = 5;
         try {
             for (size_t i = 0; i < test_count; ++i) {
                 // ok
@@ -232,10 +261,10 @@ void run_system() {
                 scheduler.add_system(test_when_all_func_future());
                 // ok
                 scheduler.add_system(test_when_all_async_future());
-                // dead wait
-                // scheduler.add_system(test_channel_future_when_all());
-                // dead wait
-                // scheduler.add_system(test_channel_future_join());
+                // ok
+                scheduler.add_system(test_channel_future_when_all());
+                // ok
+                scheduler.add_system(test_channel_future_join());
             }
             scheduler.update();
         } catch (std::exception e) {

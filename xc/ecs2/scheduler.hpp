@@ -37,6 +37,7 @@ class SystemScheduler {
             workers_.back()->set_steal_callback(std::bind(
                 &SystemScheduler::work_steal, this, std::placeholders::_1));
             workers_.back()->start(i);
+            worker_crefs_.emplace_back(workers_.back().get());
         }
         _SCHEDULER_DEBUG("All workers started");
         timer_worker_ = std::make_unique<TimerWorker>(
@@ -204,9 +205,11 @@ class SystemScheduler {
     void submit_timeout_task(task_t&& task, time_duration_t delay) {
         timer_worker_->publish({std::move(task), delay});
     }
+    const std::vector<const Worker*>& workers() const { return worker_crefs_; }
 
    private:
     void destroy_workers() {
+        worker_crefs_.clear();
         timer_worker_.reset();
         std::vector<std::jthread> threads;
         for (auto& worker : workers_) {
@@ -277,6 +280,7 @@ class SystemScheduler {
     std::vector<std::unique_ptr<System>> systems_instencees_{};
     std::vector<std::unique_ptr<Worker>> workers_{};
     std::unique_ptr<TimerWorker> timer_worker_{};
+    std::vector<const Worker*> worker_crefs_{};
     std::mutex steal_mutex_{};
     std::condition_variable steal_cv_{};
     bool steal_flag_{true};

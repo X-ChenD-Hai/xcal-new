@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <type_traits>
 namespace xc::ecs::structure {
 template <typename T, size_t Capacity>
@@ -75,9 +76,39 @@ class RingBuffer {
         current_slot->ready.store(false, std::memory_order_release);
         return true;
     }
+    std::optional<T> try_dequeue() {
+        if (empty()) return std::nullopt;
+        size_t current_head = head_.load(std::memory_order_relaxed);
+        size_t next_head;
+        slot* current_slot;
+
+        do {
+            current_slot = &buffer_[current_head & (Capacity - 1)];
+
+            // 检查槽是否就绪
+            if (!current_slot->ready.load(std::memory_order_acquire)) {
+                return std::nullopt;  // 队列为空
+            }
+
+            next_head = current_head + 1;
+        } while (!head_.compare_exchange_weak(current_head, next_head,
+                                              std::memory_order_acq_rel,
+                                              std::memory_order_relaxed));
+
+        // 提取数据
+        std::optional<T> ret = std::move(current_slot->data);
+
+        // 析构并标记为空
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            current_slot->data.~T();
+
+        current_slot->ready.store(false, std::memory_order_release);
+        return ret;
+    }
+
     size_t size() const noexcept {
-        return tail_.load(std::memory_order_acquire) -
-               head_.load(std::memory_order_acquire);
+        return tail_.load(std::memory_order_relaxed) -
+               head_.load(std::memory_order_relaxed);
     }
     bool empty() const noexcept { return size() == 0; }
 
