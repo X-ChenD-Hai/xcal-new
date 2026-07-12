@@ -561,19 +561,19 @@ class Channel {
     Channel& operator=(Channel&&) = delete;
 
    public:
-    struct TryRecvWait;
-    struct RecvWait {
+    struct RecvWait;
+    struct TryRecvWait {
        public:
-        RecvWait(const RecvWait&) = delete;
-        RecvWait& operator=(const RecvWait&) = delete;
-        RecvWait& operator=(RecvWait&&) = delete;
-        RecvWait(RecvWait&& o) : channel(o.channel) {
+        TryRecvWait(const TryRecvWait&) = delete;
+        TryRecvWait& operator=(const TryRecvWait&) = delete;
+        TryRecvWait& operator=(TryRecvWait&&) = delete;
+        TryRecvWait(TryRecvWait&& o) : channel(o.channel) {
             std::swap(v, o.v);
             std::swap(promise, o.promise);
         }
 
        public:
-        RecvWait(Channel& ch) : channel(ch) {}
+        TryRecvWait(Channel& ch) : channel(ch) {}
         constexpr bool await_ready() noexcept {
             v = channel.try_recv();
             return v.has_value();
@@ -583,14 +583,14 @@ class Channel {
             promise = &handle.promise();
             channel.add_recv(this, until_, with_timeout_);
         }
-        T&& await_resume() noexcept { return std::move(v.value()); }
+        std::optional<T>&& await_resume() noexcept { return std::move(v); }
         TryRecvWait&& until(time_duration_t times) {
             with_timeout_ = true;
             until_ = time_point_t::clock::now() + times;
-            return static_cast<TryRecvWait&&>(*this);
+            return std::move(*this);
         }
 
-        ~RecvWait() {}
+        ~TryRecvWait() {}
         Channel& channel;
         std::optional<T> v{};
         BasePromise* promise{nullptr};
@@ -598,24 +598,24 @@ class Channel {
         bool with_timeout_{false};
     };
 
-    struct TryRecvWait : public RecvWait {
-        std::optional<T>&& await_resume() noexcept {
-            return std::move(RecvWait::v);
+    struct RecvWait : public TryRecvWait {
+        T&& await_resume() noexcept {
+            return std::move(TryRecvWait::v.value());
         }
     };
 
-    struct SendWait {
+    struct TrySendWait {
        public:
-        SendWait(const SendWait&) = delete;
-        SendWait& operator=(const SendWait&) = delete;
-        SendWait& operator=(SendWait&&) = delete;
-        SendWait(SendWait&& o) : channel(o.channel) {
+        TrySendWait(const TrySendWait&) = delete;
+        TrySendWait& operator=(const TrySendWait&) = delete;
+        TrySendWait& operator=(TrySendWait&&) = delete;
+        TrySendWait(TrySendWait&& o) : channel(o.channel) {
             std::swap(value, o.value);
             std::swap(promise, o.promise);
         }
 
        public:
-        SendWait(Channel& ch, T&& value);
+        TrySendWait(Channel& ch, T&& value);
         constexpr bool await_ready() noexcept {
             return sended_ = channel.try_send(value);
         }
@@ -626,7 +626,7 @@ class Channel {
         }
         bool await_resume() noexcept { return sended_; }
 
-        SendWait&& until(time_duration_t times) {
+        TrySendWait&& until(time_duration_t times) {
             with_timeout_ = true;
             until_ = time_point_t::clock::now() + times;
             return std::move(*this);
@@ -646,14 +646,14 @@ class Channel {
     }
     ~Channel() { consume_token.comsume_all(); }
 
-    RecvWait recv() { return RecvWait(*this); }
+    TryRecvWait recv() { return TryRecvWait(*this); }
     template <typename... Args>
-    SendWait send(Args&&... args) {
-        return SendWait(*this, std::forward<Args>(args)...);
+    TrySendWait send(Args&&... args) {
+        return TrySendWait(*this, std::forward<Args>(args)...);
     }
 
    protected:
-    void remove_send(SendWait* p) {
+    void remove_send(TrySendWait* p) {
         auto cs = consume_token.lock();
         if (!cs) return;
         while (send_flag_.test_and_set());
@@ -666,7 +666,7 @@ class Channel {
         p->promise->async_end_wait();
     }
 
-    void remove_recv(RecvWait* p) {
+    void remove_recv(TryRecvWait* p) {
         auto cs = consume_token.lock();
         if (!cs) return;
         while (recv_flag_.test_and_set());
@@ -678,7 +678,7 @@ class Channel {
         recv_flag_.clear();
     }
 
-    void add_recv(RecvWait* p, time_point_t until, bool with_timeout_) {
+    void add_recv(TryRecvWait* p, time_point_t until, bool with_timeout_) {
         if (!p) return;
         p->promise->begin_wait();
         while (recv_flag_.test_and_set());
@@ -691,7 +691,7 @@ class Channel {
         }
         notify_sender();
     }
-    void add_send(SendWait* p, time_point_t until, bool with_timeout_) {
+    void add_send(TrySendWait* p, time_point_t until, bool with_timeout_) {
         if (!p) return;
         p->promise->begin_wait();
         while (send_flag_.test_and_set());
@@ -749,7 +749,7 @@ class Channel {
     void notify_sender() {
         while (send_flag_.test_and_set());
         while (!send_promises_.empty()) {
-            SendWait* s = send_promises_.front();
+            TrySendWait* s = send_promises_.front();
             if (s == nullptr) {
                 send_promises_.pop_front();
                 continue;
@@ -769,13 +769,13 @@ class Channel {
     alignas(64) std::atomic_flag recv_flag_{};
     alignas(64) std::atomic_flag send_flag_{};
     structure::RingBuffer<T, N> buffer_{};
-    std::deque<SendWait*> send_promises_{};
-    std::deque<RecvWait*> recv_promises_{};
+    std::deque<TrySendWait*> send_promises_{};
+    std::deque<TryRecvWait*> recv_promises_{};
     structure::ConsumeToken<> consume_token{0};
     std::atomic_uint32_t remain_msg_count_{0};
 };
 template <typename T, size_t N>
-inline Channel<T, N>::SendWait::SendWait(Channel& ch, T&& value)
+inline Channel<T, N>::TrySendWait::TrySendWait(Channel& ch, T&& value)
     : channel(ch), value(std::move(value)) {}
 
 }  // namespace xc::ecs
