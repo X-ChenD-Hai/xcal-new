@@ -26,6 +26,7 @@
 #include "./types.hpp"
 #include "config.hpp"
 #include "promise.hpp"
+#include "structure/consume_token.hpp"
 #include "structure/ring_buffer.hpp"
 #include "system.hpp"
 #include "worker.hpp"
@@ -643,6 +644,7 @@ class Channel {
         recv_flag_.clear();
         send_flag_.clear();
     }
+    ~Channel() { consume_token.comsume_all(); }
 
     RecvWait recv() { return RecvWait(*this); }
     template <typename... Args>
@@ -652,6 +654,8 @@ class Channel {
 
    protected:
     void remove_send(SendWait* p) {
+        auto cs = consume_token.lock();
+        if (!cs) return;
         while (send_flag_.test_and_set());
         auto it = std::find(send_promises_.begin(), send_promises_.end(), p);
         if (it != send_promises_.end()) {
@@ -661,14 +665,17 @@ class Channel {
         remain_msg_count_.fetch_sub(1, std::memory_order_relaxed);
         p->promise->async_end_wait();
     }
+
     void remove_recv(RecvWait* p) {
+        auto cs = consume_token.lock();
+        if (!cs) return;
         while (recv_flag_.test_and_set());
         auto it = std::find(recv_promises_.begin(), recv_promises_.end(), p);
         if (it != recv_promises_.end()) {
             *it = nullptr;
+            p->promise->async_end_wait();
         }
         recv_flag_.clear();
-        p->promise->async_end_wait();
     }
 
     void add_recv(RecvWait* p, time_point_t until, bool with_timeout_) {
@@ -678,12 +685,12 @@ class Channel {
         recv_promises_.push_back(p);
         recv_flag_.clear();
         if (with_timeout_) {
+            consume_token.inc_expected();
             p->promise->submit_timeout_task(
                 FuncTask{std::bind(&Channel::remove_recv, this, p)}, until);
         }
         notify_sender();
     }
-
     void add_send(SendWait* p, time_point_t until, bool with_timeout_) {
         if (!p) return;
         p->promise->begin_wait();
@@ -691,6 +698,7 @@ class Channel {
         send_promises_.push_back(p);
         send_flag_.clear();
         if (with_timeout_) {
+            consume_token.inc_expected();
             p->promise->submit_timeout_task(
                 FuncTask{std::bind(&Channel::remove_send, this, p)}, until);
         }
@@ -763,6 +771,7 @@ class Channel {
     structure::RingBuffer<T, N> buffer_{};
     std::deque<SendWait*> send_promises_{};
     std::deque<RecvWait*> recv_promises_{};
+    structure::ConsumeToken<> consume_token{0};
     std::atomic_uint32_t remain_msg_count_{0};
 };
 template <typename T, size_t N>

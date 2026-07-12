@@ -1,11 +1,14 @@
 #pragma once
+#include <array>
 #include <atomic>
 #include <concepts>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string_view>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 #include "config.hpp"
 #include "promise.hpp"
@@ -41,7 +44,6 @@ class CancelToken {
         return finished_->test(std::memory_order_acquire);
     }
 
-   private:
     bool consume() const noexcept {
         return !finished_->test_and_set(std::memory_order_acq_rel);
     }
