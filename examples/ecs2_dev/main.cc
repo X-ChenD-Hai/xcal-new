@@ -233,6 +233,33 @@ System test_channel_future_join() {
     co_return;
 }
 
+System test_channel_close() {
+    std::println("test_channel_close");
+    channel_t ch;
+
+    // 并发运行生产者和消费者
+    co_await (producer(ch) && consumer(ch));
+
+    // 关闭 channel
+    std::println("closing channel...");
+    ch.close();
+
+    // 关闭后尝试接收，应该返回空
+    auto v = ch.try_recv();
+    if (!v.has_value()) {
+        std::println("try_recv after close: empty (expected)");
+    }
+
+    // 关闭后尝试发送，应该失败
+    int val = 100;
+    bool sent = ch.try_send(val);
+    if (!sent) {
+        std::println("try_send after close: failed (expected)");
+    }
+
+    co_return;
+}
+
 void run_system() {
     utility::ClockRecord app_record;
     app_record.record();
@@ -273,6 +300,8 @@ void run_system() {
                 scheduler.add_system(test_channel_future_when_all());
                 // ok
                 scheduler.add_system(test_channel_future_join());
+                // ok
+                scheduler.add_system(test_channel_close());
             }
             scheduler.update();
         } catch (std::exception e) {
