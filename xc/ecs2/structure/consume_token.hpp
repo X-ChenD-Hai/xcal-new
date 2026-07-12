@@ -25,7 +25,7 @@ struct alignas(64) ConsumeTokenSlot {
 
    private:
     ConsumeTokenPool<page_size>* pool{};
-    size_t next{};
+    std::atomic_size_t next{};
     size_t id{};
     std::atomic_size_t ref_count;
     std::atomic_size_t expected_consume_count;
@@ -169,12 +169,12 @@ class ConsumeTokenPool {
         slot->consuming_count.store(0, std::memory_order_relaxed);
         size_t expected = next_.load(std::memory_order_relaxed);
         do {
-            slot->next = expected;
+            slot->next.store(expected, std::memory_order_release);
         } while (!next_.compare_exchange_strong(expected, slot->id,
                                                 std::memory_order_acq_rel,
                                                 std::memory_order_relaxed));
     }
-    size_t capacity() const { return pages_.size() * PageSize; }
+    size_t capacity() const { return capacity_.load(std::memory_order_acquire); }
     // only safe to call in single thread using for SPMC
     ConsumeTokenSlot<page_size>* borrow_slot() {
         auto expected = next_.load(std::memory_order_relaxed);
@@ -185,7 +185,7 @@ class ConsumeTokenPool {
                 expected = next_.load(std::memory_order_acquire);
             }
             slot = slot_at(expected);
-        } while (!next_.compare_exchange_strong(expected, slot->next,
+        } while (!next_.compare_exchange_strong(expected, slot->next.load(std::memory_order_acquire),
                                                 std::memory_order_acq_rel,
                                                 std::memory_order_acquire));
 
@@ -198,28 +198,30 @@ class ConsumeTokenPool {
     }
 
     void new_page() {
+        // 先增加容量计数，确保其他线程能安全地检查容量
+        auto old_capacity = capacity_.fetch_add(PageSize, std::memory_order_acq_rel);
         auto page = std::make_unique<Page>();
-        auto size = pages_.size();
-        const auto n = size * PageSize;
+        const auto n = old_capacity;
         for (auto i = 0; i < PageSize; ++i) {
             auto& slot = (*page)[i];
             slot.pool = this;
             slot.ref_count.store(0, std::memory_order_relaxed);
             slot.expected_consume_count.store(0, std::memory_order_relaxed);
             slot.consuming_count.store(0, std::memory_order_relaxed);
-            slot.next = n + i + 1;
+            slot.next.store(n + i + 1, std::memory_order_relaxed);
             slot.id = n + i;
         }
         auto expected = next_.load(std::memory_order_relaxed);
         auto new_page = pages_.emplace_back(std::move(page)).get();
         do {
-            (*new_page)[PageSize - 1].next = expected;
+            (*new_page)[PageSize - 1].next.store(expected, std::memory_order_release);
         } while (!next_.compare_exchange_strong(
             expected, n, std::memory_order_acq_rel, std::memory_order_relaxed));
     }
 
    private:
     std::vector<std::unique_ptr<Page>> pages_;
+    std::atomic_size_t capacity_{0};
     std::atomic_size_t next_{INVALID_ID};
 };
 
