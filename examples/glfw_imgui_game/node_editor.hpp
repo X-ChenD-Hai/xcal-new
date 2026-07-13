@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <vector>
-#include <xc/ecs/tyoes.hpp>
+#include <xc/ecs/types.hpp>
 
 #include "./node_types.hpp"
 

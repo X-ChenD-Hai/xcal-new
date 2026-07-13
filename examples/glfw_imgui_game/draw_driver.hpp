@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <xc/ecs/tyoes.hpp>
+#include <xc/ecs/types.hpp>
 struct VAO {
     uint32_t vao;
 };

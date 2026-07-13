@@ -1,5 +1,5 @@
 #pragma once
-#include <xc/ecs/tyoes.hpp>
+#include <xc/ecs/types.hpp>
 
 namespace xcal_opengl_render {
 class Render {

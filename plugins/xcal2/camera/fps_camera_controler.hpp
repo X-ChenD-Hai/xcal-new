@@ -1,5 +1,6 @@
 #pragma once
 #include "./camera.hpp"
+#include "xc/ecs/types.hpp"
 namespace xcal::camera {
 class FpsCameraControler {
    public:

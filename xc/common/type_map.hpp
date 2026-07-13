@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <vector>
 
 class TypeIdGenerator {
@@ -22,7 +23,7 @@ class TypeIdGenerator {
 };
 template <typename T>
 class TypeMap {
-    static inline size_t next_type_id{0};
+    static inline std::atomic_size_t next_type_id{0};
     const T fill_value_{};
     std::vector<T> table_{};
 

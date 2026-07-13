@@ -3,9 +3,9 @@
 #include <xc/ecs/event_bus.hpp>
 #include <xc/ecs/resource_table.hpp>
 #include <xc/ecs/world.hpp>
+#include <xc/ecs/types.hpp>
 namespace ecs {
 class ResourceManager;
-class EventBus;
 class ResourceTable;
 class CommandSubmit;
 }  // namespace ecs

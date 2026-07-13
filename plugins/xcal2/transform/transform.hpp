@@ -1,6 +1,6 @@
 #pragma once
 #include <xc/common/flags.hpp>
-#include <xc/ecs/tyoes.hpp>
+#include <xc/ecs/types.hpp>
 #include <xcmath/xcmath.hpp>
 
 namespace xcal::transform {

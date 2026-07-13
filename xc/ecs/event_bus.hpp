@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <xc/common/type_map.hpp>
 #include <xc/common/xc_assert.hpp>
+#include <xc/ecs/types.hpp>
 
 #include "./utils/traits.hpp"
 
@@ -23,11 +24,15 @@ struct aligned_size<1, alignment, log2_> {
 };
 }  // namespace details
 
-class EventBus final {
+struct EventBusDefauteConfig {
+    static constexpr bool miti_thread = false;
+};
+template <typename Config>
+class PolicyEventBus {
    private:
     template <size_t cell_size>
     class EventPool {
-        friend class EventBus;
+        friend PolicyEventBus;
 
        private:
         template <size_t size>
@@ -66,7 +71,7 @@ class EventBus final {
                 return info;
             }
         };
-        friend class EventBus;
+        friend PolicyEventBus;
 
         EventPool() {}
 
@@ -174,7 +179,6 @@ class EventBus final {
             new ((void*)cell.data) Event(std::forward<Args>(args)...);
             size_++;
         }
-
         inline void free_index(uint32_t index) {
             cells_[index].next = free_list_;
             free_list_ = index;
@@ -185,7 +189,6 @@ class EventBus final {
                 free_index(ids);
             }
         }
-
         template <typename Event, typename Fn, typename... Args>
             requires(std::is_invocable_v<Fn, Args...> ||
                      std::is_invocable_v<Fn, Event&, Args...> ||
@@ -239,7 +242,7 @@ class EventBus final {
                         }
                     }
                 }
-                cell_indices = new_indices;
+                cell_indices = std::move(new_indices);
             } else {
                 const_cast<const EventPool*>(this)->each<Event>(
                     fn, std::forward<Args>(args)...);
@@ -277,7 +280,6 @@ class EventBus final {
                 cell_indices.clear();
             }
         }
-
         template <typename Event>
         inline size_t size() const noexcept {
             if (index_map_.data<Event>() == invalid_index) return 0;
@@ -351,7 +353,7 @@ class EventBus final {
     };
     template <typename Event>
     class EventRange {
-        friend class EventBus;
+        friend PolicyEventBus;
 
        protected:
         EventRange(EventPool<details::aligned_size<sizeof(Event)>::value>& pool,
@@ -426,7 +428,7 @@ class EventBus final {
                        .cell_indices.size() > 0;
     }
 
-    EventBus() {
+    PolicyEventBus() {
         []<size_t... I>(std::index_sequence<I...>, auto& pools) {
             (
                 [](auto& pools) {
@@ -461,7 +463,7 @@ class EventBus final {
         }(std::make_index_sequence<sizeof(pools_) / sizeof(nullptr)>(), pools_);
     }
 
-    ~EventBus() {
+    ~PolicyEventBus() {
         []<size_t... I>(std::index_sequence<I...>, auto& pools) {
             (
                 [](auto& pools) {
@@ -521,6 +523,11 @@ class EventBus final {
     std::tuple<EventPool<1>*, EventPool<2>*, EventPool<4>*, EventPool<8>*,
                EventPool<16>*, EventPool<32>*, EventPool<64>*>
         pools_;
+};
+
+class EventBus : public PolicyEventBus<EventBusDefauteConfig> {
+   public:
+    using PolicyEventBus<EventBusDefauteConfig>::PolicyEventBus;
 };
 
 }  // namespace ecs

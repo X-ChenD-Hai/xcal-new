@@ -2,7 +2,10 @@
 
 namespace ecs {
 class World;
-class EventBus;
 class CommandSubmit;
 class ResourceManager;
+template <typename Config>
+class PolicyEventBus;
+struct EventBusDefauteConfig;
+class EventBus;
 }  // namespace ecs

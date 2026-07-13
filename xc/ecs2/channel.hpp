@@ -54,13 +54,11 @@ class Channel {
         time_point_t until_{};
         bool with_timeout_{false};
     };
-
     struct RecvWait : public TryRecvWait {
         T&& await_resume() noexcept {
             return std::move(TryRecvWait::v.value());
         }
     };
-
     struct TrySendWait {
        public:
         TrySendWait(const TrySendWait&) = delete;
@@ -97,7 +95,6 @@ class Channel {
         bool with_timeout_{false};
         bool sended_{false};
     };
-
     Channel() {
         recv_flag_.clear();
         send_flag_.clear();
@@ -106,15 +103,60 @@ class Channel {
         close();
         consume_token.comsume_all();
     }
-
     TryRecvWait recv() { return TryRecvWait(*this); }
     template <typename... Args>
     TrySendWait send(Args&&... args) {
         return TrySendWait(*this, std::forward<Args>(args)...);
     }
-
     std::optional<T> try_recv();
     bool try_send(T& value);
+    void close() {
+        if (closed_.load(std::memory_order_acquire)) return;
+        // 1. 先尝试将消息发送给等待的接收者
+        // 循环直到：消息为空 OR 接收者为空
+        while (true) {
+            auto msg_count = remain_msg_count_.load(std::memory_order_acquire);
+            if (msg_count == 0) break;
+
+            // 检查是否有等待的接收者
+            while (recv_flag_.test_and_set());
+            bool has_receiver = !recv_promises_.empty();
+            recv_flag_.clear();
+
+            if (!has_receiver) break;
+
+            // 尝试发送消息给接收者
+            notify_recv();
+
+            // 再次检查消息数量
+            if (remain_msg_count_.load(std::memory_order_acquire) == 0) break;
+        }
+
+        // 2. 唤醒所有剩余的发送等待者（让他们失败）
+        while (send_flag_.test_and_set());
+        while (!send_promises_.empty()) {
+            auto* s = send_promises_.front();
+            send_promises_.pop_front();
+            if (s && s->promise) {
+                s->promise->async_end_wait();
+            }
+        }
+        send_flag_.clear();
+
+        // 3. 唤醒所有接收等待者（让他们失败）
+        while (recv_flag_.test_and_set());
+        while (!recv_promises_.empty()) {
+            auto* r = recv_promises_.front();
+            recv_promises_.pop_front();
+            if (r && r->promise) {
+                r->promise->async_end_wait();
+            }
+        }
+        recv_flag_.clear();
+
+        // 4. 设置关闭状态，阻止新请求
+        closed_.store(true, std::memory_order_release);
+    }
 
    protected:
     void remove_send(TrySendWait* p, structure::ConsumeToken<> token) {
@@ -129,7 +171,6 @@ class Channel {
         remain_msg_count_.fetch_sub(1, std::memory_order_relaxed);
         p->promise->async_end_wait();
     }
-
     void remove_recv(TryRecvWait* p, structure::ConsumeToken<> token) {
         auto cs = token.lock();
         if (!cs) return;
@@ -141,7 +182,6 @@ class Channel {
         }
         recv_flag_.clear();
     }
-
     void add_recv(TryRecvWait* p, time_point_t until, bool with_timeout_) {
         if (!p) return;
         if (closed_.load(std::memory_order_acquire)) {
@@ -229,55 +269,6 @@ class Channel {
     structure::ConsumeToken<> consume_token{0};
     std::atomic_uint32_t remain_msg_count_{0};
     std::atomic_bool closed_{false};
-
-   public:
-    void close() {
-        if (closed_.load(std::memory_order_acquire)) return;
-        // 1. 先尝试将消息发送给等待的接收者
-        // 循环直到：消息为空 OR 接收者为空
-        while (true) {
-            auto msg_count = remain_msg_count_.load(std::memory_order_acquire);
-            if (msg_count == 0) break;
-
-            // 检查是否有等待的接收者
-            while (recv_flag_.test_and_set());
-            bool has_receiver = !recv_promises_.empty();
-            recv_flag_.clear();
-
-            if (!has_receiver) break;
-
-            // 尝试发送消息给接收者
-            notify_recv();
-
-            // 再次检查消息数量
-            if (remain_msg_count_.load(std::memory_order_acquire) == 0) break;
-        }
-
-        // 2. 唤醒所有剩余的发送等待者（让他们失败）
-        while (send_flag_.test_and_set());
-        while (!send_promises_.empty()) {
-            auto* s = send_promises_.front();
-            send_promises_.pop_front();
-            if (s && s->promise) {
-                s->promise->async_end_wait();
-            }
-        }
-        send_flag_.clear();
-
-        // 3. 唤醒所有接收等待者（让他们失败）
-        while (recv_flag_.test_and_set());
-        while (!recv_promises_.empty()) {
-            auto* r = recv_promises_.front();
-            recv_promises_.pop_front();
-            if (r && r->promise) {
-                r->promise->async_end_wait();
-            }
-        }
-        recv_flag_.clear();
-
-        // 4. 设置关闭状态，阻止新请求
-        closed_.store(true, std::memory_order_release);
-    }
 };
 
 template <typename T, size_t N>

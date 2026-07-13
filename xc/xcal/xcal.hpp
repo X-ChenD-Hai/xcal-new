@@ -1,9 +1,9 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include <xc/ecs/types.hpp>
 namespace ecs {
 class World;
-class EventBus;
 };  // namespace ecs
 
 namespace xc::xcal {
