@@ -49,7 +49,9 @@ class SystemScheduler {
         auto sys = std::make_unique<System>(std::move(system));
         sys->state_->promise->set_scheduler(this);
         submit_task(ResumeUntilOnceTask{sys->state_->promise});
+        while (sys_flag_.test_and_set());
         systems_instencees_.emplace_back(std::move(sys));
+        sys_flag_.clear();
     }
     void stop_workers() {
         _SCHEDULER_DEBUG("Stop all workers");
@@ -158,7 +160,12 @@ class SystemScheduler {
     void update() {
         _SCHEDULER_DEBUG("Run scheduler");
         assert(!workers_.empty());
-        if (systems_instencees_.empty()) return;
+        while (sys_flag_.test_and_set());
+        if (systems_instencees_.empty()) {
+            sys_flag_.clear();
+            return;
+        }
+        sys_flag_.clear();
         _SCHEDULER_DEBUG("Enter Loop");
         std::vector<std::exception_ptr> exceptions;
         do {
@@ -173,10 +180,13 @@ class SystemScheduler {
                 lock.unlock();
             }
             flush(&exceptions);
+            while (sys_flag_.test_and_set());
             if (systems_instencees_.empty()) break;
+            sys_flag_.clear();
             std::this_thread::yield();
         } while (1);
         systems_instencees_.clear();
+        sys_flag_.clear();
         for (auto& exception : exceptions) {
             try {
                 std::rethrow_exception(exception);
@@ -264,6 +274,7 @@ class SystemScheduler {
     }
 
     void flush(std::vector<std::exception_ptr>* exceptions = nullptr) {
+        while (sys_flag_.test_and_set());
         systems_instencees_.erase(
             std::remove_if(systems_instencees_.begin(),
                            systems_instencees_.end(),
@@ -271,6 +282,7 @@ class SystemScheduler {
                                return sys->state_.use_count() == 1;
                            }),
             systems_instencees_.end());
+        sys_flag_.clear();
     }
     void submit_expired_task(task_t&& task) {
         submit_prior_task(std::move(task));
@@ -284,7 +296,7 @@ class SystemScheduler {
     std::mutex steal_mutex_{};
     std::condition_variable steal_cv_{};
     bool steal_flag_{true};
-    alignas(64) std::atomic_flag sync_flag_{};
+    alignas(64) std::atomic_flag sys_flag_{};
 };
 
 inline void BasePromise::submit_task(task_t&& task) {

@@ -23,9 +23,9 @@ constexpr bool is_waitable = false;
 template <typename T>
 constexpr bool is_waitable<
     T, std::void_t<decltype(void(std::declval<T>().await_ready()))>> = true;
-struct PromiseState;
+
 class Worker;
-using ChildFinalSuspendCallback = void (*)(std::shared_ptr<PromiseState>);
+
 struct PromiseState {
     static constexpr uint32_t DONE = std::numeric_limits<uint32_t>::max();
 
@@ -34,7 +34,7 @@ struct PromiseState {
     const Worker* bind_worker{nullptr};
     BasePromise* promise{nullptr};
     std::weak_ptr<PromiseState> parent{};
-    ChildFinalSuspendCallback on_child_final_suspend{nullptr};
+    void (*on_child_final_suspend)(std::shared_ptr<PromiseState>){nullptr};
     void* data{nullptr};
     bool done() {
         return remain_task_count.load(std::memory_order_acquire) == DONE;
@@ -70,6 +70,8 @@ class BasePromise {
         auto parent = state_->parent.lock();
         assert("remain_task_count is not 0" &&
                state_->remain_task_count.load(std::memory_order_acquire) == 0);
+        state_->remain_task_count.store(DONE, std::memory_order_release);
+        state_->promise = nullptr;
         if (parent) {
             if (parent->on_child_final_suspend) {
                 parent->on_child_final_suspend(state_);
@@ -77,8 +79,6 @@ class BasePromise {
                 parent->promise->async_end_wait();
             }
         }
-        state_->remain_task_count.store(DONE, std::memory_order_release);
-        state_->promise = nullptr;
         return {};
     }
     void unhandled_exception() { state_->exception = std::current_exception(); }

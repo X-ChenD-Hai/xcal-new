@@ -260,6 +260,36 @@ System test_channel_close() {
     co_return;
 }
 
+System test_select() {
+    auto select1 = []() -> Future<int> { co_return 1; }();
+    auto select2 = []() -> Future<int> { co_return 2; }();
+    auto select3 = []() -> Future<int> { co_return 3; }();
+
+    auto data = std::vector<Future<int>>{};
+    data.emplace_back(select1);
+    data.emplace_back(select2);
+    data.emplace_back(select3);
+
+    auto selector{co_await Select{data}};
+    std::println("try select 1");
+    auto a = co_await selector.select();
+    if (a.has_value()) std::println("select 1 = {}", a.value());
+    std::println("try select 2");
+    a = co_await selector.select();
+    if (a.has_value()) std::println("select 2 = {}", a.value());
+    std::println("try select 3");
+    a = co_await selector.select();
+    if (a.has_value()) std::println("select 3 = {}", a.value());
+    std::println("try select 4");
+    a = co_await selector.select();
+    if (a.has_value()) std::println("select 4 = {}", a.value());
+    std::println("try select 5");
+    a = co_await selector.select();
+    if (a.has_value()) std::println("select 5 = {}", a.value());
+
+    co_return;
+}
+
 void run_system() {
     utility::ClockRecord app_record;
     app_record.record();
@@ -279,29 +309,31 @@ void run_system() {
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
         const auto test_count = 10000;
-        // const auto test_count = 5;
+        // const auto test_count = 1;
         try {
             for (size_t i = 0; i < test_count; ++i) {
+                // // ok
+                // scheduler.add_system(test_dispatch(1));
+                // // ok
+                // scheduler.add_system(test_future(2));
+                // // ok
+                // scheduler.add_system(test_sleep());
+                // // ok
+                // scheduler.add_system(test_join_func_future());
+                // // ok
+                // scheduler.add_system(test_join_async_and_func_future());
+                // // ok
+                // scheduler.add_system(test_when_all_func_future());
+                // // ok
+                // scheduler.add_system(test_when_all_async_future());
+                // // ok
+                // scheduler.add_system(test_channel_future_when_all());
+                // // ok
+                // scheduler.add_system(test_channel_future_join());
+                // // ok
+                // scheduler.add_system(test_channel_close());
                 // ok
-                scheduler.add_system(test_dispatch(1));
-                // ok
-                scheduler.add_system(test_future(2));
-                // ok
-                scheduler.add_system(test_sleep());
-                // ok
-                scheduler.add_system(test_join_func_future());
-                // ok
-                scheduler.add_system(test_join_async_and_func_future());
-                // ok
-                scheduler.add_system(test_when_all_func_future());
-                // ok
-                scheduler.add_system(test_when_all_async_future());
-                // ok
-                scheduler.add_system(test_channel_future_when_all());
-                // ok
-                scheduler.add_system(test_channel_future_join());
-                // ok
-                scheduler.add_system(test_channel_close());
+                scheduler.add_system(test_select());
             }
             scheduler.update();
         } catch (std::exception e) {

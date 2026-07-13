@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <limits>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 namespace xc::ecs::structure {
@@ -58,10 +60,12 @@ class ConsumeToken {
     }
     ConsumeToken(ConsumeTokenPool<page_size>* pool, size_t expected);
     ConsumeToken(size_t expected) : ConsumeToken(thread_pool.get(), expected) {}
+    operator bool() const { return slot_ != nullptr; }
     ConsumeToken() = default;
     ~ConsumeToken();
 
     size_t consume() {
+        if (!slot_) return 0;
         auto expected =
             slot_->expected_consume_count.load(std::memory_order_relaxed);
         do {
@@ -71,7 +75,7 @@ class ConsumeToken {
         } while (slot_->expected_consume_count.compare_exchange_strong(
             expected, expected - 1, std::memory_order_acq_rel,
             std::memory_order_relaxed));
-        return expected;
+        return expected + 1;
     }
     size_t remaining() const {
         return slot_->expected_consume_count.load(std::memory_order_acquire);
@@ -79,12 +83,14 @@ class ConsumeToken {
     void release();
     size_t inc_expected(size_t count = 1) {
         return slot_->expected_consume_count.fetch_add(
-            count, std::memory_order_relaxed);
+            count, std::memory_order_release);
     }
     size_t consuming_count() const {
+        if (!slot_) return 0;
         return slot_->consuming_count.load(std::memory_order_acquire);
     }
     void comsume_all() {
+        if (!slot_) return;
         while (consume());
         while (consuming_count());
     }
@@ -125,7 +131,8 @@ class Consumer {
     Consumer& operator=(const Consumer&) = delete;
     Consumer& operator=(Consumer&&) = delete;
     Consumer(Consumer&& other) : id_(other.id_), token_(other.token_) {
-        other.release();
+        other.id_ = INVALID_ID;
+        other.token_ = ConsumeToken<page_size>();
     }
     Consumer() = default;
 
@@ -174,7 +181,9 @@ class ConsumeTokenPool {
                                                 std::memory_order_acq_rel,
                                                 std::memory_order_relaxed));
     }
-    size_t capacity() const { return capacity_.load(std::memory_order_acquire); }
+    size_t capacity() const {
+        return capacity_.load(std::memory_order_acquire);
+    }
     // only safe to call in single thread using for SPMC
     ConsumeTokenSlot<page_size>* borrow_slot() {
         auto expected = next_.load(std::memory_order_relaxed);
@@ -185,21 +194,25 @@ class ConsumeTokenPool {
                 expected = next_.load(std::memory_order_acquire);
             }
             slot = slot_at(expected);
-        } while (!next_.compare_exchange_strong(expected, slot->next.load(std::memory_order_acquire),
-                                                std::memory_order_acq_rel,
-                                                std::memory_order_acquire));
+        } while (!next_.compare_exchange_strong(
+            expected, slot->next.load(std::memory_order_acquire),
+            std::memory_order_acq_rel, std::memory_order_acquire));
 
         return slot;
     }
 
-    inline Page& page_at(size_t id) const { return *(pages_[id / PageSize]); }
+    inline Page& page_at(size_t id) const {
+        std::lock_guard lk{page_mtx_};
+        return *(pages_[id / PageSize]);
+    }
     inline ConsumeTokenSlot<page_size>* slot_at(size_t id) const {
         return &page_at(id)[id & MASK];
     }
 
     void new_page() {
         // 先增加容量计数，确保其他线程能安全地检查容量
-        auto old_capacity = capacity_.fetch_add(PageSize, std::memory_order_acq_rel);
+        auto old_capacity =
+            capacity_.fetch_add(PageSize, std::memory_order_acq_rel);
         auto page = std::make_unique<Page>();
         const auto n = old_capacity;
         for (auto i = 0; i < PageSize; ++i) {
@@ -212,9 +225,14 @@ class ConsumeTokenPool {
             slot.id = n + i;
         }
         auto expected = next_.load(std::memory_order_relaxed);
-        auto new_page = pages_.emplace_back(std::move(page)).get();
+        Page* next_page_;
+        {
+            std::lock_guard lock(page_mtx_);
+            next_page_ = pages_.emplace_back(std::move(page)).get();
+        }
         do {
-            (*new_page)[PageSize - 1].next.store(expected, std::memory_order_release);
+            (*next_page_)[PageSize - 1].next.store(expected,
+                                                   std::memory_order_release);
         } while (!next_.compare_exchange_strong(
             expected, n, std::memory_order_acq_rel, std::memory_order_relaxed));
     }
@@ -223,6 +241,7 @@ class ConsumeTokenPool {
     std::vector<std::unique_ptr<Page>> pages_;
     std::atomic_size_t capacity_{0};
     std::atomic_size_t next_{INVALID_ID};
+    mutable std::mutex page_mtx_{};
 };
 
 template <size_t page_size>

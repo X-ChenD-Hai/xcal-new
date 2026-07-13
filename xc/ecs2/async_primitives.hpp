@@ -14,6 +14,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <print>
 #include <ranges>
 #include <thread>
 #include <tuple>
@@ -551,6 +552,99 @@ struct WhenAll : public MoveAsWaitable<WhenAll<T>> {
     WhenAll(std::vector<T>&& view) : view(std::move(view)) {}
 
     std::vector<T> view{};
+};
+template <typename T>
+struct Select {
+    using wait_value_t = T::wait_type;
+    using resume_t = resume_type<wait_value_t>;
+    using resume_value_t =
+        std::conditional_t<std::is_lvalue_reference_v<resume_t>, resume_t,
+                           std::decay_t<resume_t>>;
+    using channel_t = Channel<resume_value_t, 16>;
+    struct wait_type {
+        template <IsPromise P>
+        wait_type(Select&& o, SystemScheduler* scheduler,
+                  std::coroutine_handle<P> handle)
+            : o(std::move(o)) {
+            o.token.inc_expected();
+            auto sys = o.run_sys(o.view_, o.channel_.get(), o.token);
+            sys.state_->promise->set_scheduler(scheduler);
+            scheduler->submit_task(ResumeUntilOnceTask{sys.state_->promise});
+        }
+        constexpr bool await_ready() noexcept { return true; }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {}
+        Select&& await_resume() noexcept { return std::move(o); }
+        Select&& o;
+    };
+
+    template <IsPromise P>
+    wait_type get_awaitable(SystemScheduler* scheduler,
+                            std::coroutine_handle<P> handle) && {
+        return wait_type(std::move(*this), scheduler, handle);
+    }
+
+    static Future<size_t> worker(channel_t* channel,
+                                 structure::ConsumeToken<> token,
+                                 std::vector<T>& view, size_t id) {
+        auto cs = token.lock();
+        if (!cs) co_return id;
+        co_await channel->send(std::move(co_await view[id]));
+        co_return id;
+    }
+    static System run_sys(std::vector<T> view, channel_t* channel,
+                          structure::ConsumeToken<> token) {
+        auto cs = token.lock();
+        if (!cs) co_return;
+        auto v = std::vector<Future<size_t>>();
+        token.inc_expected(view.size());
+        for (size_t i = 0; i < view.size(); i++) {
+            v.emplace_back(worker(channel, token, view, i));
+        }
+        cs.release();
+        co_await WhenAll{v};
+    }
+
+    struct SelectWait {
+        SelectWait(Select& o) : o(o), r(o.channel_->recv()) {}
+        constexpr bool await_ready() noexcept { return r.await_ready(); }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {
+            r.await_suspend(handle);
+        }
+        decltype(auto) await_resume() noexcept {
+            auto v = r.await_resume();
+            if (!v.has_value()) return v;
+            if (o.remain_count_->fetch_sub(1, std::memory_order_acq_rel) == 1)
+                o.channel_->close();
+            return v;
+        }
+
+        Select& o;
+        channel_t::TryRecvWait r;
+    };
+
+    auto select() { return SelectWait(*this); }
+
+    Select(std::vector<T>&& view)
+        : channel_(std::make_unique<channel_t>()),
+          remain_count_(std::make_unique<std::atomic_size_t>(view.size())),
+          view_(std::move(view)) {
+        remain_count_->store(view_.size());
+    }
+    Select(std::vector<T>& view) : Select(std::move(view)) {}
+    Select() = default;
+    Select(Select&&) = default;
+    ~Select() {
+        if (channel_) channel_->close();
+        if (token) token.comsume_all();
+    }
+
+    structure::ConsumeToken<> token{0};
+    std::unique_ptr<channel_t> channel_{std::make_unique<channel_t>()};
+    std::unique_ptr<std::atomic_size_t> remain_count_{
+        std::make_unique<std::atomic_size_t>(0)};
+    std::vector<T> view_{};
 };
 
 }  // namespace xc::ecs

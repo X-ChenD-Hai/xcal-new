@@ -1,8 +1,10 @@
 #pragma once
+#include <atomic>
 #include <deque>
+
+#include "promise.hpp"
 #include "structure/consume_token.hpp"
 #include "structure/ring_buffer.hpp"
-#include "promise.hpp"
 #include "system.hpp"
 
 namespace xc::ecs {
@@ -29,6 +31,7 @@ class Channel {
        public:
         TryRecvWait(Channel& ch) : channel(ch) {}
         constexpr bool await_ready() noexcept {
+            if (channel.closed_.load(std::memory_order_acquire)) return true;
             v = channel.try_recv();
             return v.has_value();
         }
@@ -71,6 +74,7 @@ class Channel {
        public:
         TrySendWait(Channel& ch, T&& value);
         constexpr bool await_ready() noexcept {
+            if (channel.closed_.load(std::memory_order_acquire)) return true;
             return sended_ = channel.try_send(value);
         }
         template <IsPromise P>
@@ -98,7 +102,10 @@ class Channel {
         recv_flag_.clear();
         send_flag_.clear();
     }
-    ~Channel() { consume_token.comsume_all(); }
+    ~Channel() {
+        close();
+        consume_token.comsume_all();
+    }
 
     TryRecvWait recv() { return TryRecvWait(*this); }
     template <typename... Args>
@@ -110,8 +117,8 @@ class Channel {
     bool try_send(T& value);
 
    protected:
-    void remove_send(TrySendWait* p) {
-        auto cs = consume_token.lock();
+    void remove_send(TrySendWait* p, structure::ConsumeToken<> token) {
+        auto cs = token.lock();
         if (!cs) return;
         while (send_flag_.test_and_set());
         auto it = std::find(send_promises_.begin(), send_promises_.end(), p);
@@ -123,8 +130,8 @@ class Channel {
         p->promise->async_end_wait();
     }
 
-    void remove_recv(TryRecvWait* p) {
-        auto cs = consume_token.lock();
+    void remove_recv(TryRecvWait* p, structure::ConsumeToken<> token) {
+        auto cs = token.lock();
         if (!cs) return;
         while (recv_flag_.test_and_set());
         auto it = std::find(recv_promises_.begin(), recv_promises_.end(), p);
@@ -148,7 +155,9 @@ class Channel {
         if (with_timeout_) {
             consume_token.inc_expected();
             p->promise->submit_timeout_task(
-                FuncTask{std::bind(&Channel::remove_recv, this, p)}, until);
+                FuncTask{
+                    std::bind(&Channel::remove_recv, this, p, consume_token)},
+                until);
         }
         notify_sender();
     }
@@ -165,7 +174,9 @@ class Channel {
         if (with_timeout_) {
             consume_token.inc_expected();
             p->promise->submit_timeout_task(
-                FuncTask{std::bind(&Channel::remove_send, this, p)}, until);
+                FuncTask{
+                    std::bind(&Channel::remove_send, this, p, consume_token)},
+                until);
         }
         remain_msg_count_.fetch_add(1, std::memory_order_release);
         notify_recv();
@@ -221,6 +232,7 @@ class Channel {
 
    public:
     void close() {
+        if (closed_.load(std::memory_order_acquire)) return;
         // 1. 先尝试将消息发送给等待的接收者
         // 循环直到：消息为空 OR 接收者为空
         while (true) {
