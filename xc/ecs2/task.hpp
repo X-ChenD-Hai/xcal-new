@@ -1,14 +1,11 @@
 #pragma once
-#include <array>
 #include <atomic>
 #include <concepts>
-#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string_view>
 #include <type_traits>
 #include <variant>
-#include <vector>
 
 #include "config.hpp"
 #include "promise.hpp"
@@ -62,7 +59,7 @@ class CancelAbleTask {
     CancelAbleTask() = delete;
     CancelAbleTask(Task&& task) : task_(std::move(task)) {}
     CancelAbleTask(Task&& task, const CancelToken& token)
-        : task_(std::move(task)), token_(token) {}
+        : token_(token), task_(std::move(task)) {}
     CancelToken token() const { return token_; }
     void set_parent(BasePromise* parent) { task_.set_parent(parent); }
     void operator()() {

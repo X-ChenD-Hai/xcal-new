@@ -6,7 +6,6 @@
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <thread>
 #include <vector>
 
 namespace xc::ecs::structure {
@@ -16,7 +15,7 @@ class ConsumeTokenPool;
 template <size_t page_size = 512>
 struct ConsumeTokenSlot;
 template <size_t page_size = 512>
-struct Consumer;
+class Consumer;
 template <size_t page_size = 512>
 class ConsumeToken;
 template <size_t page_size>
@@ -108,7 +107,7 @@ class Consumer {
 
    public:
     Consumer(const ConsumeToken<page_size>& token, size_t id)
-        : token_(token), id_(id) {
+        :  id_(id),token_(token) {
         if (id != INVALID_ID)
             token_.slot_->consuming_count.fetch_add(1,
                                                     std::memory_order_relaxed);

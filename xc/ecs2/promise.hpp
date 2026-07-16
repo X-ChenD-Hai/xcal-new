@@ -1,15 +1,12 @@
 #pragma once
 #include <atomic>
 #include <cassert>
-#include <concepts>
 #include <coroutine>
-#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <functional>
 #include <limits>
 #include <memory>
-#include <print>
 #include <type_traits>
 #include <utility>
 
@@ -173,7 +170,6 @@ class Promise : public BasePromise {
         if constexpr (is_waitable<T>) {
             return std::forward<T>(t);
         } else {
-            using Tp = std::decay_t<T>;
             if constexpr (is_waitable<decltype(std::forward<T>(t).get_awaitable(
                               scheduler_, handle()))>) {
                 return std::forward<T>(t).get_awaitable(scheduler_, handle());

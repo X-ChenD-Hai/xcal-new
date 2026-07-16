@@ -44,7 +44,8 @@ struct Event {
     // bool ()
 };
 class EventPublisher;
-struct EventListener {
+class EventListener {
+   public:
     EventListener(const EventListener&) = default;
     EventListener(EventListener&&) = default;
     EventListener& operator=(const EventListener&) = default;
@@ -54,7 +55,8 @@ struct EventListener {
     virtual ~EventListener();
 };
 
-struct EventPublisher {
+class EventPublisher {
+   public:
     friend class EventListener;
     friend class ApplicationLoader;
 
