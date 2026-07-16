@@ -118,3 +118,20 @@ elseif(XC_OpenGL_Loader STREQUAL "glbinding")
 else()
     message(FATAL_ERROR "Unknown OpenGL loader: ${XC_OpenGL_Loader}")
 endif()
+
+FetchContent_Declare(
+    webgpu
+    GIT_REPOSITORY https://github.com/eliemichel/WebGPU-distribution
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(webgpu)
+
+
+FetchContent_Declare(
+    GLFW3WGPU
+    GIT_REPOSITORY https://github.com/eliemichel/glfw3webgpu.git
+    GIT_TAG main
+    SYSTEM
+)
+FetchContent_MakeAvailable(GLFW3WGPU)
+
