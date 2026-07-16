@@ -1,5 +1,31 @@
 include(FetchContent)
 FetchContent_Declare(
+    webgpu
+    URL https://github.com/gfx-rs/wgpu-native/releases/download/v27.0.4.1/wgpu-windows-x86_64-msvc-debug.zip
+)
+FetchContent_MakeAvailable(webgpu)
+
+find_library(
+    wgpu_native
+    NAMES wgpu_native
+    PATHS ${webgpu_SOURCE_DIR}/lib
+    NO_DEFAULT_PATH
+)
+
+if(NOT wgpu_native)
+    message(FATAL_ERROR "webgpu not found")
+    else()
+    message(STATUS "find wgpu_native: ${wgpu_native}")
+endif()
+
+add_library(webgpu UNKNOWN IMPORTED)
+set_target_properties(webgpu PROPERTIES
+    IMPORTED_LOCATION ${wgpu_native}
+    IMPORTED_INCLUDE_DIRECTORIES ${webgpu_SOURCE_DIR}/include
+    IMPORTED_LIBRARY_DIRECTORIES ${webgpu_SOURCE_DIR}/lib
+)
+target_include_directories(webgpu INTERFACE ${webgpu_SOURCE_DIR}/include)
+FetchContent_Declare(
     tiny_process_library
     GIT_REPOSITORY https://gitlab.com/eidheim/tiny-process-library.git
     GIT_TAG v2.0.4
@@ -120,18 +146,9 @@ else()
 endif()
 
 FetchContent_Declare(
-    webgpu
-    GIT_REPOSITORY https://github.com/eliemichel/WebGPU-distribution
-    GIT_TAG main
-)
-FetchContent_MakeAvailable(webgpu)
-
-
-FetchContent_Declare(
     GLFW3WGPU
     GIT_REPOSITORY https://github.com/eliemichel/glfw3webgpu.git
-    GIT_TAG main
+    GIT_TAG  v1.3.0-alpha
     SYSTEM
 )
 FetchContent_MakeAvailable(GLFW3WGPU)
-

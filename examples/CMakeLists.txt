@@ -1,3 +1,4 @@
 add_subdirectory(ecs2_dev)
 add_subdirectory(glfw_opengl)
 add_subdirectory(glfw_imgui_game)
+add_subdirectory(glfw_wgpu)

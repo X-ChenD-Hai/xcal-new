@@ -27,3 +27,4 @@ target("imgui-node-editor")
     add_includedirs("imgui")
 
 includes("xcmath")
+includes("webgpu")

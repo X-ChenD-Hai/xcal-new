@@ -1,5 +1,10 @@
 xc_add_header_library(libxc common)
-xc_add_header_library(log log)
+add_library(xc-log INTERFACE)
+add_library(xc::log ALIAS xc-log)
+target_include_directories(xc-log INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/log>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/log>
+)
 xc_add_header_library(ecs2 ecs2)
 
 xc_add_static_library(cmdline cmdline)
@@ -14,6 +19,7 @@ if(XC_OpenGL_Loader STREQUAL "glbinding")
 elseif(XC_OpenGL_Loader STREQUAL "glad")
     target_compile_definitions(opengl_wrapper PUBLIC USE_GLAD)
 endif()
+
 xc_add_static_library(xcal xcal
     EXCLUDE_PATH "xcal/render/backend"
     PUBLIC_LINK
@@ -27,8 +33,7 @@ xc_add_static_library(ui ui
     PUBLIC_LINK libxc xc::ecs xc::event xcmath::xcmath
     PRIVATE_LINK glfw opengl_wrapper
     PRIVATE_INCLUDE ${imgui_INCDIR}
-    EXTSRC 
-    ${imgui_SOURCES} ${imgui_glfw_BACKEND_SOURCES} 
+    EXTSRC
+    ${imgui_SOURCES} ${imgui_glfw_BACKEND_SOURCES}
     ${imgui_opengl3_BACKEND_SOURCES}
 )
-

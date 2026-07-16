@@ -3,8 +3,8 @@
 #include <xc/ecs/command/command.hpp>
 #include <xc/ecs/command_submit.hpp>
 #include <xc/ecs/event_bus.hpp>
-#include <xc/ecs/world.hpp>
 #include <xc/ecs/types.hpp>
+#include <xc/ecs/world.hpp>
 
 struct GLFWwindow;
 namespace glfw_support {
