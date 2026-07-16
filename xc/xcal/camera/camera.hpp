@@ -1,6 +1,6 @@
 #pragma once
-#include <xcmath/xcmath.hpp>
 #include <xc/ecs/types.hpp>
+#include <xcmath/xcmath.hpp>
 namespace ecs {
 class World;
 class ResourceTable;

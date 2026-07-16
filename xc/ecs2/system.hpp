@@ -26,7 +26,7 @@ class System {
     };
     System(std::shared_ptr<PromiseState> state) noexcept : state_(state) {
         _SCHEDULER_DEBUG("construct system {} @ {}", (void*)this,
-                         (void*)handle.address());
+                         (void*)state_->promise);
     }
     ~System();
     std::shared_ptr<PromiseState> state_{};
@@ -46,6 +46,6 @@ class SystemPromise : public Promise<SystemPromise> {
 };
 inline System::~System() {
     _SCHEDULER_DEBUG("destroy system {} @ {}", (void*)this,
-                     (void*)handle.address());
+                     (void*)(state_ ? state_->promise : nullptr));
 }
 }  // namespace xc::ecs

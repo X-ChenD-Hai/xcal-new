@@ -646,5 +646,140 @@ struct Select {
         std::make_unique<std::atomic_size_t>(0)};
     std::vector<T> view_{};
 };
+template <typename T>
+class RadioStation {
+    using buffer_t = structure::RingBuffer<T, 64>;
 
+   public:
+    struct Subscriber : public std::enable_shared_from_this<Subscriber> {
+        friend RadioStation<T>;
+        Subscriber(structure::ConsumeToken<> stop_token)
+            : stop_token_(stop_token) {}
+        struct ListenWait {
+            ListenWait(Subscriber& sub)
+                : sub_(sub), ready_(std::make_unique<std::atomic_flag>()) {
+                ready_->clear();
+            }
+
+            // Explicit move constructor - must be defined since we have reference member
+            ListenWait(ListenWait&& o) noexcept
+                : value_(std::move(o.value_))
+                , ready_(std::move(o.ready_))
+                , state_(std::move(o.state_))
+                , sub_(o.sub_) {}
+
+            // Delete copy operations
+            ListenWait(const ListenWait&) = delete;
+            ListenWait& operator=(const ListenWait&) = delete;
+            ListenWait& operator=(ListenWait&&) = delete;
+
+            bool await_ready() {
+                ready_->clear();
+                value_ = sub_.buffer_.try_dequeue();
+                auto ready = value_.has_value() || sub_.is_closed();
+                if (ready) ready_->test_and_set();
+                return ready;
+            }
+            template <IsPromise P>
+            void await_suspend(std::coroutine_handle<P> handle) noexcept {
+                state_ = handle.promise().state();
+                handle.promise().begin_wait();
+                sub_.notify(this);
+            }
+            std::optional<T> await_resume() {
+                while (!ready_->test_and_set() && !sub_.is_closed()) {
+                    ready_->clear();
+                    std::this_thread::yield();
+                }
+                return value_;
+            }
+
+            void resume() {
+                if (auto s = state_.lock()) {
+                    s->promise->async_end_wait();
+                }
+            }
+
+            std::optional<T> value_{std::nullopt};
+            std::unique_ptr<std::atomic_flag> ready_{};
+            std::weak_ptr<PromiseState> state_{};
+            Subscriber& sub_;
+        };
+
+        ListenWait listen() { return ListenWait(*this); }
+        bool is_closed() { return stop_token_.remaining() == 0; }
+        ~Subscriber() {}
+
+       protected:
+        bool notify(ListenWait* replacement = nullptr) {
+            auto expected = waiter_.load(std::memory_order_relaxed);
+            auto to_resume = expected;
+            do {
+                if (expected == replacement) return false;
+                to_resume = expected;
+            } while (waiter_.compare_exchange_strong(
+                expected, replacement, std::memory_order_acq_rel,
+                std::memory_order_acquire));
+            if (to_resume == nullptr) return false;
+            do to_resume->value_ = buffer_.try_dequeue();
+            while (!to_resume->value_.has_value() && !buffer_.empty());
+            to_resume->ready_->test_and_set();
+            to_resume->resume();
+            return true;
+        }
+        void push(const T& v) {
+            if (buffer_.try_enqueue(v)) {
+                notify();
+                return;
+            }
+            if (!notify() && buffer_.full()) buffer_.try_dequeue();
+            return push(v);
+        }
+
+       protected:
+        buffer_t buffer_{};
+        structure::ConsumeToken<> stop_token_{};
+        std::atomic<ListenWait*> waiter_{nullptr};
+    };
+
+    std::shared_ptr<Subscriber> subscribe() {
+        auto v = std::make_shared<Subscriber>(stop_token_);
+        while (subscribers_flag_.test_and_set(std::memory_order_acq_rel));
+        subscribers_.push_back(v);
+        subscribers_flag_.clear(std::memory_order_release);
+        return v;
+    }
+    size_t publish(const T& v) {
+        if (is_closed()) return 0;
+        while (subscribers_flag_.test_and_set(std::memory_order_acq_rel));
+        auto c = 0;
+        for (auto& s : subscribers_) {
+            auto p = s.lock();
+            if (!p) continue;
+            p->push(v);
+            ++c;
+        }
+        subscribers_flag_.clear(std::memory_order_release);
+        return c;
+    }
+    void close() {
+        stop_token_.comsume_all();
+        while (subscribers_flag_.test_and_set(std::memory_order_acq_rel));
+        for (auto& s : subscribers_) {
+            auto p = s.lock();
+            if (!p) continue;
+            p->notify();
+        }
+        subscribers_.clear();
+        subscribers_flag_.clear();
+    }
+
+    ~RadioStation() { close(); }
+    bool is_closed() const { return stop_token_.remaining() == 0; }
+
+   private:
+    std::vector<std::weak_ptr<Subscriber>> subscribers_{};
+    std::atomic_flag subscribers_flag_{};
+    structure::ConsumeToken<> stop_token_{1};
+};
 }  // namespace xc::ecs

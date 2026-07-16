@@ -107,11 +107,11 @@ class BasePromise {
     void begin_wait() {
         state_->remain_task_count.fetch_add(1, std::memory_order_acq_rel);
         _SCHEDULER_DEBUG("{} begin wait remain {}", (void*)this,
-                         remain_task_count_.load());
+                         state_->remain_task_count.load());
     }
     void end_wait() {
         _SCHEDULER_DEBUG("{} end wait remain {}", (void*)this,
-                         remain_task_count_.load());
+                         state_->remain_task_count.load());
         if (state_->remain_task_count.fetch_sub(1, std::memory_order_acq_rel) ==
             1) {
             _SCHEDULER_DEBUG("{} end wait toggle resume", (void*)this);
@@ -144,10 +144,10 @@ class BasePromise {
             assert("task is done" && !done());
             handle().resume();
             _SCHEDULER_DEBUG("resume {} success from until once handle",
-                             (void*)promise);
+                             (void*)this);
         } catch (...) {
             set_exception(std::current_exception());
-            _SCHEDULER_DEBUG("catch exception in {}", (void*)promise);
+            _SCHEDULER_DEBUG("catch exception in {}", (void*)this);
         }
     }
     bool done() const {

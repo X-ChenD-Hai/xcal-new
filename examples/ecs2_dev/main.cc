@@ -290,6 +290,50 @@ System test_select() {
     co_return;
 }
 
+System test_radio_station() {
+    RadioStation<int> a{};
+    using namespace std::chrono_literals;
+    std::println("closed {}", a.is_closed());
+
+    auto consumer = [&]() -> Future<int> {
+        std::println("start consumer");
+        auto sub = a.subscribe();
+        auto res = 0;
+        while (1) {
+            auto v = co_await sub->listen();
+            if (!v.has_value()) {
+                if (sub->is_closed()) break;
+                std::println("invald value");
+                continue;
+            }
+            res += v.value();
+            if (v.value() == 0) break;
+        }
+        std::println("close consumer");
+        co_return res;
+    };
+    auto producer = [&]() -> Future<int> {
+        co_await Sleep{1ms};
+        std::println("start producer");
+        size_t count = 500;
+        auto res = 0;
+        for (size_t i = count; i > 0; --i) {
+            auto c = a.publish(i);
+            res += c;
+        }
+        auto c = a.publish(0);
+        co_await Sleep{1ms};
+        a.close();
+        std::println("producer end");
+        co_return res;
+    };
+
+    auto v = co_await Join{consumer(), producer(), consumer()};
+    std::println("v: {}", v);
+
+    co_return;
+}
+
 void run_system() {
     utility::ClockRecord app_record;
     app_record.record();
@@ -308,7 +352,12 @@ void run_system() {
 
         std::println("start workers use {} ms", clock_record.duration_ms());
         clock_record.record();
-        const auto test_count = 10000;
+        // const auto test_count = 1000000;
+        const auto test_count = 100000;
+        // const auto test_count = 10000;
+        // const auto test_count = 1000;
+        // const auto test_count = 100;
+        // const auto test_count = 10;
         // const auto test_count = 1;
         try {
             for (size_t i = 0; i < test_count; ++i) {
@@ -332,8 +381,10 @@ void run_system() {
                 // scheduler.add_system(test_channel_future_join());
                 // // ok
                 // scheduler.add_system(test_channel_close());
+                // // ok
+                // scheduler.add_system(test_select());
                 // ok
-                scheduler.add_system(test_select());
+                scheduler.add_system(test_radio_station());
             }
             scheduler.update();
         } catch (std::exception e) {

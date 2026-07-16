@@ -279,7 +279,7 @@ class SystemScheduler {
             std::remove_if(systems_instencees_.begin(),
                            systems_instencees_.end(),
                            [&](std::unique_ptr<System>& sys) {
-                               return sys->state_.use_count() == 1;
+                               return sys->state_->done();
                            }),
             systems_instencees_.end());
         sys_flag_.clear();
@@ -301,8 +301,8 @@ class SystemScheduler {
 
 inline void BasePromise::submit_task(task_t&& task) {
     begin_wait();
-    _SCHEDULER_DEBUG("submit {} {} remain {}", task_type(task),
-                     handle_.address(), remain_task_count_.load());
+    _SCHEDULER_DEBUG("submit {} {} remain {}", task_type(task), (void*)this,
+                     state_->remain_task_count.load());
     std::visit([&](auto& t) { t.set_parent(this); }, task);
     scheduler()->submit_task(std::move(task));
 }
