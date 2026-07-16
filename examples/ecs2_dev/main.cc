@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
-#include <future>
 #include <optional>
 #include <print>
 #include <ranges>
@@ -128,12 +127,12 @@ System test_join_func_future() {
     std::println("test_join_func_future");
     Future f1{[]() { return 1; }};
     Future f2{[]() { return 2; }};
-    Future f3{[]() { return 3; }};
-    Future f4{[]() { return 4; }};
+    Future f3{[]() { std::println("f3"); }};
+    Future f4{[]() { std::println("f4"); }};
     auto v1 = co_await f1;
     auto v2 = co_await f2;
-    auto v3 = co_await f3;
-    auto v4 = co_await f4;
+    co_await f3;
+    co_await f4;
     std::println("v1 = {}, v2 = {}", v1, v2);
     Future f11{[]() { return 11; }};
     Future f12{[]() { return 12; }};
@@ -151,8 +150,7 @@ System test_join_async_and_func_future() {
     std::println("v111 = {}, v12 = {}, v13 = {}, v14 = {}", v11, v12, v13, v14);
     Future ff12{[]() { return 12; }};
     Future ff13{[]() { return 13; }};
-    auto [f11, f12, f13, f14] =
-        co_await (future3(3) && ff13 && future1(1) && ff12);
+    co_await (future3(3) && ff13 && future1(1) && ff12);
     std::println("f111 = {}, f12 = {}, f13 = {}, f14 = {}", v11, v12, v13, v14);
 
     co_return;
@@ -190,7 +188,7 @@ System test_when_all_async_future() {
     co_return;
 }
 using channel_t = Channel<int, 16>;
-Future<int> producer(channel_t& ch) {
+Future<> producer(channel_t& ch) {
     using namespace std::chrono_literals;
     for (size_t i = 0; i < 10; i++) {
         std::println("send {}", i);
@@ -200,10 +198,8 @@ Future<int> producer(channel_t& ch) {
             std::println("send timeout");
         }
     }
-
-    co_return 0;
 }
-Future<int> consumer(channel_t& ch) {
+Future<> consumer(channel_t& ch) {
     using namespace std::chrono_literals;
     for (size_t i = 0; i < 10; i++) {
         auto v = co_await ch.recv().until(1s);
@@ -212,24 +208,23 @@ Future<int> consumer(channel_t& ch) {
         else
             std::println("recv timeout");
     }
-    co_return 0;
 }
 
 System test_channel_future_when_all() {
     std::println("test_channel");
     channel_t ch;
-    auto v = std::vector<Future<int>>{};
+    auto v = std::vector<Future<>>{};
     v.emplace_back(producer(ch));
     v.emplace_back(consumer(ch));
-    auto q = co_await WhenAll{v};
-    std::println("q = {}", q);
+    co_await WhenAll{v};
+    std::println("when all done");
     co_return;
 }
 System test_channel_future_join() {
     std::println("test_channel");
     channel_t ch;
-    auto q = co_await (producer(ch) && consumer(ch));
-    std::println("q = {}", q);
+    co_await (producer(ch) && consumer(ch));
+    std::println("join done");
     co_return;
 }
 

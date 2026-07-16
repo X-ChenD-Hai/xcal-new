@@ -1,4 +1,5 @@
 xc_add_header_library(libxc common)
+xc_add_header_library(log log)
 xc_add_header_library(ecs2 ecs2)
 
 xc_add_static_library(cmdline cmdline)

@@ -9,12 +9,10 @@
 #include <coroutine>
 #include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <functional>
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <print>
 #include <ranges>
 #include <thread>
 #include <tuple>
@@ -29,7 +27,6 @@
 #include "config.hpp"
 #include "promise.hpp"
 #include "structure/consume_token.hpp"
-#include "structure/ring_buffer.hpp"
 #include "system.hpp"
 #include "worker.hpp"
 
@@ -158,7 +155,7 @@ auto operator&&(A&& a, B&& b) -> decltype(auto) {
     return Join{std::forward<A>(a), std::forward<B>(b)};
 }
 
-template <typename T, bool = false>
+template <typename T = void, bool = false>
 struct Future;
 template <typename T>
 struct Future<T, true> final : public MoveAsWaitable<Future<T, true>> {
@@ -181,21 +178,27 @@ struct Future<T, true> final : public MoveAsWaitable<Future<T, true>> {
             handle.promise().submit_task(FuncTask{[this]() {
                 try {
                     assert(future_.fn_ && "future fn is null");
-                    future_.value_ = future_.fn_();
+                    if constexpr (std::is_void_v<T>) {
+                        future_.fn_();
+                        future_.value_ = true;
+                    } else
+                        future_.value_ = future_.fn_();
                 } catch (...) {
                     future_.exception_ = std::current_exception();
                 }
             }});
         }
 
-        T&& await_resume() { return std::move(future_).value(); }
+        decltype(auto) await_resume() {
+            if constexpr (!std::is_void_v<T>) return std::move(future_).value();
+        }
         Future future_;
     };
 
    public:
-    T&& value() && {
+    decltype(auto) value() && {
         if (exception_) std::rethrow_exception(exception_);
-        return std::move(value_).value();
+        if constexpr (!std::is_void_v<T>) return std::move(value_).value();
     }
 
    public:
@@ -205,7 +208,8 @@ struct Future<T, true> final : public MoveAsWaitable<Future<T, true>> {
     Future& operator=(const Future&) = delete;
 
    private:
-    std::optional<T> value_{std::nullopt};
+    std::optional<std::conditional_t<std::is_void_v<T>, bool, T>> value_{
+        std::nullopt};
     std::exception_ptr exception_{nullptr};
     function_t fn_{};
 };
@@ -216,33 +220,44 @@ class FutureWait;
 template <typename T>
 using future_handle_t = std::coroutine_handle<FuturePromise<T>>;
 template <typename T>
-class Future<T, false> final : public MoveAsWaitable<Future<T, false>> {
+struct FutureImpl {
+    std::shared_ptr<PromiseState> state_{nullptr};
+    std::shared_ptr<std::optional<T>> value_{
+        std::make_shared<std::optional<T>>()};
+};
+template <>
+struct FutureImpl<void> {
+    std::shared_ptr<PromiseState> state_{nullptr};
+    std::shared_ptr<std::optional<bool>> finished_{
+        std::make_shared<std::optional<bool>>()};
+};
+template <typename T>
+struct Future<T, false> final : public MoveAsWaitable<Future<T, false>> {
    public:
     friend FuturePromise<T>;
     friend FutureWait<T>;
     using promise_type = FuturePromise<T>;
     using wait_type = FutureWait<T>;
     Future() = default;
-    Future(future_handle_t<T> handle, std::shared_ptr<std::optional<T>> v)
-        : state_(handle.promise().state()), value_(v) {
-        assert(state_ && "future state is null");
+    Future(FutureImpl<T>&& impl) : impl_(std::move(impl)) {
+        assert(impl_.state_ && "future state is null");
     }
-    T& value() {
-        assert(value_ && "value is null");
-        return value_->value();
+    decltype(auto) value() {
+        if constexpr (!std::is_void_v<T>) {
+            return impl_.value_->value();
+        }
     }
     ~Future() {
-        if (state_) {
-            assert("future is submitted but not done" &&
-                   (state_->done() || state_->remain_task_count.load(
-                                          std::memory_order_acquire) == 0));
+        if (impl_.state_) {
+            assert(
+                "future is submitted but not done" &&
+                (impl_.state_->done() || impl_.state_->remain_task_count.load(
+                                             std::memory_order_acquire) == 0));
         }
     }
 
    private:
-    std::shared_ptr<PromiseState> state_{nullptr};
-    std::shared_ptr<std::optional<T>> value_{
-        std::make_shared<std::optional<T>>()};
+    FutureImpl<T> impl_;
 };
 template <typename T>
 class FutureWait {
@@ -261,14 +276,19 @@ class FutureWait {
     void await_suspend(handle_t<P> handle) {
         _SCHEDULER_DEBUG("future {} suspend",
                          (void*)&future_.handle_.promise());
-        assert(future_.state_ && future_.state_->promise &&
+        assert(future_.impl_.state_ && future_.impl_.state_->promise &&
                "future state is null or promise is null");
-        handle.promise().add_child(*future_.state_->promise);
+        handle.promise().add_child(*future_.impl_.state_->promise);
     }
-    T&& await_resume() {
+    decltype(auto) await_resume() {
         _SCHEDULER_DEBUG("future {} resume", (void*)&future_.handle_.promise());
-        assert("future is not done" && future_.state_->promise == nullptr);
-        return std::move(future_.value());
+        assert("future is not done" &&
+               future_.impl_.state_->promise == nullptr);
+        if constexpr (std::is_void_v<T>) {
+            return future_.value();
+        } else {
+            return std::move(future_.value());
+        }
     }
     ~FutureWait() = default;
     Future<T, false> future_{};
@@ -282,9 +302,12 @@ class FuturePromise : public Promise<FuturePromise<T>> {
         _SCHEDULER_DEBUG("future get_return_object {}", (void*)this);
         auto v{std::make_shared<std::optional<T>>()};
         value_ = v;
-        return Future<T, false>{Super::init_handle(), v};
+        Super::init_handle();
+        return Future<T, false>{FutureImpl<T>{this->state_, v}};
     }
-    void return_value(T&& v) {
+    void return_value(T&& v)
+        requires(!std::is_void_v<T>)
+    {
         if (value_.use_count()) {
             *value_.lock() = std::move(v);
         }
@@ -293,6 +316,27 @@ class FuturePromise : public Promise<FuturePromise<T>> {
 
    private:
     std::weak_ptr<std::optional<T>> value_{};
+};
+template <>
+class FuturePromise<void> : public Promise<FuturePromise<void>> {
+    using Super = Promise<FuturePromise<void>>;
+
+   public:
+    Future<void, false> get_return_object() {
+        _SCHEDULER_DEBUG("future get_return_object {}", (void*)this);
+        auto v{std::make_shared<std::optional<bool>>()};
+        value_ = v;
+        return Future<void, false>{FutureImpl<void>{this->state_, v}};
+    }
+    void return_void() {
+        if (value_.use_count()) {
+            *value_.lock() = true;
+        }
+    }
+    ~FuturePromise() {}
+
+   private:
+    std::weak_ptr<std::optional<bool>> value_{};
 };
 
 template <typename Fn, typename Rtp = std::invoke_result_t<Fn>>
@@ -539,10 +583,16 @@ struct WhenAll : public MoveAsWaitable<WhenAll<T>> {
             }
         }
         decltype(auto) await_resume() noexcept {
-            return wait_objects_ | std::views::transform([](auto&& v) {
-                       return v.await_resume();
-                   }) |
-                   std::ranges::to<std::vector>();
+            if constexpr (std::is_void_v<resume_value_t>) {
+                for (auto& v : wait_objects_) {
+                    v.await_resume();
+                }
+            } else {
+                return wait_objects_ | std::views::transform([](auto&& v) {
+                           return v.await_resume();
+                       }) |
+                       std::ranges::to<std::vector>();
+            }
         }
         std::vector<wait_value_t> wait_objects_{};
         std::vector<size_t> unready_indices{};
