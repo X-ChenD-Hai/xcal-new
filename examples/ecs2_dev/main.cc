@@ -351,7 +351,7 @@ void test_ring_buffer() {
     const size_t consumer_count = 5;
     const size_t count_per_producer = 10000;
     const size_t expect_count = producer_count * count_per_producer;
-    std::atomic_size_t comsumed = 0;
+    std::atomic_size_t consumed = 0;
 
     std::vector<std::jthread> producer_threads;
     std::vector<std::jthread> consumer_threads;
@@ -374,12 +374,12 @@ void test_ring_buffer() {
         consumer_threads.emplace_back([&, i]() {
             int v;
             size_t c{0};
-            while (expect_count != comsumed.load(std::memory_order_relaxed)) {
+            while (expect_count != consumed.load(std::memory_order_relaxed)) {
                 using namespace std::chrono_literals;
                 // std::println("try_dequeue");
                 while (buffer.try_dequeue(v)) {
                     // std::println("consume {}", v);
-                    comsumed.fetch_add(1, std::memory_order_relaxed);
+                    consumed.fetch_add(1, std::memory_order_relaxed);
                     ++c;
                     std::this_thread::sleep_for(
                         std::chrono::microseconds{std::rand() % 10});
@@ -395,7 +395,7 @@ void test_ring_buffer() {
     for (auto& t : consumer_threads) {
         t.join();
     }
-    std::println("comsumed = {}", comsumed.load(std::memory_order_relaxed));
+    std::println("consumed = {}", consumed.load(std::memory_order_relaxed));
     std::println("expect_count = {}", expect_count);
 }
 

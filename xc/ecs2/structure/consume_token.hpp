@@ -37,6 +37,7 @@ class ConsumeToken {
     friend class Consumer<page_size>;
 
    public:
+    using Consumer = Consumer<page_size>;
     ConsumeToken(const ConsumeToken& other) : slot_(other.slot_) {
         slot_->ref_count.fetch_add(1, std::memory_order_relaxed);
     }
@@ -88,13 +89,16 @@ class ConsumeToken {
         if (!slot_) return 0;
         return slot_->consuming_count.load(std::memory_order_acquire);
     }
-    void comsume_all() {
+    void consume_all() {
         if (!slot_) return;
         while (consume());
         while (consuming_count());
     }
+    size_t ref_count() const noexcept {
+        return slot_->ref_count.load(std::memory_order_acquire);
+    }
 
-    Consumer<page_size> lock();
+    Consumer lock();
 
    private:
     ConsumeTokenSlot<page_size>* slot_{nullptr};
@@ -106,6 +110,7 @@ class Consumer {
     static constexpr size_t INVALID_ID = std::numeric_limits<size_t>::max();
 
    public:
+    using Token = ConsumeToken<page_size>;
     Consumer(const ConsumeToken<page_size>& token, size_t id)
         : id_(id), token_(token) {
         if (id != INVALID_ID)
@@ -114,6 +119,9 @@ class Consumer {
     }
     ~Consumer() { release(); }
     size_t id() const { return id_; }
+
+    const Token& token() const noexcept { return token_; }
+
     operator bool() { return id_ != INVALID_ID; }
 
     void release() {

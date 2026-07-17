@@ -101,7 +101,7 @@ class Channel {
     }
     ~Channel() {
         close();
-        consume_token.comsume_all();
+        consume_token.consume_all();
     }
     TryRecvWait recv() { return TryRecvWait(*this); }
     template <typename... Args>

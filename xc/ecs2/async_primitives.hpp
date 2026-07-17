@@ -12,6 +12,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <ranges>
 #include <thread>
@@ -326,6 +327,7 @@ class FuturePromise<void> : public Promise<FuturePromise<void>> {
         _SCHEDULER_DEBUG("future get_return_object {}", (void*)this);
         auto v{std::make_shared<std::optional<bool>>()};
         value_ = v;
+        Super::init_handle();
         return Future<void, false>{FutureImpl<void>{this->state_, v}};
     }
     void return_void() {
@@ -687,7 +689,7 @@ struct Select {
     Select(Select&&) = default;
     ~Select() {
         if (channel_) channel_->close();
-        if (token) token.comsume_all();
+        if (token) token.consume_all();
     }
 
     structure::ConsumeToken<> token{0};
@@ -696,5 +698,136 @@ struct Select {
         std::make_unique<std::atomic_size_t>(0)};
     std::vector<T> view_{};
 };
+class PromiseNotifier {
+   public:
+    PromiseNotifier() : promise_(nullptr) {}
+    ~PromiseNotifier() { notify(); }
+    void notify(BasePromise* replace = nullptr) {
+        auto expected = promise_.load(std::memory_order_relaxed);
+        auto to_resume = expected;
+        do {
+            if (expected == replace) return;
+            to_resume = expected;
+        } while (promise_.compare_exchange_strong(expected, replace));
+        if (to_resume) to_resume->async_end_wait();
+    }
 
+   private:
+    std::atomic<BasePromise*> promise_{nullptr};
+};
+class SyncToken;
+class SyncPointer;
+class SyncToken {
+    friend SyncPointer;
+
+    using token_t = structure::ConsumeToken<>;
+    using consumer_t = token_t::Consumer;
+
+   public:
+    std::unique_ptr<SyncPointer> pointer();
+    void step();
+    size_t pointer_count() const {
+        return pointer_count_.load(std::memory_order_acquire);
+    }
+
+    struct ExpectZeroPointerWait {
+        ExpectZeroPointerWait(SyncToken& token) : token_(token) {}
+        constexpr bool await_ready() noexcept {
+            return token_.pointer_count() == 0;
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {
+            handle.promise().begin_wait();
+            token_.notifier_.notify(&handle.promise());
+        }
+        void await_resume() noexcept {}
+        SyncToken& token_;
+    };
+    ExpectZeroPointerWait expect_zero_pointer() { return {*this}; }
+
+   protected:
+    void remove_pointer(SyncPointer* p) {
+        {
+            std::lock_guard lk{queue_mtx_};
+            auto it = std::find(waiter_list_.begin(), waiter_list_.end(), p);
+            if (it != waiter_list_.end()) {
+                *it = nullptr;
+            }
+        }
+        if (pointer_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            notifier_.notify();
+        }
+    }
+    void add_pointer(SyncPointer* p) {
+        {
+            std::lock_guard lk{queue_mtx_};
+            waiter_list_.push_back(p);
+        }
+        pointer_count_.fetch_add(1, std::memory_order_release);
+    }
+
+   private:
+    std::mutex queue_mtx_{};
+    std::vector<SyncPointer*> waiter_list_{};
+    std::atomic_size_t pointer_count_{0};
+    size_t step_count_{0};
+    PromiseNotifier notifier_{};
+};
+
+class SyncPointer {
+    friend SyncToken;
+
+   public:
+    struct NextWait {
+        NextWait(SyncPointer& token) : pointer_(token) {}
+        constexpr bool await_ready() noexcept {
+            ++pointer_.tick_count_;
+            return false;
+        }
+        template <IsPromise P>
+        void await_suspend(std::coroutine_handle<P> handle) noexcept {
+            handle.promise().begin_wait();
+            pointer_.notifier_.notify(&handle.promise());
+        }
+        size_t await_resume() noexcept {
+            return pointer_.token_.step_count_ - pointer_.tick_count_;
+        }
+        SyncPointer& pointer_;
+    };
+
+    SyncPointer(const SyncPointer&) = delete;
+    SyncPointer(SyncPointer&&) = delete;
+    SyncPointer& operator=(const SyncPointer&) = delete;
+    SyncPointer& operator=(SyncPointer&&) = delete;
+
+    SyncPointer(SyncToken& token) : token_(token) { token_.add_pointer(this); }
+    void sync_tick() { tick_count_ = token_.step_count_; }
+
+    ~SyncPointer() { token_.remove_pointer(this); }
+    NextWait next() { return {*this}; }
+
+   private:
+    SyncToken& token_;
+    PromiseNotifier notifier_{};
+    size_t tick_count_{~size_t(0)};
+};
+inline std::unique_ptr<SyncPointer> SyncToken::pointer() {
+    auto p = std::make_unique<SyncPointer>(*this);
+    p->tick_count_ = step_count_;
+    return p;
+}
+inline void SyncToken::step() {
+    std::lock_guard lk{queue_mtx_};
+    for (auto p : waiter_list_) {
+        if (p) {
+            p->notifier_.notify();
+        }
+    }
+    if (pointer_count() <= waiter_list_.size() / 2) {
+        waiter_list_.erase(
+            std::remove(waiter_list_.begin(), waiter_list_.end(), nullptr),
+            waiter_list_.end());
+    }
+    step_count_++;
+}
 }  // namespace xc::ecs
