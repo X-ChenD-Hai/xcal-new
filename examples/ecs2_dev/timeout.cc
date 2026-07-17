@@ -27,13 +27,23 @@ Future<> sys2(SyncToken& tk, structure::ConsumeToken<> st) {
     auto pointer = tk.pointer();
     while (st.remaining()) {
         auto d = co_await pointer->next();
-        co_await Sleep{200ms};
         std::println("sys2 next {}", d);
-        if (d > 1) {
-            pointer->sync_tick();
-        }
+        co_await Sleep{200ms};
+        if (d >= 2) pointer->sync_tick();
     }
     std::println("sys2 exit");
+    co_return;
+}
+Future<> sys3(SyncToken& tk, structure::ConsumeToken<> st) {
+    using namespace std::chrono_literals;
+    std::println("sys3 start");
+    auto pointer = tk.pointer();
+    while (st.remaining()) {
+        auto d = co_await pointer->next(false);
+        std::println("sys3 next {}", d);
+        if (d == 0) co_await Sleep{200ms};
+    }
+    std::println("sys3 exit");
     co_return;
 }
 
@@ -42,8 +52,8 @@ Future<> sys_main(SyncToken& tk, structure::ConsumeToken<> st) {
     using namespace std::chrono_literals;
     size_t expected = 100;
     while (expected--) {
-        co_await Sleep{100ms};
-        std::println("sys_main_step");
+        co_await Sleep{50ms};
+        std::println("-------step {} ------", tk.step_count() + 1);
         tk.step();
     }
     st.consume_all();
@@ -58,7 +68,8 @@ System test_sync() {
     SyncToken tk{};
     structure::ConsumeToken<> st{1};
 
-    co_await (sys_main(tk, st) && sys1(tk, st) && sys2(tk, st));
+    co_await (sys_main(tk, st) && sys1(tk, st) && sys2(tk, st) && sys3(tk, st));
+    // co_await (sys_main(tk, st) && sys1(tk, st));
 
     co_return;
 }
