@@ -1,0 +1,8 @@
+target("async-dev")
+    set_kind("binary")
+    add_files("main.cc")
+    add_deps("xc-async")
+target("async-timeout")
+    set_kind("binary")
+    add_files("timeout.cc")
+    add_deps("xc-async")

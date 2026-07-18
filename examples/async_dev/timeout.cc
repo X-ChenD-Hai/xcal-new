@@ -2,15 +2,14 @@
 
 #include <cstddef>
 #include <print>
-#include <xc/ecs2/async_primitives.hpp>
-#include <xc/ecs2/scheduler.hpp>
-#include <xc/ecs2/types.hpp>
-#include <xc/ecs2/utility.hpp>
+#include <xc/async/async_primitives.hpp>
+#include <xc/async/scheduler.hpp>
+#include <xc/async/structure/consume_token.hpp>
+#include <xc/async/types.hpp>
+#include <xc/async/utility.hpp>
 
-#include "xc/ecs2/structure/consume_token.hpp"
-
-using namespace xc::ecs;
-using namespace xc::ecs::structure;
+using namespace xc::async;
+using namespace xc::async::structure;
 Future<> sys1(SyncToken& tk, structure::ConsumeToken<> st) {
     std::println("sys1 start");
     auto pointer = tk.pointer();
@@ -46,7 +45,6 @@ Future<> sys3(SyncToken& tk, structure::ConsumeToken<> st) {
     std::println("sys3 exit");
     co_return;
 }
-
 Future<> sys_main(SyncToken& tk, structure::ConsumeToken<> st) {
     std::println("sys_main");
     using namespace std::chrono_literals;
@@ -62,7 +60,6 @@ Future<> sys_main(SyncToken& tk, structure::ConsumeToken<> st) {
     std::println("sys_main exit");
     co_return;
 }
-
 System test_sync() {
     std::println("test_sync");
     SyncToken tk{};

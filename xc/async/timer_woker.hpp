@@ -11,7 +11,7 @@
 #include "./task.hpp"  // IWYU pragma: keep
 #include "./types.hpp"
 
-namespace xc::ecs {
+namespace xc::async {
 struct TimerTask {
     TimerTask() = default;
     TimerTask(task_t&& task, time_duration_t delay)
@@ -89,4 +89,4 @@ class TimerWorker {
     time_point_t last_time_{};
     publish_callback_t expired_callback_{};
 };
-}  // namespace xc::ecs
+}  // namespace xc::async

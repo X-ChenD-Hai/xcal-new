@@ -5,7 +5,7 @@ target_include_directories(xc-log INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/log>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/log>
 )
-xc_add_header_library(ecs2 ecs2)
+xc_add_header_library(async async)
 
 xc_add_static_library(cmdline cmdline)
 xc_add_static_library(ecs ecs PUBLIC_LINK libxc)

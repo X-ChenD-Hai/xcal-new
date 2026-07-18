@@ -31,7 +31,7 @@
 #include "./types.hpp"
 #include "./worker.hpp"
 
-namespace xc::ecs {
+namespace xc::async {
 template <typename Derived>
 struct MoveAsWaitable {
     template <IsPromise P>
@@ -837,4 +837,4 @@ inline void SyncToken::step() {
         }
     }
 }
-}  // namespace xc::ecs
+}  // namespace xc::async

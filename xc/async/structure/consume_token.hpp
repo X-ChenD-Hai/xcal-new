@@ -8,7 +8,7 @@
 #include <mutex>
 #include <vector>
 
-namespace xc::ecs::structure {
+namespace xc::async::structure {
 
 template <size_t page_size = 512>
 class ConsumeTokenPool;
@@ -274,4 +274,4 @@ inline ConsumeToken<page_size>::ConsumeToken(ConsumeTokenPool<page_size>* pool,
 
 ConsumeToken() -> ConsumeToken<>;
 ConsumeToken(size_t) -> ConsumeToken<>;
-}  // namespace xc::ecs::structure
+}  // namespace xc::async::structure

@@ -1,0 +1,4 @@
+target("xc-async")
+    set_kind("headeronly")
+    add_includedirs("../../",{public = true})
+

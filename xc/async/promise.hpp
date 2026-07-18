@@ -13,7 +13,7 @@
 #include "./config.hpp"
 #include "./types.hpp"
 
-namespace xc::ecs {
+namespace xc::async {
 
 template <typename T, typename = void>
 constexpr bool is_waitable = false;
@@ -219,4 +219,4 @@ class PromisLockGuard {
     BasePromise* promise_{nullptr};
 };
 
-}  // namespace xc::ecs
+}  // namespace xc::async

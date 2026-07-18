@@ -11,7 +11,7 @@
 #include "./promise.hpp"
 #include "./types.hpp"
 
-namespace xc::ecs {
+namespace xc::async {
 namespace details {
 template <typename U>
 const Worker* bind_worker(const U& task);
@@ -52,7 +52,7 @@ class CancelToken {
 template <typename Task>
 class CancelAbleTask {
     template <typename U>
-    friend struct ::xc::ecs::details::TaskBindWorker;
+    friend struct ::xc::async::details::TaskBindWorker;
     friend class CancelTask;
 
    public:
@@ -208,14 +208,14 @@ template <typename U>
 struct TaskBindWorker {
     using type = std::decay_t<U>;
     static const Worker* bind_worker(const U& task) {
-        return ::xc::ecs::details::bind_worker<type>(task);
+        return ::xc::async::details::bind_worker<type>(task);
     }
 };
 template <typename U>
 struct TaskBindWorker<CancelAbleTask<U>> {
     using type = std::decay_t<U>;
     static const Worker* bind_worker(const CancelAbleTask<U>& task) {
-        return ::xc::ecs::details::bind_worker<type>(task.task_);
+        return ::xc::async::details::bind_worker<type>(task.task_);
     }
 };
 template <typename U>
@@ -248,4 +248,4 @@ void invoke_task(U&& task) {
     }
 }
 
-}  // namespace xc::ecs
+}  // namespace xc::async

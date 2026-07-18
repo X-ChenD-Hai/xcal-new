@@ -7,7 +7,7 @@
 #include "./structure/ring_buffer.hpp"
 #include "./system.hpp"
 
-namespace xc::ecs {
+namespace xc::async {
 template <typename T, size_t N>
 class Channel {
    public:
@@ -306,4 +306,4 @@ inline bool Channel<T, N>::try_send(T& value) {
     return success;
 }
 
-}  // namespace xc::ecs
+}  // namespace xc::async

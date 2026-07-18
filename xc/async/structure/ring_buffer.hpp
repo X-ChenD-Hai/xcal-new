@@ -4,7 +4,7 @@
 #include <memory>
 #include <optional>
 #include <type_traits>
-namespace xc::ecs::structure {
+namespace xc::async::structure {
 template <typename T, size_t Capacity>
 class RingBuffer {
     static_assert(Capacity > 0, "Capacity must be positive");
@@ -124,4 +124,4 @@ class RingBuffer {
     std::atomic<size_t> tail_{0};
 };
 
-}  // namespace xc::ecs::structure
+}  // namespace xc::async::structure

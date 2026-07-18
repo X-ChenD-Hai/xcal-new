@@ -1,8 +1,0 @@
-target("ecs2-dev")
-    set_kind("binary")
-    add_files("main.cc")
-    add_deps("ecs2")
-target("ecs2-timeout")
-    set_kind("binary")
-    add_files("timeout.cc")
-    add_deps("ecs2")
