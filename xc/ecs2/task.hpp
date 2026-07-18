@@ -7,9 +7,9 @@
 #include <type_traits>
 #include <variant>
 
-#include "config.hpp"
-#include "promise.hpp"
-#include "types.hpp"
+#include "./config.hpp"
+#include "./promise.hpp"
+#include "./types.hpp"
 
 namespace xc::ecs {
 namespace details {

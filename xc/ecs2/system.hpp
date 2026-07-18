@@ -1,10 +1,7 @@
 #pragma once
-#include <atomic>
 #include <cassert>
 #include <concepts>
-#include <cstdint>
 #include <memory>
-#include <utility>
 
 #include "./config.hpp"
 #include "./promise.hpp"

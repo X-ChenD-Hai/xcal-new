@@ -2,10 +2,10 @@
 #include <atomic>
 #include <deque>
 
-#include "promise.hpp"
-#include "structure/consume_token.hpp"
-#include "structure/ring_buffer.hpp"
-#include "system.hpp"
+#include "./promise.hpp"
+#include "./structure/consume_token.hpp"
+#include "./structure/ring_buffer.hpp"
+#include "./system.hpp"
 
 namespace xc::ecs {
 template <typename T, size_t N>

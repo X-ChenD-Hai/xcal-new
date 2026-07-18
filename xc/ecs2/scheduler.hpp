@@ -17,9 +17,9 @@
 #include "./promise.hpp"
 #include "./system.hpp"
 #include "./task.hpp"
+#include "./timer_woker.hpp"
 #include "./types.hpp"
 #include "./worker.hpp"
-#include "timer_woker.hpp"
 
 namespace xc::ecs {
 

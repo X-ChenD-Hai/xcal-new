@@ -10,8 +10,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "config.hpp"
-#include "types.hpp"
+#include "./config.hpp"
+#include "./types.hpp"
 
 namespace xc::ecs {
 

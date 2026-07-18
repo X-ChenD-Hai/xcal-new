@@ -14,7 +14,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <print>
 #include <ranges>
 #include <thread>
 #include <tuple>
@@ -23,14 +22,14 @@
 #include <vector>
 
 #include "./channel.hpp"
+#include "./config.hpp"
+#include "./promise.hpp"
 #include "./scheduler.hpp"
+#include "./structure/consume_token.hpp"
+#include "./system.hpp"
 #include "./task.hpp"
 #include "./types.hpp"
-#include "config.hpp"
-#include "promise.hpp"
-#include "structure/consume_token.hpp"
-#include "system.hpp"
-#include "worker.hpp"
+#include "./worker.hpp"
 
 namespace xc::ecs {
 template <typename Derived>

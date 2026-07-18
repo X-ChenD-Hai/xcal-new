@@ -99,7 +99,7 @@ inline std::string_view Logger::name_of<void>() {
 #define XC_INIT_LOG(name) auto& xc_m_logger__ = ::xc::Logger::instence(name);
 #define XC_LOG(level, ...) \
     xc_m_logger__[(size_t)(::xc::LogLevel::level)](__VA_ARGS__)
-#define XC_TLOG(level, ...)                                     \
+#define XC_TLOG(level, ...)                                           \
     ::xc::Logger::instence<std::remove_pointer_t<decltype(this)>>()[( \
         size_t)(xc::LogLevel::level)](__VA_ARGS__)
 #define ON_DEBUG(...) __VA_ARGS__

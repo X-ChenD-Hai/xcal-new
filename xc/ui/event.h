@@ -1,7 +1,7 @@
 #pragma once
+#include <xc/common/flags.hpp>
 #include <xc/event/event.hpp>
 #include <xc/event/timer.hpp>
-#include <xc/common/flags.hpp>
 
 #include "./key_code.hpp"
 
