@@ -1,9 +1,12 @@
+#pragma once
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <stack>
+#include <vector>
 #include <xc/ecs2/comman/sparse_set.hpp>
 
-namespace ecs {
+namespace xc::ecs {
 
 class Entity {
    public:
@@ -19,16 +22,12 @@ class Entity {
     id_t id() const { return entity_ & IdMask; }
     version_t version() const { return entity_ >> IdBitWidth; }
 
-    std::string to_string() {
-        return std::format("id = {}, version = {}", id(), version());
-    }
-
    private:
     entity_t entity_;
 };
 
 template <>
-struct SparseSetValueInfo<Entity> {
+struct SparseSetValueTrait<Entity> {
     using id_t = uint64_t;
     using version_t = uint32_t;
     static id_t id_of(const Entity& value) { return value.id(); }
@@ -52,4 +51,41 @@ class EntityFactory {
     std::stack<Entity> free_list_{};
     size_t next_id_{0};
 };
-}  // namespace ecs
+}  // namespace xc::ecs
+
+template <>
+struct std::formatter<xc::ecs::Entity> {
+    bool with_name = true;
+    constexpr auto parse(format_parse_context& ctx) {
+        auto it = ctx.begin();
+        if (it != ctx.end() && *it == 'n') {
+            with_name = false;
+            ++it;
+        }
+        return it;
+    }
+    auto format(const xc::ecs::Entity& e, format_context& ctx) const
+        -> decltype(ctx.out()) {
+        if (with_name)
+            return std::format_to(ctx.out(), "Entity({}#{})", e.id(),
+                                  e.version());
+        else
+            return std::format_to(ctx.out(), "{}#{}", e.id(), e.version());
+    }
+};
+template <typename T, typename U>
+struct std::formatter<std::vector<T, U>> {
+    std::formatter<T> fmt{};
+    constexpr auto parse(format_parse_context& ctx) { return fmt.parse(ctx); }
+    auto format(const std::vector<T, U>& v, format_context& ctx) const
+        -> decltype(ctx.out()) {
+        if (!v.size()) return std::format_to(ctx.out(), "[]");
+        std::format_to(ctx.out(), "[");
+        for (size_t i = 0; i < v.size() - 1; ++i) {
+            fmt.format(v[i], ctx);
+            std::format_to(ctx.out(), ", ");
+        }
+        fmt.format(v.back(), ctx);
+        return std::format_to(ctx.out(), "]");
+    }
+};

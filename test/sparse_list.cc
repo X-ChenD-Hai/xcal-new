@@ -5,7 +5,7 @@
 #include <print>
 #include <xc/ecs2/entity.hpp>
 
-using namespace ecs;
+using namespace xc::ecs;
 
 TEST(SparseSet, Basic) {
     SparseSet<Entity> s{};
