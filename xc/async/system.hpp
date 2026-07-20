@@ -3,9 +3,9 @@
 #include <concepts>
 #include <memory>
 
-#include "./config.hpp"
-#include "./promise.hpp"
-#include "./types.hpp"
+#include "xc/async/config.hpp"
+#include "xc/async/promise.hpp"
+#include "xc/async/types.hpp"
 
 namespace xc::async {
 class SystemPromise;

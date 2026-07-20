@@ -1,4 +1,5 @@
 includes("glfw_imgui_game")
 includes("glfw_opengl")
 includes("async_dev")
+includes("ecs2_dev")
 includes("glfw_wgpu")

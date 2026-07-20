@@ -21,15 +21,15 @@
 #include <utility>
 #include <vector>
 
-#include "./channel.hpp"
-#include "./config.hpp"
-#include "./promise.hpp"
-#include "./scheduler.hpp"
-#include "./structure/consume_token.hpp"
-#include "./system.hpp"
-#include "./task.hpp"
-#include "./types.hpp"
-#include "./worker.hpp"
+#include "xc/async/channel.hpp"
+#include "xc/async/config.hpp"
+#include "xc/async/promise.hpp"
+#include "xc/async/scheduler.hpp"
+#include "xc/async/structure/consume_token.hpp"
+#include "xc/async/system.hpp"
+#include "xc/async/task.hpp"
+#include "xc/async/types.hpp"
+#include "xc/async/worker.hpp"
 
 namespace xc::async {
 template <typename Derived>

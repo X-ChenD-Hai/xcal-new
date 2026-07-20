@@ -2,10 +2,10 @@
 #include <atomic>
 #include <deque>
 
-#include "./promise.hpp"
-#include "./structure/consume_token.hpp"
-#include "./structure/ring_buffer.hpp"
-#include "./system.hpp"
+#include "xc/async/promise.hpp"
+#include "xc/async/structure/consume_token.hpp"
+#include "xc/async/structure/ring_buffer.hpp"
+#include "xc/async/system.hpp"
 
 namespace xc::async {
 template <typename T, size_t N>

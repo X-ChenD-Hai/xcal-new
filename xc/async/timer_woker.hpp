@@ -8,8 +8,8 @@
 #include <stop_token>
 #include <thread>
 
-#include "./task.hpp"  // IWYU pragma: keep
-#include "./types.hpp"
+#include "xc/async/task.hpp"  // IWYU pragma: keep
+#include "xc/async/types.hpp"
 
 namespace xc::async {
 struct TimerTask {

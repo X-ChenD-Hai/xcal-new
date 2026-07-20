@@ -13,13 +13,13 @@
 #include <variant>
 #include <vector>
 
-#include "./config.hpp"
-#include "./promise.hpp"
-#include "./system.hpp"
-#include "./task.hpp"
-#include "./timer_woker.hpp"
-#include "./types.hpp"
-#include "./worker.hpp"
+#include "xc/async/config.hpp"
+#include "xc/async/promise.hpp"
+#include "xc/async/system.hpp"
+#include "xc/async/task.hpp"
+#include "xc/async/timer_woker.hpp"
+#include "xc/async/types.hpp"
+#include "xc/async/worker.hpp"
 
 namespace xc::async {
 

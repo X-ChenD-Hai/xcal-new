@@ -10,8 +10,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "./config.hpp"
-#include "./types.hpp"
+#include "xc/async/config.hpp"
+#include "xc/async/types.hpp"
 
 namespace xc::async {
 

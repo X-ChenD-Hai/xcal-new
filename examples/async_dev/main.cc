@@ -13,11 +13,10 @@
 #include <vector>
 #include <xc/async/async_primitives.hpp>
 #include <xc/async/scheduler.hpp>
+#include <xc/async/structure/ring_buffer.hpp>
+#include <xc/async/system.hpp>
 #include <xc/async/types.hpp>
 #include <xc/async/utility.hpp>
-
-#include "xc/async/structure/ring_buffer.hpp"
-#include "xc/async/system.hpp"
 
 using namespace xc::async;
 using namespace xc::async::structure;
