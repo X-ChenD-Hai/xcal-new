@@ -8,6 +8,12 @@ struct return_type {
 
 template <typename T>
 using deref = typename T::type;
+template <template <typename...> typename Tmp, typename T>
+struct is_specialized : std::false_type {};
+template <template <typename...> typename Tmp, typename T>
+constexpr bool is_specialized_v = is_specialized<Tmp, T>::value;
+template <template <typename...> typename Tmp, typename... T>
+struct is_specialized<Tmp, Tmp<T...>> : std::true_type {};
 
 template <typename... T>
 struct type_record;
@@ -25,22 +31,22 @@ struct repack<o<T...>, container> : public return_type<container<T...>> {};
 template <typename T>
 using as_type_record_t = repack_t<T, type_record>;
 
-template <typename C, typename... T>
+template <typename T, typename... Ts>
 struct push_front;
 
-template <typename C, typename... T>
-using push_front_t = deref<push_front<C, T...>>;
+template <typename T, typename... Ts>
+using push_front_t = deref<push_front<T, Ts...>>;
 
 template <template <typename...> typename container, typename... T,
           typename... Ts>
 struct push_front<container<Ts...>, T...>
     : return_type<container<T..., Ts...>> {};
 
-template <typename C, typename... T>
+template <typename T, typename... Ts>
 struct concat;
 
-template <typename C, typename... T>
-using concat_t = deref<concat<C, T...>>;
+template <typename T, typename... Ts>
+using concat_t = deref<concat<T, Ts...>>;
 
 template <template <typename...> typename container, typename... T,
           typename... Ts, typename... R>
@@ -51,11 +57,25 @@ template <template <typename...> typename container, typename... T,
 struct concat<container<T...>, container<Ts...>>
     : return_type<container<T..., Ts...>> {};
 
-template <typename C, template <typename T> typename predicate>
+template <typename T>
+struct flatten;
+template <typename T>
+using flatten_t = deref<flatten<T>>;
+template <typename... Ts>
+struct flatten<type_record<Ts...>> : return_type<type_record<Ts...>> {};
+template <typename... T, typename... Ts>
+struct flatten<type_record<type_record<T...>, Ts...>>
+    : return_type<concat_t<flatten_t<type_record<T...>>,
+                           flatten_t<type_record<Ts...>>>> {};
+template <typename T, typename... Ts>
+struct flatten<type_record<T, Ts...>>
+    : return_type<push_front_t<flatten_t<type_record<Ts...>>, T>> {};
+
+template <typename T, template <typename> typename predicate>
 struct remove_if;
 
-template <typename C, template <typename T> typename predicate>
-using remove_if_t = deref<remove_if<C, predicate>>;
+template <typename T, template <typename> typename predicate>
+using remove_if_t = deref<remove_if<T, predicate>>;
 
 template <template <typename T> typename predicate,
           template <typename...> typename container, typename T, typename... Ts>
@@ -67,13 +87,6 @@ struct remove_if<container<T, Ts...>, predicate>
 template <template <typename T> typename predicate,
           template <typename...> typename container>
 struct remove_if<container<>, predicate> : return_type<container<>> {};
-
-template <template <typename...> typename Tmp, typename T>
-struct is_specialized : std::false_type {};
-template <template <typename...> typename Tmp, typename T>
-constexpr bool is_specialized_v = is_specialized<Tmp, T>::value;
-template <template <typename...> typename Tmp, typename... T>
-struct is_specialized<Tmp, Tmp<T...>> : std::true_type {};
 
 template <bool inc_unwrapper, template <typename...> typename marker,
           typename exclude_record, typename... T>
