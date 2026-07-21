@@ -1,10 +1,10 @@
+#pragma once
 #include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstddef>
 #include <format>
 #include <memory>
-#include <string>
 #include <string_view>
 #include <vector>
 
@@ -121,6 +121,8 @@ template <typename... T>
 class ComponentQuery;
 
 class ComponentRegistry {
+    friend struct std::formatter<xc::ecs::ComponentRegistry>;
+
    public:
     template <typename... T>
     class ComponentQuery;
@@ -139,11 +141,16 @@ class ComponentRegistry {
     const ComponentPool<T>& pool() const {
         return *static_cast<ComponentPool<T>*>(pools_.data<T>().get());
     }
+    template <typename T>
+    size_t pool_id() const {
+        return pools_.type_id<T>();
+    }
     template <typename... T>
-    void regist() {
+    ComponentRegistry& regist() {
         ((pools_.data<T>() =
               pool_ptr{new ComponentPool<T>{pools_.type_id<T>()}}),
          ...);
+        return *this;
     }
     template <typename T>
     bool has() {
@@ -154,8 +161,9 @@ class ComponentRegistry {
         return pool<T>().size();
     }
     template <typename T>
-    void insert(Entity entity, T component) {
+    ComponentRegistry& insert(Entity entity, T component) {
         pool<T>().insert(entity, component);
+        return *this;
     }
     template <typename T>
     T& get(Entity entity) {
@@ -213,35 +221,23 @@ class ComponentRegistry {
         }
     }
 
-    std::string to_string() {
-        std::string ret = "[";
-        for (auto& pool : pools_) {
-            ret +=
-                std::format("{}({}), ", pool->component_name(), pool->size());
-        }
-        ret.pop_back();
-        ret.pop_back();
-        ret += "]";
-        return ret;
-    }
-
    private:
     TypeMap<std::unique_ptr<BaseComponentPool>, fill_value> pools_{
         fill_value{}};
 };
 
-template <typename... U>
+template <typename... Eany>
 struct ExcludeAny;
-template <typename... V>
+
+template <typename... Eall>
 struct ExcludeAll;
 
-template <typename... U>
-struct Include;
+template <typename... R>
+struct Read;
 
-template <typename... T>
-using query_include_t =
-    details::collect_marker_t<true, Include,
-                              details::template_record<ExcludeAny>, T...>;
+template <typename... Rw>
+struct ReadWrite;
+
 template <typename... T>
 using query_exclude_any_t =
     details::collect_marker_t<false, ExcludeAny, details::template_record<>,
@@ -250,73 +246,106 @@ template <typename... T>
 using query_exclude_all_t =
     details::collect_marker_t<false, ExcludeAll, details::template_record<>,
                               T...>;
-
 template <typename... T>
-class ComponentQuery
-    : public ComponentQuery<query_include_t<T...>, query_exclude_any_t<T...>,
-                            query_exclude_all_t<T...>> {
+using query_read_t = details::collect_marker_t<
+    true, Read, details::template_record<ReadWrite, ExcludeAll, ExcludeAny>,
+    T...>;
+template <typename... T>
+using query_read_write_t =
+    details::collect_marker_t<false, ReadWrite, details::template_record<>,
+                              T...>;
+template <typename... T>
+using base_query_t =
+    ComponentQuery<query_read_t<T...>, query_read_write_t<T...>,
+                   query_exclude_any_t<T...>, query_exclude_all_t<T...>>;
+template <typename... T>
+class ComponentQuery : public base_query_t<T...> {
    public:
-    using ComponentQuery<query_include_t<T...>, query_exclude_any_t<T...>,
-                         query_exclude_all_t<T...>>::ComponentQuery;
+    using base_query_t<T...>::base_query_t;
 };
 
-template <typename... T, typename... U, typename... V>
-class ComponentQuery<Include<T...>, ExcludeAny<U...>, ExcludeAll<V...>> {
+template <typename... R, typename... Rw, typename... Eany, typename... Eall>
+class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
+                     ExcludeAll<Eall...>> {
    public:
-    using include_t = Include<T...>;
-    using exclude_any_t = ExcludeAny<U...>;
-    using exclude_all_t = ExcludeAll<V...>;
-    static constexpr size_t inc_comp_count = sizeof...(T);
-    static constexpr size_t exc_any_comp_count = sizeof...(U);
-    static constexpr size_t exc_all_comp_count = sizeof...(V);
+    using read_t = Read<R...>;
+    using read_write_t = ReadWrite<Rw...>;
+    using exclude_any_t = ExcludeAny<Eany...>;
+    using exclude_all_t = ExcludeAll<Eall...>;
+    static constexpr size_t read_comp_count = sizeof...(R);
+    static constexpr size_t read_write_comp_count = sizeof...(Rw);
+    static constexpr size_t e_any_comp_count = sizeof...(Eany);
+    static constexpr size_t e_all_comp_count = sizeof...(Eall);
+    static constexpr size_t require_comp_count =
+        read_comp_count + read_write_comp_count;
     static constexpr bool single_comp_query =
-        (inc_comp_count == 1) && !exc_all_comp_count && !exc_any_comp_count;
+        (require_comp_count == 1) && !e_all_comp_count && !e_any_comp_count;
 
    public:
     ComponentQuery(ComponentRegistry& reg) : registry_(reg) {}
     ~ComponentQuery() = default;
     const std::vector<Entity>& query() {
         if constexpr (single_comp_query) {
-            return registry_.pool<T...>().entities();
+            return registry_.pool<R...>().entities();
         } else {
             if (entities_.size()) return entities_;
             const BaseComponentPool* main = nullptr;
-            if constexpr (inc_comp_count > 1) {
-                std::array<const BaseComponentPool*, sizeof...(T)> pools = {
-                    nullptr};
+            if constexpr (require_comp_count > 1) {
+                std::array<const BaseComponentPool*, require_comp_count> pools =
+                    {nullptr};
                 auto idx = 0;
-                ((pools[idx++] = &registry_.pool<T>()), ...);
+                ((pools[idx++] = &registry_.pool<R>()), ...);
+                ((pools[idx++] = &registry_.pool<Rw>()), ...);
                 main = *std::min_element(
                     pools.begin(), pools.end(),
                     [](auto a, auto b) { return a->size() < b->size(); });
             } else {
-                main = &registry_.pool<T...>();
+                main = &registry_.pool<R..., Rw...>();
             }
-
             for (auto e : main->entities()) {
-                bool matched = registry_.contains<T...>(e);
-                if constexpr (exc_any_comp_count) {
-                    matched = matched && registry_.any_uncontains<U...>(e);
+                bool matched = registry_.contains<R..., Rw...>(e);
+                if constexpr (e_any_comp_count) {
+                    matched = matched && registry_.any_uncontains<Eany...>(e);
                 }
-                if constexpr (exc_all_comp_count) {
-                    matched = matched && registry_.all_uncontains<V...>(e);
+                if constexpr (e_all_comp_count) {
+                    matched = matched && registry_.all_uncontains<Eall...>(e);
                 }
                 if (matched) entities_.push_back(e);
             }
             return entities_;
         }
     }
-    template <std::invocable<T&...> Fn>
+    template <std::invocable<const R&..., Rw&...> Fn>
     void each(Fn&& fn) {
         if constexpr (single_comp_query) {
-            for (auto& s : registry_.pool<T...>()) {
-                std::forward<Fn>(fn)(s.component());
+            if constexpr (read_comp_count) {
+                for (const auto& s : registry_.pool<R...>()) {
+                    std::forward<Fn>(fn)(s.component());
+                }
+            } else if constexpr (read_write_comp_count) {
+                for (auto& s : registry_.pool<Rw...>()) {
+                    std::forward<Fn>(fn)(s.component());
+                }
             }
         } else {
             for (auto e : query()) {
-                std::forward<Fn>(fn)(registry_.get<T>(e)...);
+                std::forward<Fn>(fn)(registry_.get<R>(e)...,
+                                     registry_.get<Rw>(e)...);
             }
         }
+    }
+    static std::vector<size_t> read_component_id_list(
+        const ComponentRegistry& registry_) {
+        std::vector<size_t> ids;
+        (ids.push_back(registry_.pool_id<R>()), ...);
+        (ids.push_back(registry_.pool_id<Rw>()), ...);
+        return ids;
+    }
+    static std::vector<size_t> write_component_id_list(
+        const ComponentRegistry& registry_) {
+        std::vector<size_t> ids;
+        (ids.push_back(registry_.pool_id<Rw>()), ...);
+        return ids;
     }
 
    private:
@@ -325,3 +354,22 @@ class ComponentQuery<Include<T...>, ExcludeAny<U...>, ExcludeAll<V...>> {
 };
 
 }  // namespace xc::ecs
+template <>
+struct std::formatter<xc::ecs::ComponentRegistry> {
+    constexpr auto parse(format_parse_context& ctx) { return ++ctx.begin(); }
+    auto format(const xc::ecs::ComponentRegistry& registry,
+                std::format_context& ctx) const {
+        auto o = std::format_to(ctx.out(), "ComponentRegistry(pools=[");
+        bool pushed = false;
+        std::vector<xc::ecs::BaseComponentPool*> pools{};
+        for (auto& p : registry.pools_)
+            if (p) pools.push_back(p.get());
+        for (size_t i = 0; i < pools.size(); ++i) {
+            if (i) o = std::format_to(o, ", ");
+            o = std::format_to(o, "{}(id={})", pools[i]->component_name(),
+                               pools[i]->id());
+        }
+        o = format_to(o, "])");
+        return o;
+    }
+};

@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include <format>
 #include <vector>
 
@@ -9,12 +10,19 @@ struct SparseSetValueTrait;
 
 template <typename T>
 class SparseSet {
+    friend struct std::formatter<SparseSet>;
+
    public:
     using trait = SparseSetValueTrait<T>;
     using id_t = trait::id_t;
     using version_t = trait::version_t;
     static constexpr id_t InvalId = trait::InvalidId;
     SparseSet() = default;
+    SparseSet(const std::vector<T>& o) {
+        for (auto& v : o) {
+            insert(v);
+        }
+    }
     static id_t id_of(const T& value) { return trait::id_of(value); }
     static version_t version_of(const T& value) {
         return trait::version_of(value);
@@ -94,4 +102,23 @@ class SparseSet {
     std::vector<id_t> sparse_{};
     size_t n{0};
 };
+
+template <std::integral T>
+struct SparseSetValueTrait<T> {
+    using id_t = T;
+    using version_t = T;
+    static id_t id_of(T value) { return value; }
+    static version_t version_of(T value) { return value; }
+    static constexpr id_t InvalidId = std::numeric_limits<T>::max();
+};
 }  // namespace xc::ecs
+
+template <typename T>
+struct std::formatter<xc::ecs::SparseSet<T>> {
+    std::formatter<std::vector<T>> fmt{};
+    constexpr auto parse(format_parse_context& ctx) { return fmt.parse(ctx); }
+    auto format(const xc::ecs::SparseSet<T>& s, std::format_context& ctx) const
+        -> decltype(ctx.out()) {
+        return fmt.format(s.dense_, ctx);
+    }
+};

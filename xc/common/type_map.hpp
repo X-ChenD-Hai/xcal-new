@@ -24,15 +24,6 @@ class TypeIdGenerator {
 };
 template <typename T, typename FillValue = T>
 class TypeMap {
-    static inline std::atomic_size_t next_type_id{0};
-    const FillValue fill_value_{};
-    const T invalid_value_{};
-    std::vector<T> table_{};
-
-   private:
-    template <typename Tp>
-    static const size_t type_id_;
-
    public:
     TypeMap(const FillValue& fill_value = -1)
         : fill_value_(fill_value), invalid_value_((T)fill_value), table_{} {}
@@ -65,6 +56,16 @@ class TypeMap {
     std::vector<T>::iterator end() { return table_.end(); }
     std::vector<T>::const_iterator begin() const { return table_.begin(); }
     std::vector<T>::const_iterator end() const { return table_.end(); }
+
+   private:
+    static inline std::atomic_size_t next_type_id{0};
+    template <typename Tp>
+    static const size_t type_id_;
+
+   private:
+    const FillValue fill_value_{};
+    const T invalid_value_{};
+    std::vector<T> table_{};
 };
 
 template <typename T, typename F>
