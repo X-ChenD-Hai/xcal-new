@@ -27,3 +27,9 @@ TEST(Ecs2, Ecs2) {
         .add_system<System<ComponentQuery<long>>>();
     std::println("{}", schedule.raw_phases());
 }
+TEST(Ecs2, Query) {
+    using namespace details;
+    using t = type_record<int, double>;
+
+    using tt = collect_marker_t<false, ReadWrite, template_record<Read>, t>;
+}

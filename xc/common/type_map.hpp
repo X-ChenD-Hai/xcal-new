@@ -51,6 +51,7 @@ class TypeMap {
         }
         return table_[idx];
     }
+    size_t capacity() const { return table_.size(); }
 
     std::vector<T>::iterator begin() { return table_.begin(); }
     std::vector<T>::iterator end() { return table_.end(); }
