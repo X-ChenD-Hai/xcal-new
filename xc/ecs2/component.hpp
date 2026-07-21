@@ -18,7 +18,6 @@ namespace xc::ecs {
 class BaseComponentPool {
    public:
     BaseComponentPool(size_t id) : id_{id} {}
-    virtual ~BaseComponentPool() = 0;
 
     size_t id() const { return id_; }
     bool dirty() const { return dirty_; }
@@ -29,6 +28,7 @@ class BaseComponentPool {
     virtual std::string_view component_name() const = 0;
     virtual const std::vector<Entity>& entities() const = 0;
     virtual void clear() = 0;
+    virtual ~BaseComponentPool() = 0;
 
    private:
     size_t id_;
@@ -71,12 +71,6 @@ class ComponentPool : public BaseComponentPool {
     using value_t = size_t;
     using BaseComponentPool::BaseComponentPool;
 
-    std::string_view component_name() const override {
-        return typeid(T).name();
-    }
-    void clear() override { components_.clear(); }
-    size_t size() const override { return components_.size(); }
-    ~ComponentPool() override = default;
     void insert(Entity entity, const T& component) {
         set_dirty(true);
         components_.insert(ComponentPoolSlot<T>{entity, component});
@@ -92,6 +86,14 @@ class ComponentPool : public BaseComponentPool {
         set_dirty(true);
         components_.erase(entity);
     }
+
+   public:
+    ~ComponentPool() override = default;
+    std::string_view component_name() const override {
+        return typeid(T).name();
+    }
+    void clear() override { components_.clear(); }
+    size_t size() const override { return components_.size(); }
     const std::vector<Entity>& entities() const override {
         if (dirty()) {
             set_dirty(false);
@@ -104,6 +106,7 @@ class ComponentPool : public BaseComponentPool {
         return entities_;
     }
 
+   public:
     auto begin() { return components_.begin(); }
     auto end() { return components_.end(); }
     auto begin() const { return components_.begin(); }
@@ -229,6 +232,8 @@ class ComponentRegistry {
 
 template <typename... U>
 struct ExcludeAny;
+template <typename... V>
+struct ExcludeAll;
 
 template <typename... U>
 struct Include;
@@ -241,26 +246,37 @@ template <typename... T>
 using query_exclude_any_t =
     details::collect_marker_t<false, ExcludeAny, details::template_record<>,
                               T...>;
+template <typename... T>
+using query_exclude_all_t =
+    details::collect_marker_t<false, ExcludeAll, details::template_record<>,
+                              T...>;
 
 template <typename... T>
 class ComponentQuery
-    : public ComponentQuery<query_include_t<T...>, query_exclude_any_t<T...>> {
+    : public ComponentQuery<query_include_t<T...>, query_exclude_any_t<T...>,
+                            query_exclude_all_t<T...>> {
    public:
-    using ComponentQuery<query_include_t<T...>,
-                         query_exclude_any_t<T...>>::ComponentQuery;
+    using ComponentQuery<query_include_t<T...>, query_exclude_any_t<T...>,
+                         query_exclude_all_t<T...>>::ComponentQuery;
 };
 
-template <typename... T, typename... U>
-class ComponentQuery<Include<T...>, ExcludeAny<U...>> {
+template <typename... T, typename... U, typename... V>
+class ComponentQuery<Include<T...>, ExcludeAny<U...>, ExcludeAll<V...>> {
    public:
     using include_t = Include<T...>;
     using exclude_any_t = ExcludeAny<U...>;
+    using exclude_all_t = ExcludeAll<V...>;
     static constexpr size_t inc_comp_count = sizeof...(T);
-    static constexpr size_t exc_comp_count = sizeof...(U);
+    static constexpr size_t exc_any_comp_count = sizeof...(U);
+    static constexpr size_t exc_all_comp_count = sizeof...(V);
+    static constexpr bool single_comp_query =
+        (inc_comp_count == 1) && !exc_all_comp_count && !exc_any_comp_count;
+
+   public:
     ComponentQuery(ComponentRegistry& reg) : registry_(reg) {}
     ~ComponentQuery() = default;
     const std::vector<Entity>& query() {
-        if constexpr (inc_comp_count <= 1 && !exc_comp_count) {
+        if constexpr (single_comp_query) {
             return registry_.pool<T...>().entities();
         } else {
             if (entities_.size()) return entities_;
@@ -279,8 +295,11 @@ class ComponentQuery<Include<T...>, ExcludeAny<U...>> {
 
             for (auto e : main->entities()) {
                 bool matched = registry_.contains<T...>(e);
-                if constexpr (exc_comp_count > 0) {
+                if constexpr (exc_any_comp_count) {
                     matched = matched && registry_.any_uncontains<U...>(e);
+                }
+                if constexpr (exc_all_comp_count) {
+                    matched = matched && registry_.all_uncontains<V...>(e);
                 }
                 if (matched) entities_.push_back(e);
             }
@@ -289,7 +308,7 @@ class ComponentQuery<Include<T...>, ExcludeAny<U...>> {
     }
     template <std::invocable<T&...> Fn>
     void each(Fn&& fn) {
-        if constexpr (inc_comp_count == 1 && !exc_comp_count) {
+        if constexpr (single_comp_query) {
             for (auto& s : registry_.pool<T...>()) {
                 std::forward<Fn>(fn)(s.component());
             }
