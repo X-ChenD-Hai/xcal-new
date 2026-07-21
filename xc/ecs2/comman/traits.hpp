@@ -1,0 +1,121 @@
+#include <type_traits>
+namespace details {
+
+template <typename T>
+struct return_type {
+    using type = T;
+};
+
+template <typename T>
+using deref = typename T::type;
+
+template <typename... T>
+struct type_record;
+template <template <typename...> typename... T>
+struct template_record;
+
+template <typename C, typename... T>
+struct push_front;
+
+template <typename C, typename... T>
+using push_front_t = deref<push_front<C, T...>>;
+
+template <template <typename...> typename container, typename... T,
+          typename... Ts>
+struct push_front<container<Ts...>, T...>
+    : return_type<container<T..., Ts...>> {};
+
+template <typename C, typename T>
+struct concat;
+
+template <typename C, typename T>
+using concat_t = deref<concat<C, T>>;
+
+template <template <typename...> typename container, typename... T,
+          typename... Ts>
+struct concat<container<Ts...>, container<T...>>
+    : return_type<container<T..., Ts...>> {};
+
+template <typename C, template <typename T> typename predicate>
+struct remove_if;
+
+template <typename C, template <typename T> typename predicate>
+using remove_if_t = deref<remove_if<C, predicate>>;
+
+template <template <typename T> typename predicate,
+          template <typename...> typename container, typename T, typename... Ts>
+struct remove_if<container<T, Ts...>, predicate>
+    : return_type<std::conditional_t<
+          predicate<T>::value, remove_if_t<container<Ts...>, predicate>,
+          push_front_t<remove_if_t<container<Ts...>, predicate>, T>>> {};
+
+template <template <typename T> typename predicate,
+          template <typename...> typename container>
+struct remove_if<container<>, predicate> : return_type<container<>> {};
+
+template <template <typename...> typename Tmp, typename T>
+struct is_specialized : std::false_type {};
+template <template <typename...> typename Tmp, typename T>
+constexpr bool is_specialized_v = is_specialized<Tmp, T>::value;
+template <template <typename...> typename Tmp, typename... T>
+struct is_specialized<Tmp, Tmp<T...>> : std::true_type {};
+
+template <bool inc_unwrapper, template <typename...> typename marker,
+          typename exclude_record, typename... T>
+struct collect_marker;
+
+template <bool inc_unwrapper, template <typename...> typename marker,
+          typename exclude_record, typename... T>
+using collect_marker_t =
+    deref<collect_marker<inc_unwrapper, marker, exclude_record, T...>>;
+
+template <bool inc_unwrapper, template <typename...> typename marker,
+          typename exclude_record>
+struct collect_marker<inc_unwrapper, marker, exclude_record>
+    : return_type<marker<>> {};
+
+template <bool inc_unwrapper, template <typename...> typename marker,
+          typename exclude_record, typename... T>
+struct collect_marker<inc_unwrapper, marker, exclude_record, type_record<T...>>
+    : return_type<
+          collect_marker_t<inc_unwrapper, marker, exclude_record, T...>> {};
+
+template <bool inc_unwrapper, template <typename...> typename marker,
+          typename exclude_record, typename... Ts, typename... T>
+struct collect_marker<inc_unwrapper, marker, exclude_record, marker<Ts...>,
+                      T...>
+    : return_type<std::conditional_t<
+          (sizeof...(T) > 0),
+          push_front_t<
+              collect_marker_t<inc_unwrapper, marker, exclude_record, T...>,
+              Ts...>,
+          marker<Ts...>>> {};
+
+template <template <typename...> typename marker,
+          template <typename...> typename... ex_markers, typename T,
+          typename... Ts>
+    requires(!is_specialized_v<marker, T>)
+struct collect_marker<true, marker, template_record<ex_markers...>, T, Ts...>
+    : return_type<std::conditional_t<
+          (sizeof...(Ts) > 0),
+          std::conditional_t<
+              (is_specialized_v<ex_markers, T> || ...) && sizeof...(ex_markers),
+              collect_marker_t<true, marker, template_record<ex_markers...>,
+                               Ts...>,
+              push_front_t<
+                  collect_marker_t<true, marker, template_record<ex_markers...>,
+                                   Ts...>,
+                  T>>,
+          std::conditional_t<(is_specialized_v<ex_markers, T> || ...) &&
+                                 sizeof...(ex_markers),
+                             marker<>, marker<T>>>> {};
+
+template <template <typename...> typename marker, typename exclude_record,
+          typename T1, typename... T>
+    requires(!is_specialized_v<marker, T1>)
+struct collect_marker<false, marker, exclude_record, T1, T...>
+    : return_type<std::conditional_t<
+          (sizeof...(T) > 0),
+          collect_marker_t<false, marker, exclude_record, T...>, marker<>>> {};
+
+}  // namespace details

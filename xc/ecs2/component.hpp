@@ -1,15 +1,16 @@
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <format>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <vector>
 
 #include "xc/common/type_map.hpp"
 #include "xc/ecs2/comman/sparse_set.hpp"
+#include "xc/ecs2/comman/traits.hpp"
 #include "xc/ecs2/entity.hpp"
 
 namespace xc::ecs {
@@ -19,12 +20,14 @@ class BaseComponentPool {
     virtual ~BaseComponentPool() = 0;
 
     size_t id() const { return id_; }
+    bool dirty() const { return dirty_; }
+    void set_dirty(bool dirty) const { dirty_ = dirty; }
+
+   public:
     virtual size_t size() const = 0;
     virtual std::string_view component_name() const = 0;
     virtual const std::vector<Entity>& entities() const = 0;
-    virtual bool contains(Entity entity) const = 0;
-    bool dirty() const { return dirty_; }
-    void set_dirty(bool dirty) const { dirty_ = dirty; }
+    virtual void clear() = 0;
 
    private:
     size_t id_;
@@ -66,6 +69,7 @@ class ComponentPool : public BaseComponentPool {
     std::string_view component_name() const override {
         return typeid(T).name();
     }
+    void clear() override { components_.clear(); }
     size_t size() const override { return components_.size(); }
     ~ComponentPool() override = default;
     void insert(Entity entity, const T& component) {
@@ -76,14 +80,13 @@ class ComponentPool : public BaseComponentPool {
     const T& get(Entity entity) const {
         return components_[entity.id()].component();
     }
-    bool contains(Entity entity) const override {
+    bool contains(Entity entity) const {
         return components_.contains(entity.id(), entity.version());
     }
     void erase(Entity entity) {
         set_dirty(true);
         components_.erase(entity);
     }
-    void clear() { components_.clear(); }
     const std::vector<Entity>& entities() const override {
         if (dirty()) {
             set_dirty(false);
@@ -105,11 +108,12 @@ class ComponentPool : public BaseComponentPool {
     SparseSet<ComponentPoolSlot<T>> components_{};
     mutable std::vector<Entity> entities_{};
 };
-
+template <typename... T>
+class ComponentQuery;
 class ComponentRegistry {
    public:
     template <typename... T>
-    friend class ComponentQuery;
+    class ComponentQuery;
     using pool_ptr = std::unique_ptr<BaseComponentPool>;
     struct fill_value {
         operator pool_ptr() const noexcept { return nullptr; }
@@ -151,17 +155,52 @@ class ComponentRegistry {
     const T& get(Entity entity) const {
         return pool<T>().get(entity);
     }
-    template <typename T>
-    bool contains(Entity entity) const {
-        return pool<T>().contains(entity);
+    template <typename... Ts>
+        requires(sizeof...(Ts) > 1)
+    std::tuple<Ts&...> get(Entity entity) {
+        return std::tuple<Ts&...>(pool<Ts>().get(entity)...);
     }
-    template <typename T>
+    template <typename... T>
+        requires(sizeof...(T) > 1)
+    std::tuple<const T&...> get(Entity entity) const {
+        return std::tuple<T&...>(pool<T>().get(entity)...);
+    }
+    template <typename T, typename... Ts>
+    bool contains(Entity entity) const {
+        return pool<T>().contains(entity) &&
+               (pool<Ts>().contains(entity) && ...);
+    }
+    template <typename T, typename... Ts>
+    bool any_uncontains(Entity entity) const {
+        return !pool<T>().contains(entity) ||
+               (!pool<Ts>().contains(entity) || ...);
+    }
+    template <typename T, typename... Ts>
+    bool all_uncontains(Entity entity) const {
+        return !pool<T>().contains(entity) &&
+               (!pool<Ts>().contains(entity) && ...);
+    }
+    template <typename T, typename... Ts>
+    bool any_contains(Entity entity) const {
+        return pool<T>().contains(entity) ||
+               (pool<Ts>().contains(entity) || ...);
+    }
+    template <typename T, typename... Ts>
     void erase(Entity entity) {
         pool<T>().erase(entity);
+        (pool<Ts>().erase(entity), ...);
     }
-    template <typename T>
+    template <typename T, typename... Ts>
     void clear() {
         pool<T>().clear();
+        (pool<Ts>().clear(), ...);
+    }
+    void clear() {
+        for (auto& p : pools_) {
+            if (p) {
+                p->clear();
+            }
+        }
     }
 
     std::string to_string() {
@@ -180,49 +219,74 @@ class ComponentRegistry {
     TypeMap<std::unique_ptr<BaseComponentPool>, fill_value> pools_{
         fill_value{}};
 };
+
+template <typename... U>
+struct ExcludeAny;
+template <typename... U>
+struct Include;
 template <typename... T>
-class ComponentQuery {
+using query_include_t =
+    details::collect_marker_t<true, Include,
+                              details::template_record<ExcludeAny>, T...>;
+template <typename... T>
+using query_exclude_any_t =
+    details::collect_marker_t<false, ExcludeAny, details::template_record<>,
+                              T...>;
+
+template <typename... T>
+class ComponentQuery
+    : public ComponentQuery<query_include_t<T...>, query_exclude_any_t<T...>> {
    public:
-    static constexpr size_t comp_count = sizeof...(T);
+    using ComponentQuery<query_include_t<T...>,
+                         query_exclude_any_t<T...>>::ComponentQuery;
+};
+
+template <typename... T, typename... U>
+class ComponentQuery<Include<T...>, ExcludeAny<U...>> {
+   public:
+    using include_t = Include<T...>;
+    using exclude_any_t = ExcludeAny<U...>;
+    static constexpr size_t inc_comp_count = sizeof...(T);
+    static constexpr size_t exc_comp_count = sizeof...(U);
     ComponentQuery(ComponentRegistry& reg) : registry_(reg) {}
     ~ComponentQuery() = default;
     const std::vector<Entity>& query() {
-        if constexpr (comp_count <= 1) {
+        if constexpr (inc_comp_count <= 1 && !exc_comp_count) {
             return registry_.pool<T...>().entities();
         } else {
             if (entities_.size()) return entities_;
-            std::array<const BaseComponentPool*, sizeof...(T)> pools = {
-                nullptr};
-            auto idx = 0;
-            ((pools[idx++] = &registry_.pool<T>()), ...);
-            auto it = std::min_element(
-                pools.begin(), pools.end(),
-                [](auto a, auto b) { return a->size() < b->size(); });
-            auto main = *it;
-            std::swap(pools[comp_count - 1], *it);
+            const BaseComponentPool* main = nullptr;
+            if constexpr (inc_comp_count > 1) {
+                std::array<const BaseComponentPool*, sizeof...(T)> pools = {
+                    nullptr};
+                auto idx = 0;
+                ((pools[idx++] = &registry_.pool<T>()), ...);
+                main = *std::min_element(
+                    pools.begin(), pools.end(),
+                    [](auto a, auto b) { return a->size() < b->size(); });
+            } else {
+                main = &registry_.pool<T...>();
+            }
+
             for (auto e : main->entities()) {
-                bool matched = true;
-                for (size_t i = 0; i < comp_count - 1; i++) {
-                    if (!pools[i]->contains(e)) {
-                        matched = false;
-                        break;
-                    }
+                bool matched = registry_.contains<T...>(e);
+                if constexpr (exc_comp_count > 0) {
+                    matched = matched && registry_.any_uncontains<U...>(e);
                 }
                 if (matched) entities_.push_back(e);
             }
             return entities_;
         }
     }
-    template <typename Fn>
-        requires(std::is_invocable_v<Fn, T&...>)
-    void each(Fn fn) {
-        if constexpr (comp_count == 1) {
+    template <std::invocable<T&...> Fn>
+    void each(Fn&& fn) {
+        if constexpr (inc_comp_count == 1 && !exc_comp_count) {
             for (auto& s : registry_.pool<T...>()) {
-                fn(s.component());
+                std::forward<Fn>(fn)(s.component());
             }
         } else {
-            for (auto e : query(registry_)) {
-                fn(registry_.get<T>(e)...);
+            for (auto e : query()) {
+                std::forward<Fn>(fn)(registry_.get<T>(e)...);
             }
         }
     }
