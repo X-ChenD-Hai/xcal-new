@@ -1,9 +1,12 @@
 #pragma once
 #include <format>
 #include <vector>
+
 namespace xc::ecs {
+
 template <typename T>
 struct SparseSetValueTrait;
+
 template <typename T>
 class SparseSet {
    public:

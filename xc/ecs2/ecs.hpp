@@ -1,6 +1,5 @@
 
 namespace xc::ecs {
-class EntityPredicate {};
 class Command {
    private:
 };

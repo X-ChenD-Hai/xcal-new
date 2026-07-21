@@ -1,6 +1,6 @@
 #include <type_traits>
-namespace details {
 
+namespace details {
 template <typename T>
 struct return_type {
     using type = T;

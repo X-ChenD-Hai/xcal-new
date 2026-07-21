@@ -14,6 +14,7 @@
 #include "xc/ecs2/entity.hpp"
 
 namespace xc::ecs {
+
 class BaseComponentPool {
    public:
     BaseComponentPool(size_t id) : id_{id} {}
@@ -33,7 +34,9 @@ class BaseComponentPool {
     size_t id_;
     mutable bool dirty_{true};
 };
+
 inline BaseComponentPool::~BaseComponentPool() = default;
+
 template <typename T>
 class ComponentPoolSlot {
    public:
@@ -50,6 +53,7 @@ class ComponentPoolSlot {
     Entity entity_;
     T component_;
 };
+
 template <typename T>
 struct SparseSetValueTrait<ComponentPoolSlot<T>>
     : public SparseSetValueTrait<Entity> {
@@ -59,6 +63,7 @@ struct SparseSetValueTrait<ComponentPoolSlot<T>>
         return value.entity().version();
     }
 };
+
 template <typename T>
 class ComponentPool : public BaseComponentPool {
    public:
@@ -108,8 +113,10 @@ class ComponentPool : public BaseComponentPool {
     SparseSet<ComponentPoolSlot<T>> components_{};
     mutable std::vector<Entity> entities_{};
 };
+
 template <typename... T>
 class ComponentQuery;
+
 class ComponentRegistry {
    public:
     template <typename... T>
@@ -222,8 +229,10 @@ class ComponentRegistry {
 
 template <typename... U>
 struct ExcludeAny;
+
 template <typename... U>
 struct Include;
+
 template <typename... T>
 using query_include_t =
     details::collect_marker_t<true, Include,
@@ -290,6 +299,8 @@ class ComponentQuery<Include<T...>, ExcludeAny<U...>> {
             }
         }
     }
+
+   private:
     std::vector<Entity> entities_{};
     ComponentRegistry& registry_;
 };
