@@ -24,10 +24,12 @@ class BaseComponentPool {
     void set_dirty(bool dirty) const { dirty_ = dirty; }
 
    public:
-    virtual size_t size() const = 0;
     virtual std::string_view component_name() const = 0;
-    virtual const std::vector<Entity>& entities() const = 0;
-    virtual void clear() = 0;
+    virtual size_t vtl_size() const = 0;
+    virtual const std::vector<Entity>& vtl_entities() const = 0;
+    virtual void vtl_clear() = 0;
+    virtual void vtl_erase(Entity entity) = 0;
+    virtual bool vtl_contains(Entity entity) const = 0;
     virtual ~BaseComponentPool() = 0;
 
    private:
@@ -84,17 +86,11 @@ class ComponentPool : public BaseComponentPool {
     }
     void erase(Entity entity) {
         set_dirty(true);
-        components_.erase(entity);
+        components_.erase(entity.id(), entity.version());
     }
-
-   public:
-    ~ComponentPool() override = default;
-    std::string_view component_name() const override {
-        return typeid(T).name();
-    }
-    void clear() override { components_.clear(); }
-    size_t size() const override { return components_.size(); }
-    const std::vector<Entity>& entities() const override {
+    void clear() { components_.clear(); }
+    size_t size() const { return components_.size(); }
+    const std::vector<Entity>& entities() const {
         if (dirty()) {
             set_dirty(false);
             entities_.resize(components_.size(), Entity(0, 0));
@@ -104,6 +100,21 @@ class ComponentPool : public BaseComponentPool {
             }
         }
         return entities_;
+    }
+    virtual void vtl_erase(Entity entity) override { erase(entity); }
+    virtual bool vtl_contains(Entity entity) const override {
+        return contains(entity);
+    }
+
+   public:
+    ~ComponentPool() override = default;
+    std::string_view component_name() const override {
+        return typeid(T).name();
+    }
+    void vtl_clear() override { components_.clear(); }
+    size_t vtl_size() const override { return components_.size(); }
+    const std::vector<Entity>& vtl_entities() const override {
+        return entities();
     }
 
    public:
@@ -147,8 +158,10 @@ class ComponentRegistry {
     }
     template <typename... T>
     ComponentRegistry& regist() {
-        ((pools_.data<T>() =
-              pool_ptr{new ComponentPool<T>{pools_.type_id<T>()}}),
+        (pool_ptrs_.emplace_back(
+             (pools_.data<T>() =
+                  pool_ptr{new ComponentPool<T>{pools_.type_id<T>()}})
+                 .get()),
          ...);
         return *this;
     }
@@ -208,22 +221,26 @@ class ComponentRegistry {
         pool<T>().erase(entity);
         (pool<Ts>().erase(entity), ...);
     }
+    void erase(Entity entity) {
+        for (auto& p : pools_) {
+            if (!p->vtl_contains(entity)) continue;
+            p->vtl_erase(entity);
+        }
+    }
     template <typename T, typename... Ts>
     void clear() {
         pool<T>().clear();
         (pool<Ts>().clear(), ...);
     }
     void clear() {
-        for (auto& p : pools_) {
-            if (p) {
-                p->clear();
-            }
-        }
+        for (auto& p : pools()) p->vtl_clear();
     }
+    const std::vector<BaseComponentPool*>& pools() const { return pool_ptrs_; }
 
    private:
     TypeMap<std::unique_ptr<BaseComponentPool>, fill_value> pools_{
         fill_value{}};
+    std::vector<BaseComponentPool*> pool_ptrs_{};
 };
 
 template <typename... Eany>
@@ -302,7 +319,7 @@ class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
             } else {
                 main = &registry_.pool<R..., Rw...>();
             }
-            for (auto e : main->entities()) {
+            for (auto e : main->vtl_entities()) {
                 bool matched = registry_.contains<R..., Rw...>(e);
                 if constexpr (e_any_comp_count) {
                     matched = matched && registry_.any_uncontains<Eany...>(e);

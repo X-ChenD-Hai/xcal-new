@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "ecs2/entity.hpp"
 #include "xc/ecs2/comman/conflict_matrix.hpp"
 #include "xc/ecs2/comman/dependency_graph.hpp"
 #include "xc/ecs2/comman/sparse_set.hpp"
@@ -105,6 +106,7 @@ class Schedule {
         }
         return res;
     }
+    EntityFactory& entity_factory() { return entity_factory_; }
 
    protected:
     void calculate_conflic(const SystemInfo& info) {
@@ -127,13 +129,14 @@ class Schedule {
     }
 
    private:
-    std::vector<SystemInfo> system_infos_{};
     DependencyGraph graph_{};
     bool phases_derty_{true};
     std::vector<std::vector<uint32_t>> phases_{};
     ConflictMatrix conflict_matrix_{};
+    std::vector<SystemInfo> system_infos_{};
     std::vector<std::unique_ptr<BaseSystem>> systems_{};
     std::unique_ptr<ComponentRegistry> registry_{new ComponentRegistry()};
+    EntityFactory entity_factory_{};
 };
 
 }  // namespace xc::ecs
