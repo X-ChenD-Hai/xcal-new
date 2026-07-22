@@ -7,7 +7,7 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
-namespace details {
+namespace xc::details {
 template <typename T>
 inline auto sparse_set_id_of_value(const T& value) {
     if constexpr (std::is_class_v<T>) {
@@ -18,15 +18,15 @@ inline auto sparse_set_id_of_value(const T& value) {
 }
 template <typename T>
 using id_of_t = decltype(sparse_set_id_of_value<T>(std::declval<T>()));
-}  // namespace details
+}  // namespace xc::details
 
 template <typename value_t, typename index_t, size_t bucket_size,
-          details::id_of_t<value_t> _InvalidId =
-              std::numeric_limits<details::id_of_t<value_t>>::max(),
+          ::xc::details::id_of_t<value_t> _InvalidId =
+              std::numeric_limits<::xc::details::id_of_t<value_t>>::max(),
           index_t _InvalidIndex = std::numeric_limits<index_t>::max()>
 class SparseList final {
     static_assert(((bucket_size - 1) & bucket_size) == 0, "");
-    using id_t = details::id_of_t<value_t>;
+    using id_t = ::xc::details::id_of_t<value_t>;
     static constexpr index_t InvalidIndex = _InvalidIndex;
     static constexpr id_t InvalidId = _InvalidId;
     static constexpr id_t IdModMask = bucket_size - 1;
@@ -53,7 +53,7 @@ class SparseList final {
     inline size_t cell_idx(id_t id) const noexcept { return id & IdModMask; }
     inline std::tuple<size_t, size_t> bucket_cell_idx(
         value_t v) const noexcept {
-        auto id = details::sparse_set_id_of_value(v);
+        auto id = ::xc::details::sparse_set_id_of_value(v);
         return std::make_tuple(bucket_idx(id), cell_idx(id));
     }
 

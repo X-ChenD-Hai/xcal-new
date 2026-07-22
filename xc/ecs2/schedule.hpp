@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -7,11 +8,11 @@
 #include <type_traits>
 #include <vector>
 
-#include "ecs2/entity.hpp"
 #include "xc/ecs2/comman/conflict_matrix.hpp"
 #include "xc/ecs2/comman/dependency_graph.hpp"
 #include "xc/ecs2/comman/sparse_set.hpp"
 #include "xc/ecs2/component.hpp"
+#include "xc/ecs2/entity.hpp"
 #include "xc/ecs2/system.hpp"
 
 namespace xc::ecs {
@@ -54,19 +55,43 @@ struct SystemInfo {
     }
 };
 
+namespace details {
+template <typename Sys, typename... Args>
+struct system_creater {
+    using system_t = Sys;
+    static system_t* create(Args&&... args) {
+        return new system_t(std::forward<Args>(args)...);
+    }
+};
+template <typename Q, std::invocable<Q&> Fn>
+struct system_creater<System<Q, void>, Fn> {
+    using system_t = System<Q, Fn>;
+    template <typename... Args>
+    static system_t* create(Args&&... args) {
+        return new system_t(std::forward<Args>(args)...);
+    }
+};
+}  // namespace details
+
 class Schedule {
     friend struct std::formatter<xc::ecs::Schedule>;
 
    public:
     Schedule() = default;
+    Schedule(const Schedule&) = delete;
+    Schedule(Schedule&&) = default;
+    Schedule& operator=(const Schedule&) = delete;
+    Schedule& operator=(Schedule&&) = delete;
     ~Schedule() = default;
     template <typename Sys, typename... Args>
     Schedule& add_system(Args&&... args) {
-        systems_.emplace_back(
-            (BaseSystem*)(new Sys(std::forward<Args>(args)...)));
+        using creater_t = details::system_creater<Sys, Args...>;
+        using sys_t = creater_t::system_t;
+        auto sys = creater_t::create(std::forward<Args>(args)...);
+        systems_.emplace_back((BaseSystem*)(sys));
         size_t id = systems_.size() - 1;
-        system_infos_.emplace_back(SystemInfo::create<Sys>(
-            *registry_, id, *(Sys*)(systems_.back().get())));
+        system_infos_.emplace_back(SystemInfo::create<sys_t>(
+            *registry_, id, *(sys_t*)(systems_.back().get())));
         conflict_matrix_.resize(conflict_matrix_.size() + 1);
         calculate_conflic(system_infos_.back());
         phases_derty_ = true;
@@ -107,6 +132,7 @@ class Schedule {
         return res;
     }
     EntityFactory& entity_factory() { return entity_factory_; }
+    void exec_system(uint32_t id) { systems_[id]->execute(*registry_); }
 
    protected:
     void calculate_conflic(const SystemInfo& info) {

@@ -70,7 +70,8 @@ class Channel {
         }
 
        public:
-        TrySendWait(Channel& ch, T&& value);
+        template <typename... Args>
+        TrySendWait(Channel& ch, Args&&... args);
         constexpr bool await_ready() noexcept {
             if (channel.closed_.load(std::memory_order_acquire)) return true;
             return sended_ = channel.try_send(value);
@@ -272,8 +273,9 @@ class Channel {
 };
 
 template <typename T, size_t N>
-inline Channel<T, N>::TrySendWait::TrySendWait(Channel& ch, T&& value)
-    : channel(ch), value(std::move(value)) {}
+template <typename... Args>
+inline Channel<T, N>::TrySendWait::TrySendWait(Channel& ch, Args&&... args)
+    : channel(ch), value(std::forward<Args>(args)...) {}
 
 template <typename T, size_t N>
 inline std::optional<T> Channel<T, N>::try_recv() {

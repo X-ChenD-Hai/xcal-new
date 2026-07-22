@@ -1,8 +1,8 @@
 #pragma once
+#include <cassert>
 #include <concepts>
 #include <format>
 #include <vector>
-
 namespace xc::ecs {
 
 template <typename T>

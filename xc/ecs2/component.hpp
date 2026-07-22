@@ -257,20 +257,19 @@ struct ReadWrite;
 
 template <typename... T>
 using query_exclude_any_t =
-    details::collect_marker_t<false, ExcludeAny, details::template_record<>,
-                              T...>;
+    traits::collect_marker_t<false, ExcludeAny, traits::template_record<>,
+                             T...>;
 template <typename... T>
 using query_exclude_all_t =
-    details::collect_marker_t<false, ExcludeAll, details::template_record<>,
-                              T...>;
+    traits::collect_marker_t<false, ExcludeAll, traits::template_record<>,
+                             T...>;
 template <typename... T>
-using query_read_t = details::collect_marker_t<
-    true, Read, details::template_record<ReadWrite, ExcludeAll, ExcludeAny>,
+using query_read_t = traits::collect_marker_t<
+    true, Read, traits::template_record<ReadWrite, ExcludeAll, ExcludeAny>,
     T...>;
 template <typename... T>
 using query_read_write_t =
-    details::collect_marker_t<false, ReadWrite, details::template_record<>,
-                              T...>;
+    traits::collect_marker_t<false, ReadWrite, traits::template_record<>, T...>;
 template <typename... T>
 using base_query_t =
     ComponentQuery<query_read_t<T...>, query_read_write_t<T...>,
@@ -314,8 +313,9 @@ class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
                 ((pools[idx++] = &registry_.pool<R>()), ...);
                 ((pools[idx++] = &registry_.pool<Rw>()), ...);
                 main = *std::min_element(
-                    pools.begin(), pools.end(),
-                    [](auto a, auto b) { return a->size() < b->size(); });
+                    pools.begin(), pools.end(), [](auto a, auto b) {
+                        return a->vtl_size() < b->vtl_size();
+                    });
             } else {
                 main = &registry_.pool<R..., Rw...>();
             }

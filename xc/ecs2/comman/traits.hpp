@@ -1,6 +1,6 @@
 #include <type_traits>
 
-namespace details {
+namespace xc::traits {
 template <typename T>
 struct return_type {
     using type = T;
@@ -146,4 +146,4 @@ struct collect_marker<false, marker, exclude_record, T, Ts...>
           (sizeof...(Ts) > 0),
           collect_marker_t<false, marker, exclude_record, Ts...>, marker<>>> {};
 
-}  // namespace details
+}  // namespace xc::traits

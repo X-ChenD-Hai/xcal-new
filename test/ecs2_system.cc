@@ -24,11 +24,12 @@ TEST(Ecs2, Ecs2) {
     schedule.add_system<System<ComponentQuery<int, ReadWrite<double>>>>()
         .add_system<System<ComponentQuery<double, ReadWrite<long>>>>()
         .add_system<System<ComponentQuery<float>>>()
-        .add_system<System<ComponentQuery<long>>>();
+        .add_system<System<ComponentQuery<long>>>(
+            [](ComponentQuery<long>& q) { std::println("run_sys"); });
     std::println("{}", schedule.raw_phases());
 }
 TEST(Ecs2, Query) {
-    using namespace details;
+    using namespace xc::traits;
     using t = type_record<int, type_record<type_record<double>>>;
 
     using v = flatten_t<t>;
