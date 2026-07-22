@@ -1,3 +1,4 @@
+#pragma once
 #include <type_traits>
 
 namespace xc::traits {
@@ -87,6 +88,15 @@ struct remove_if<container<T, Ts...>, predicate>
 template <template <typename T> typename predicate,
           template <typename...> typename container>
 struct remove_if<container<>, predicate> : return_type<container<>> {};
+
+template <typename from, typename applies>
+struct batch_transform;
+template <typename from, typename applies>
+using batch_transform_t = deref<batch_transform<from, applies>>;
+
+template <typename... T, template <typename...> class... fn>
+struct batch_transform<type_record<T...>, template_record<fn...>>
+    : return_type<type_record<fn<T...>...>> {};
 
 template <bool inc_unwrapper, template <typename...> typename marker,
           typename exclude_record, typename... T>

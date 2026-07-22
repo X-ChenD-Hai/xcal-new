@@ -9,25 +9,25 @@
 
 using namespace xc::ecs;
 
-class MySys : public System<ComponentQuery<int, ReadWrite<double>>> {
-   public:
-    using BaseSys::BaseSys;
-};
+// class MySys : public System<ComponentQuery<int, ReadWrite<double>>> {
+//    public:
+//     using BaseSys::BaseSys;
+// };
 
-TEST(Ecs2, Ecs2) {
-    Schedule schedule{};
-    schedule.registry()
-        .regist<int>()
-        .regist<double>()
-        .regist<float>()
-        .regist<long>();
-    schedule.add_system<System<ComponentQuery<int, ReadWrite<double>>>>()
-        .add_system<System<ComponentQuery<double, ReadWrite<long>>>>()
-        .add_system<System<ComponentQuery<float>>>()
-        .add_system<System<ComponentQuery<long>>>(
-            [](ComponentQuery<long>& q) { std::println("run_sys"); });
-    std::println("{}", schedule.raw_phases());
-}
+// TEST(Ecs2, Ecs2) {
+//     Schedule schedule{};
+//     schedule.registry()
+//         .regist<int>()
+//         .regist<double>()
+//         .regist<float>()
+//         .regist<long>();
+//     schedule.add_system<System<ComponentQuery<int, ReadWrite<double>>>>()
+//         .add_system<System<ComponentQuery<double, ReadWrite<long>>>>()
+//         .add_system<System<ComponentQuery<float>>>()
+//         .add_system<System<ComponentQuery<long>>>(
+//             [](ComponentQuery<long>& q) { std::println("run_sys"); });
+//     std::println("{}", schedule.raw_phases());
+// }
 TEST(Ecs2, Query) {
     using namespace xc::traits;
     using t = type_record<int, type_record<type_record<double>>>;

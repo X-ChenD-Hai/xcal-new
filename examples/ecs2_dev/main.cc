@@ -10,18 +10,4 @@
 
 using namespace xc::ecs;
 
-class MySys : public System<ComponentQuery<int, ReadWrite<double>>> {
-   public:
-    using BaseSys::BaseSys;
-};
-int main() {
-    Schedule schedule{};
-    schedule.registry()
-        .regist<int>()
-        .regist<double>()
-        .regist<float>()
-        .regist<long>();
-    schedule.add_system<MySys>();
-    std::println("end");
-    return 0;
-}
+int main() { return 0; }

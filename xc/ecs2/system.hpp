@@ -1,10 +1,14 @@
 #pragma once
 #include <type_traits>
 
+#include "xc/ecs2/command.hpp"
 #include "xc/ecs2/component.hpp"
 
 namespace xc::ecs {
-
+template <typename T>
+class Derived;
+template <typename... T>
+class System;
 class BaseSystem {
    public:
     virtual void execute(ComponentRegistry&) = 0;
@@ -12,8 +16,41 @@ class BaseSystem {
 };
 inline BaseSystem::~BaseSystem() = default;
 
-template <typename Q, typename Derive = void>
-class System;
+template <typename... T>
+using system_derived_t =
+    traits::collect_marker_t<false, Derived, traits::template_record<>, T...>;
+template <typename... T>
+using system_query_t =
+    traits::collect_marker_t<false, ComponentQuery, traits::template_record<>,
+                             T...>;
+template <typename... T>
+using system_create_t =
+    traits::collect_marker_t<false, CreateEntity, traits::template_record<>,
+                             T...>;
+template <typename... T>
+using system_destroy_t =
+    traits::collect_marker_t<false, DestroyEntity, traits::template_record<>,
+                             T...>;
+template <typename... T>
+using system_attach_t =
+    traits::collect_marker_t<false, Attach, traits::template_record<>, T...>;
+template <typename... T>
+using system_detach_t =
+    traits::collect_marker_t<false, Detach, traits::template_record<>, T...>;
+using system_type_list_t = template_record<  //
+    system_derived_t,                        //
+    system_query_t,                          //
+    system_create_t,                         //
+    system_destroy_t,                        //
+    system_attach_t,                         //
+    system_detach_t                          //
+    >;
+
+template <typename... T>
+using base_sys_t = traits::repack_t<
+    traits::batch_transform_t<traits::type_record<T...>, system_type_list_t>,
+    System>;
+
 template <typename Q, typename Derive>
     requires(traits::is_specialized_v<ComponentQuery, Q> &&
              !std::is_invocable_v<Derive, Q&>)

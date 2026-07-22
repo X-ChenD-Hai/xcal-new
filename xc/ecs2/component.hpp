@@ -7,6 +7,7 @@
 #include <memory>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include "xc/common/type_map.hpp"
@@ -328,10 +329,16 @@ using query_read_t = traits::collect_marker_t<
 template <typename... T>
 using query_read_write_t =
     traits::collect_marker_t<false, ReadWrite, traits::template_record<>, T...>;
+using traits::template_record;
+using query_type_list_t = template_record<  //
+    query_read_t,                           //
+    query_read_write_t,                     //
+    query_exclude_any_t,                    //
+    query_exclude_all_t>;
 template <typename... T>
-using base_query_t =
-    ComponentQuery<query_read_t<T...>, query_read_write_t<T...>,
-                   query_exclude_any_t<T...>, query_exclude_all_t<T...>>;
+using base_query_t = traits::repack_t<
+    traits::batch_transform_t<traits::type_record<T...>, query_type_list_t>,
+    ComponentQuery>;
 template <typename... T>
 class ComponentQuery : public base_query_t<T...> {
    public:
@@ -415,6 +422,32 @@ class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
                                      registry.get<Rw>(e)...);
             }
         }
+    }
+    template <typename Fn>
+        requires(std::is_invocable_r_v<bool, Fn, const R&..., Rw&...>)
+    std::vector<Entity> filter(Fn&& fn) {
+        std::vector<Entity> entities;
+        auto& registry = cache_pool_.registry();
+        if constexpr (single_comp_query) {
+            if constexpr (read_comp_count) {
+                for (const auto& s : registry.pool<R...>()) {
+                    if (std::forward<Fn>(fn)(s.component()))
+                        entities.push_back(s.entity());
+                }
+            } else if constexpr (read_write_comp_count) {
+                for (auto& s : registry.pool<Rw...>()) {
+                    if (std::forward<Fn>(fn)(s.component()))
+                        entities.push_back(s.entity());
+                }
+            }
+        } else {
+            for (auto e : query()) {
+                if (std::forward<Fn>(fn)(registry.get<R>(e)...,
+                                         registry.get<Rw>(e)...))
+                    entities.push_back(e);
+            }
+        }
+        return entities;
     }
     static std::vector<size_t> read_component_id_list(
         const ComponentRegistry& registry_) {

@@ -64,7 +64,7 @@ struct system_creater {
     }
 };
 template <typename Q, std::invocable<Q&> Fn>
-struct system_creater<System<Q, void>, Fn> {
+struct system_creater<System<Q>, Fn> {
     using system_t = System<Q, Fn>;
     template <typename... Args>
     static system_t* create(Args&&... args) {
