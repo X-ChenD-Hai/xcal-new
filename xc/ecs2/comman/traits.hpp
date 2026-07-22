@@ -13,6 +13,8 @@ template <template <typename...> typename Tmp, typename T>
 struct is_specialized : std::false_type {};
 template <template <typename...> typename Tmp, typename T>
 constexpr bool is_specialized_v = is_specialized<Tmp, T>::value;
+template <typename T, template <typename...> typename Tmp>
+constexpr bool specialized_from = is_specialized<Tmp, T>::value;
 template <template <typename...> typename Tmp, typename... T>
 struct is_specialized<Tmp, Tmp<T...>> : std::true_type {};
 
@@ -20,6 +22,14 @@ template <typename... T>
 struct type_record;
 template <template <typename...> typename... T>
 struct template_record;
+
+template <typename T>
+struct size_of;
+template <typename T>
+static const size_t size_of_v = size_of<T>::value;
+template <template <typename...> typename container, typename... T>
+struct size_of<container<T...>> : std::integral_constant<size_t, sizeof...(T)> {
+};
 
 template <typename T, template <typename...> typename container>
 struct repack;

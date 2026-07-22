@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "ecs2/comman/traits.hpp"
 #include "xc/ecs2/comman/conflict_matrix.hpp"
 #include "xc/ecs2/comman/dependency_graph.hpp"
 #include "xc/ecs2/comman/sparse_set.hpp"
@@ -65,7 +66,7 @@ struct system_creater {
 };
 template <typename Q, std::invocable<Q&> Fn>
 struct system_creater<System<Q>, Fn> {
-    using system_t = System<Q, Fn>;
+    using system_t = System<Derived<void, Fn>, Q>;
     template <typename... Args>
     static system_t* create(Args&&... args) {
         return new system_t(std::forward<Args>(args)...);
