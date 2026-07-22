@@ -6,6 +6,7 @@
 #include <format>
 #include <memory>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 #include "xc/common/type_map.hpp"
@@ -254,6 +255,63 @@ struct Read;
 
 template <typename... Rw>
 struct ReadWrite;
+template <typename... Rw>
+struct CacheTag;
+
+class ComponentQueryCachePool {
+   public:
+    using cache_item_t = std::tuple<bool, std::vector<Entity>>;
+
+    ComponentQueryCachePool(ComponentRegistry& registry)
+        : registry_(registry) {}
+
+    template <typename T>
+    cache_item_t& cache() {
+        return caches_.data<T>();
+    }
+    template <typename T>
+    const cache_item_t& cache() const {
+        return caches_.data<T>();
+    }
+    template <typename T>
+    const std::vector<Entity>& entities() const {
+        return std::get<1>(caches_.data<T>());
+    }
+
+    template <typename T>
+    std::vector<Entity>& entities() {
+        return std::get<1>(caches_.data<T>());
+    }
+
+    template <typename T>
+    bool dirty() const {
+        return std::get<0>(caches_.data<T>());
+    }
+    template <typename T>
+    void set_dirty(bool dirty) {
+        std::get<0>(caches_.data<T>()) = dirty;
+    }
+    void clear() {
+        for (auto& [dirty, p] : caches_) p.clear();
+    }
+    inline ComponentRegistry& registry() { return registry_; }
+    inline const ComponentRegistry& registry() const { return registry_; }
+
+    template <typename... T>
+        requires(!traits::is_specialized_v<ComponentQuery, T> && ...)
+    ComponentQuery<T...> query() {
+        return {*this};
+    }
+    template <typename T>
+        requires(traits::is_specialized_v<ComponentQuery, T>)
+    T query() {
+        return {*this};
+    }
+
+   private:
+    ComponentRegistry& registry_;
+    TypeMap<cache_item_t> caches_{std::make_tuple(true, std::vector<Entity>())};
+};
 
 template <typename... T>
 using query_exclude_any_t =
@@ -288,6 +346,7 @@ class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
     using read_write_t = ReadWrite<Rw...>;
     using exclude_any_t = ExcludeAny<Eany...>;
     using exclude_all_t = ExcludeAll<Eall...>;
+    using cache_tag_t = CacheTag<R..., Rw..., exclude_all_t, exclude_any_t>;
     static constexpr size_t read_comp_count = sizeof...(R);
     static constexpr size_t read_write_comp_count = sizeof...(Rw);
     static constexpr size_t e_any_comp_count = sizeof...(Eany);
@@ -298,56 +357,62 @@ class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
         (require_comp_count == 1) && !e_all_comp_count && !e_any_comp_count;
 
    public:
-    ComponentQuery(ComponentRegistry& reg) : registry_(reg) {}
+    ComponentQuery(ComponentQueryCachePool& cache_pool)
+        : cache_pool_(cache_pool) {}
     ~ComponentQuery() = default;
     const std::vector<Entity>& query() {
+        if (cache_pool_.dirty<cache_tag_t>())
+            return cache_pool_.entities<cache_tag_t>();
+        auto& registry = cache_pool_.registry();
+        auto& entities = cache_pool_.entities<cache_tag_t>();
         if constexpr (single_comp_query) {
-            return registry_.pool<R...>().entities();
+            return registry.pool<R...>().entities();
         } else {
-            if (entities_.size()) return entities_;
+            entities.clear();
             const BaseComponentPool* main = nullptr;
             if constexpr (require_comp_count > 1) {
                 std::array<const BaseComponentPool*, require_comp_count> pools =
                     {nullptr};
                 auto idx = 0;
-                ((pools[idx++] = &registry_.pool<R>()), ...);
-                ((pools[idx++] = &registry_.pool<Rw>()), ...);
+                ((pools[idx++] = &registry.pool<R>()), ...);
+                ((pools[idx++] = &registry.pool<Rw>()), ...);
                 main = *std::min_element(
                     pools.begin(), pools.end(), [](auto a, auto b) {
                         return a->vtl_size() < b->vtl_size();
                     });
             } else {
-                main = &registry_.pool<R..., Rw...>();
+                main = &registry.pool<R..., Rw...>();
             }
             for (auto e : main->vtl_entities()) {
-                bool matched = registry_.contains<R..., Rw...>(e);
+                bool matched = registry.contains<R..., Rw...>(e);
                 if constexpr (e_any_comp_count) {
-                    matched = matched && registry_.any_uncontains<Eany...>(e);
+                    matched = matched && registry.any_uncontains<Eany...>(e);
                 }
                 if constexpr (e_all_comp_count) {
-                    matched = matched && registry_.all_uncontains<Eall...>(e);
+                    matched = matched && registry.all_uncontains<Eall...>(e);
                 }
-                if (matched) entities_.push_back(e);
+                if (matched) entities.push_back(e);
             }
-            return entities_;
+            return entities;
         }
     }
     template <std::invocable<const R&..., Rw&...> Fn>
     void each(Fn&& fn) {
+        auto& registry = cache_pool_.registry();
         if constexpr (single_comp_query) {
             if constexpr (read_comp_count) {
-                for (const auto& s : registry_.pool<R...>()) {
+                for (const auto& s : registry.pool<R...>()) {
                     std::forward<Fn>(fn)(s.component());
                 }
             } else if constexpr (read_write_comp_count) {
-                for (auto& s : registry_.pool<Rw...>()) {
+                for (auto& s : registry.pool<Rw...>()) {
                     std::forward<Fn>(fn)(s.component());
                 }
             }
         } else {
             for (auto e : query()) {
-                std::forward<Fn>(fn)(registry_.get<R>(e)...,
-                                     registry_.get<Rw>(e)...);
+                std::forward<Fn>(fn)(registry.get<R>(e)...,
+                                     registry.get<Rw>(e)...);
             }
         }
     }
@@ -366,8 +431,7 @@ class ComponentQuery<Read<R...>, ReadWrite<Rw...>, ExcludeAny<Eany...>,
     }
 
    private:
-    std::vector<Entity> entities_{};
-    ComponentRegistry& registry_;
+    ComponentQueryCachePool& cache_pool_;
 };
 
 }  // namespace xc::ecs

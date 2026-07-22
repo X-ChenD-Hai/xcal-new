@@ -2,6 +2,7 @@
 #include <cassert>
 #include <concepts>
 #include <format>
+#include <limits>
 #include <vector>
 namespace xc::ecs {
 
@@ -16,7 +17,7 @@ class SparseSet {
     using trait = SparseSetValueTrait<T>;
     using id_t = trait::id_t;
     using version_t = trait::version_t;
-    static constexpr id_t InvalId = trait::InvalidId;
+    static constexpr id_t InvalidIndex = std::numeric_limits<id_t>::max();
     SparseSet() = default;
     SparseSet(const std::vector<T>& o) {
         for (auto& v : o) {
@@ -36,7 +37,7 @@ class SparseSet {
             dense_[n] = value;
         }
         if (sparse_.size() <= id) {
-            sparse_.resize(id + 1, InvalId);
+            sparse_.resize(id + 1, InvalidIndex);
         }
         sparse_[id] = n;
         ++n;
@@ -48,6 +49,13 @@ class SparseSet {
         if (id >= sparse_.size()) return false;
         auto idx = sparse_[id];
         return idx < n && version_of(dense_[idx]) == version;
+    }
+    const T& back() const { return value_of(n - 1); }
+    T& back() { return value_of(n - 1); }
+    void pop_back() {
+        assert(!empty());
+        sparse_[id_of(dense_[n - 1])] = InvalidIndex;
+        --n;
     }
     T& operator[](id_t id) {
         assert(id < sparse_.size());
@@ -72,13 +80,14 @@ class SparseSet {
         auto& last_val = value_of(n - 1);
         value_of(idx) = last_val;
         index_of(last_val) = idx;
+        sparse_[id] = InvalidIndex;
         --n;
     }
     void erase(const T& value) { erase(id_of(value), version_of(value)); }
     std::string to_string() const {
         std::string sparse_str = "[";
         for (auto s : sparse_) {
-            sparse_str += s != InvalId ? std::format("{},", s) : "_,";
+            sparse_str += s != InvalidIndex ? std::format("{},", s) : "_,";
         }
         sparse_str.pop_back();
         sparse_str += "]";
@@ -109,7 +118,6 @@ struct SparseSetValueTrait<T> {
     using version_t = T;
     static id_t id_of(T value) { return value; }
     static version_t version_of(T value) { return value; }
-    static constexpr id_t InvalidId = std::numeric_limits<T>::max();
 };
 }  // namespace xc::ecs
 

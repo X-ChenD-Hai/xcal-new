@@ -1,7 +1,2 @@
 
-namespace xc::ecs {
-class Command {
-   private:
-};
-
-}  // namespace xc::ecs
+namespace xc::ecs {}  // namespace xc::ecs

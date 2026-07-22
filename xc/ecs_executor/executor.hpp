@@ -1,6 +1,5 @@
 #include <cstddef>
 #include <cstdint>
-#include <print>
 #include <vector>
 #include <xc/async/scheduler.hpp>
 #include <xc/ecs2/schedule.hpp>

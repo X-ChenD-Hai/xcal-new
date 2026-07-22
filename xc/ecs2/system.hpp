@@ -1,6 +1,4 @@
 #pragma once
-
-#include <functional>
 #include <type_traits>
 
 #include "xc/ecs2/component.hpp"
@@ -24,12 +22,15 @@ class System<Q, Derive> : public BaseSystem {
     using query_t = Q;
     using BaseSys = System<Q>;
     System() = default;
+    void set_query_pool(ComponentQueryCachePool* pool) { pool_ = pool; }
+    ComponentQueryCachePool* query_pool() { return pool_; }
 
    protected:
     virtual void execute(ComponentRegistry&) override {}
 
    public:
     ~System() override = default;
+    ComponentQueryCachePool* pool_{nullptr};
 };
 template <typename Q, typename Fn>
     requires(traits::is_specialized_v<ComponentQuery, Q> &&
@@ -39,10 +40,12 @@ class System<Q, Fn> : public BaseSystem {
     using query_t = Q;
     using BaseSys = System<Q>;
     System(Fn&& fn) : fn_(std::forward<Fn>(fn)) {}
+    void set_query_pool(ComponentQueryCachePool* pool) { pool_ = pool; }
+    ComponentQueryCachePool* query_pool() { return pool_; }
 
    protected:
     virtual void execute(ComponentRegistry& reg) override {
-        Q q{reg};
+        auto q = pool_->query<Q>();
         fn_(q);
     }
 
@@ -51,6 +54,7 @@ class System<Q, Fn> : public BaseSystem {
 
    private:
     Fn fn_;
+    ComponentQueryCachePool* pool_{nullptr};
 };
 
 }  // namespace xc::ecs

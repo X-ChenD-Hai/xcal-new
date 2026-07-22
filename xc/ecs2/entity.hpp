@@ -1,7 +1,9 @@
 #pragma once
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <mutex>
 #include <stack>
 #include <vector>
 
@@ -33,24 +35,59 @@ struct SparseSetValueTrait<Entity> {
     using version_t = uint32_t;
     static id_t id_of(const Entity& value) { return value.id(); }
     static version_t version_of(const Entity& value) { return value.version(); }
-    static constexpr id_t InvalidId = std::numeric_limits<id_t>::max();
 };
 
 class EntityFactory {
    public:
     Entity spawn() {
-        if (free_list_.empty()) {
-            return Entity(next_id_++, 0);
+        {
+            std::lock_guard lk{mtx_};
+            if (!free_list_.empty()) {
+                Entity e{free_list_.top().id(), free_list_.top().version() + 1};
+                free_list_.pop();
+                return e;
+            }
         }
-        auto e = free_list_.top();
-        free_list_.pop();
-        return e;
+        return next_entity();
     }
-    void free(Entity e) { free_list_.emplace(e.id(), e.version() + 1); }
+    std::vector<Entity> spawn(size_t count) {
+        std::vector<Entity> res{};
+        res.reserve(count);
+        ++count;
+        {
+            std::lock_guard lk{mtx_};
+            while (--count && !free_list_.empty()) {
+                auto e = free_list_.top();
+                res.emplace_back(e.id(), e.version() + 1);
+                free_list_.pop();
+            }
+        }
+        while (--count) {
+            res.emplace_back(next_entity());
+        }
+
+        return res;
+    }
+    void free(Entity e) {
+        std::lock_guard lk{mtx_};
+        free_list_.push(e);
+    }
+    void free(std::vector<Entity>& e) {
+        std::lock_guard lk{mtx_};
+        for (auto& e : e) {
+            free_list_.push(e);
+        }
+    }
+
+   protected:
+    Entity next_entity() {
+        return Entity{next_id_.fetch_add(1, std::memory_order_relaxed), 0};
+    }
 
    private:
     std::stack<Entity> free_list_{};
-    size_t next_id_{0};
+    std::atomic<size_t> next_id_{0};
+    std::mutex mtx_{};
 };
 }  // namespace xc::ecs
 

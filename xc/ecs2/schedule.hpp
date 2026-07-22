@@ -77,7 +77,7 @@ class Schedule {
     friend struct std::formatter<xc::ecs::Schedule>;
 
    public:
-    Schedule() = default;
+    Schedule() : cache_query_pool_(*registry_) {}
     Schedule(const Schedule&) = delete;
     Schedule(Schedule&&) = default;
     Schedule& operator=(const Schedule&) = delete;
@@ -88,6 +88,7 @@ class Schedule {
         using creater_t = details::system_creater<Sys, Args...>;
         using sys_t = creater_t::system_t;
         auto sys = creater_t::create(std::forward<Args>(args)...);
+        sys->set_query_pool(&cache_query_pool_);
         systems_.emplace_back((BaseSystem*)(sys));
         size_t id = systems_.size() - 1;
         system_infos_.emplace_back(SystemInfo::create<sys_t>(
@@ -131,8 +132,9 @@ class Schedule {
         }
         return res;
     }
-    EntityFactory& entity_factory() { return entity_factory_; }
+    EntityFactory& entity_factory() { return *entity_factory_; }
     void exec_system(uint32_t id) { systems_[id]->execute(*registry_); }
+    ComponentQueryCachePool& cache_query_pool() { return cache_query_pool_; }
 
    protected:
     void calculate_conflic(const SystemInfo& info) {
@@ -162,7 +164,9 @@ class Schedule {
     std::vector<SystemInfo> system_infos_{};
     std::vector<std::unique_ptr<BaseSystem>> systems_{};
     std::unique_ptr<ComponentRegistry> registry_{new ComponentRegistry()};
-    EntityFactory entity_factory_{};
+    std::unique_ptr<EntityFactory> entity_factory_{
+        std::make_unique<EntityFactory>()};
+    ComponentQueryCachePool cache_query_pool_;
 };
 
 }  // namespace xc::ecs
