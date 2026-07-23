@@ -72,6 +72,9 @@ struct invoke_meta<disjunction<P...>, T...>
 template <typename P, typename... T>
 struct invoke_meta<negation<P>, T...> : std::negation<invoke_meta<P, T...>> {};
 
+template <template <typename...> typename... Tmp>
+using not_specialized_from = negation<disjunction<is_specialized_from<Tmp>...>>;
+
 template <typename T>
 struct same_as;
 template <typename T, typename... Ns>
@@ -101,6 +104,17 @@ using repack_t = deref<repack<T, container>>;
 template <typename... T, template <typename...> typename o,
           template <typename...> typename container>
 struct repack<o<T...>, container> : public return_type<container<T...>> {};
+template <typename T,
+          template <template <typename...> typename...> typename container>
+struct repack_template;
+template <typename T,
+          template <template <typename...> typename...> typename container>
+using repack_template_t = deref<repack_template<T, container>>;
+template <template <typename...> typename... T,
+          template <template <typename...> typename...> typename o,
+          template <template <typename...> typename...> typename container>
+struct repack_template<o<T...>, container>
+    : public return_type<container<T...>> {};
 
 template <typename container, typename predicate>
 struct count_if;
@@ -246,15 +260,16 @@ template <typename T>
 struct flatten;
 template <typename T>
 using flatten_t = deref<flatten<T>>;
-template <typename... Ts>
-struct flatten<type_record<Ts...>> : return_type<type_record<Ts...>> {};
-template <typename... T, typename... Ts>
-struct flatten<type_record<type_record<T...>, Ts...>>
-    : return_type<concat_t<flatten_t<type_record<T...>>,
-                           flatten_t<type_record<Ts...>>>> {};
-template <typename T, typename... Ts>
-struct flatten<type_record<T, Ts...>>
-    : return_type<push_front_t<flatten_t<type_record<Ts...>>, T>> {};
+template <typename... Ts, template <typename...> typename container>
+struct flatten<container<Ts...>> : return_type<container<Ts...>> {};
+template <typename... T, typename... Ts,
+          template <typename...> typename container>
+struct flatten<container<container<T...>, Ts...>>
+    : return_type<
+          concat_t<flatten_t<container<T...>>, flatten_t<container<Ts...>>>> {};
+template <typename T, typename... Ts, template <typename...> typename container>
+struct flatten<container<T, Ts...>>
+    : return_type<push_front_t<flatten_t<container<Ts...>>, T>> {};
 
 template <typename T, typename predicate>
 struct remove_if;
@@ -284,63 +299,4 @@ using batch_transform_t = deref<batch_transform<from, applies>>;
 template <typename... T, template <typename...> class... fn>
 struct batch_transform<type_record<T...>, template_record<fn...>>
     : return_type<type_record<fn<T...>...>> {};
-
-template <bool inc_unwrapper, template <typename...> typename marker,
-          typename exclude_record, typename... T>
-struct collect_marker;
-
-template <bool inc_unwrapper, template <typename...> typename marker,
-          typename exclude_record, typename... T>
-using collect_marker_t =
-    deref<collect_marker<inc_unwrapper, marker, exclude_record, T...>>;
-
-template <bool inc_unwrapper, template <typename...> typename marker,
-          typename exclude_record>
-struct collect_marker<inc_unwrapper, marker, exclude_record>
-    : return_type<marker<>> {};
-
-template <bool inc_unwrapper, template <typename...> typename marker,
-          typename exclude_record, typename... T>
-struct collect_marker<inc_unwrapper, marker, exclude_record, type_record<T...>>
-    : return_type<
-          collect_marker_t<inc_unwrapper, marker, exclude_record, T...>> {};
-
-template <bool inc_unwrapper, template <typename...> typename marker,
-          typename exclude_record, typename... Ts, typename... T>
-struct collect_marker<inc_unwrapper, marker, exclude_record, marker<Ts...>,
-                      T...>
-    : return_type<
-          conditional_t<(sizeof...(T) > 0),
-                        push_front_t<collect_marker_t<inc_unwrapper, marker,
-                                                      exclude_record, T...>,
-                                     Ts...>,
-                        marker<Ts...>>> {};
-
-template <template <typename...> typename marker,
-          template <typename...> typename... ex_markers, typename T,
-          typename... Ts>
-    requires(!is_specialized_v<marker, T> && !is_specialized_v<type_record, T>)
-struct collect_marker<true, marker, template_record<ex_markers...>, T, Ts...>
-    : return_type<conditional_t<
-          (sizeof...(Ts) > 0),
-          conditional_t<
-              (is_specialized_v<ex_markers, T> || ...) && sizeof...(ex_markers),
-              collect_marker_t<true, marker, template_record<ex_markers...>,
-                               Ts...>,
-              push_front_t<
-                  collect_marker_t<true, marker, template_record<ex_markers...>,
-                                   Ts...>,
-                  T>>,
-          conditional_t<(is_specialized_v<ex_markers, T> || ...) &&
-                            sizeof...(ex_markers),
-                        marker<>, marker<T>>>> {};
-
-template <template <typename...> typename marker, typename exclude_record,
-          typename T, typename... Ts>
-    requires(!is_specialized_v<marker, T> && !is_specialized_v<type_record, T>)
-struct collect_marker<false, marker, exclude_record, T, Ts...>
-    : return_type<conditional_t<
-          (sizeof...(Ts) > 0),
-          collect_marker_t<false, marker, exclude_record, Ts...>, marker<>>> {};
-
 }  // namespace xc::traits

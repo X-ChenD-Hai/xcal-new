@@ -17,25 +17,22 @@ inline BaseSystem::~BaseSystem() = default;
 
 template <typename... T>
 using system_derived_t =
-    traits::collect_marker_t<false, Derived, traits::template_record<>, T...>;
+    collect_marker_t<false, Derived, traits::template_record<>, T...>;
 template <typename... T>
 using system_query_t =
-    traits::collect_marker_t<false, ComponentQuery, traits::template_record<>,
-                             T...>;
+    collect_marker_t<false, ComponentQuery, traits::template_record<>, T...>;
 template <typename... T>
 using system_create_t =
-    traits::collect_marker_t<false, CreateEntity, traits::template_record<>,
-                             T...>;
+    collect_marker_t<false, CreateEntity, traits::template_record<>, T...>;
 template <typename... T>
 using system_destroy_t =
-    traits::collect_marker_t<false, DestroyEntity, traits::template_record<>,
-                             T...>;
+    collect_marker_t<false, DestroyEntity, traits::template_record<>, T...>;
 template <typename... T>
 using system_attach_t =
-    traits::collect_marker_t<false, Attach, traits::template_record<>, T...>;
+    collect_marker_t<false, Attach, traits::template_record<>, T...>;
 template <typename... T>
 using system_detach_t =
-    traits::collect_marker_t<false, Detach, traits::template_record<>, T...>;
+    collect_marker_t<false, Detach, traits::template_record<>, T...>;
 using system_type_list_t = template_record<  //
     system_query_t,                          //
     system_create_t,                         //

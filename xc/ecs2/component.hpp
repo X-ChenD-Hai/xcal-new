@@ -303,19 +303,18 @@ class ComponentQueryCachePool {
 
 template <typename... T>
 using query_exclude_any_t =
-    traits::collect_marker_t<false, ExcludeAny, traits::template_record<>,
-                             T...>;
+    collect_marker_t<false, ExcludeAny, traits::template_record<>, T...>;
 template <typename... T>
 using query_exclude_all_t =
-    traits::collect_marker_t<false, ExcludeAll, traits::template_record<>,
-                             T...>;
+    collect_marker_t<false, ExcludeAll, traits::template_record<>, T...>;
 template <typename... T>
-using query_read_t = traits::collect_marker_t<
-    true, Read, traits::template_record<ReadWrite, ExcludeAll, ExcludeAny>,
-    T...>;
+using query_read_t =
+    collect_marker_t<true, Read,
+                     traits::template_record<ReadWrite, ExcludeAll, ExcludeAny>,
+                     T...>;
 template <typename... T>
 using query_read_write_t =
-    traits::collect_marker_t<false, ReadWrite, traits::template_record<>, T...>;
+    collect_marker_t<false, ReadWrite, traits::template_record<>, T...>;
 using traits::template_record;
 using query_type_list_t = template_record<  //
     query_read_t,                           //
