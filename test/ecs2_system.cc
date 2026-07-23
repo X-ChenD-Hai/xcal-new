@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <print>
+#include <vector>
 
 #include "ecs2/comman/dependency_graph.hpp"
 #include "ecs2/comman/traits.hpp"
@@ -48,11 +49,14 @@ TEST(Ecs2, Graphy) {
 
 TEST(Ecs2, Resouse) {
     namespace tr = xc::traits;
-    using t = tr::type_record<Read<int>, Read<double>, ReadWrite<long>,
-                              Read<int, float>>;
+    using t = tr::type_record<Read<int>, Read<Read<Read<double>>>,
+                              ReadWrite<long>, Read<int, ReadWrite<float>>>;
 
-    using read_t = tr::flatten_t<tr::repack_t<
-        tr::filter_if_t<t, tr::not_specialized_from<Read, ReadWrite>>, Read>>;
+    using read_t =
+        tr::repack_t<tr::filter_if_t<t, tr::is_specialized_from<Read>>, Read>;
+
+    using t1 = Read<Read<std::vector<int>>>;
+    using t2 = xc::traits::flatten_t<t1>;
 
     // static_assert(std::is_same_v<read_t, Read<int, double,int,float>>, "");
     ResourceRegistry registry;

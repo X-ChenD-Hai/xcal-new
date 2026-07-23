@@ -256,20 +256,30 @@ template <template <typename...> typename container, typename... T,
 struct concat<container<T...>, container<Ts...>>
     : return_type<container<T..., Ts...>> {};
 
-template <typename T>
+template <typename T, size_t max_recusive = 16>
 struct flatten;
-template <typename T>
-using flatten_t = deref<flatten<T>>;
-template <typename... Ts, template <typename...> typename container>
-struct flatten<container<Ts...>> : return_type<container<Ts...>> {};
+template <typename T, size_t max_recusive = 16>
+using flatten_t = deref<flatten<T, max_recusive>>;
+template <typename... Ts, template <typename...> typename container,
+          size_t max_recusive>
+struct flatten<container<Ts...>, max_recusive> : return_type<container<Ts...>> {
+};
+template <typename... T, typename... Ts,
+          template <typename...> typename container, size_t max_recusive>
+struct flatten<container<container<T...>, Ts...>, max_recusive>
+    : return_type<concat_t<flatten_t<container<T...>, max_recusive - 1>,
+                           flatten_t<container<Ts...>, max_recusive>>> {};
 template <typename... T, typename... Ts,
           template <typename...> typename container>
-struct flatten<container<container<T...>, Ts...>>
-    : return_type<
-          concat_t<flatten_t<container<T...>>, flatten_t<container<Ts...>>>> {};
+struct flatten<container<container<T...>, Ts...>, 0>
+    : return_type<container<container<T...>, Ts...>> {};
+template <typename T, typename... Ts, template <typename...> typename container,
+          size_t max_recusive>
+struct flatten<container<T, Ts...>, max_recusive>
+    : return_type<push_front_t<flatten_t<container<Ts...>, max_recusive>, T>> {
+};
 template <typename T, typename... Ts, template <typename...> typename container>
-struct flatten<container<T, Ts...>>
-    : return_type<push_front_t<flatten_t<container<Ts...>>, T>> {};
+struct flatten<container<T, Ts...>, 0> : return_type<container<T, Ts...>> {};
 
 template <typename T, typename predicate>
 struct remove_if;
