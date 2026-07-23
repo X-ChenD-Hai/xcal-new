@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <print>
+#include <tuple>
 
 #include "ecs2/comman/dependency_graph.hpp"
+#include "ecs2/comman/traits.hpp"
 #include "ecs2/command.hpp"
 #include "ecs2/component.hpp"
 #include "ecs2/schedule.hpp"

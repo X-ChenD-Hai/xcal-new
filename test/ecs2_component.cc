@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <print>
+#include <type_traits>
 
+#include "ecs2/comman/traits.hpp"
 #include "ecs2/component.hpp"
 #include "ecs2/entity.hpp"
 
@@ -46,4 +49,19 @@ TEST(Ecs2, EntityFactory) {
     auto e2 = f.spawn();
     std::println("{}", e2);
     EXPECT_EQ(e2.id(), e.id());
+}
+TEST(Ecs2, Traits) {
+    using namespace ::xc::traits;
+
+    using v = type_record<long, int, double>;
+    constexpr auto v1 = find_first_v<v, int>;
+
+    using rem = remove_at_t<v, 1>;
+    using re = replace_one_t<v, double, float>;
+
+    using bi = batch_insert_t<v, type_record<bind_at<2, float, size_t>>>;
+
+    using is_int = bind_t<std::is_same, bind_at<0, int>>;
+    using is_float = bind_t<std::is_same, bind_at<0, float>>;
+    constexpr auto a = invoke_meta_v<conjunction<is_float, is_int>, int>;
 }

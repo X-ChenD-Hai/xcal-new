@@ -7,12 +7,12 @@
 
 namespace xc::ecs {
 
-class ComponentRegistry {
+class ResourceRegistry {
    public:
     using res_ptr_t = std::unique_ptr<void, void (*)(void*)>;
-    ComponentRegistry() = default;
+    ResourceRegistry() = default;
     template <typename T, typename... Args>
-    ComponentRegistry& create(Args&&... args) {
+    ResourceRegistry& create(Args&&... args) {
         resources_.data<T>() = res_ptr_t(new T(std::forward<Args>(args)...),
                                          [](void* p) { delete (T*)p; });
         return *this;
@@ -38,5 +38,20 @@ class ComponentRegistry {
    private:
     TypeMap<res_ptr_t, nullptr_t> resources_{nullptr};
 };
+template <typename... T>
+class ResourceAccessor {
+   public:
+    ResourceAccessor(ResourceRegistry& registry) : registry_(registry) {}
+    template <typename U>
+    U& get() {
+        return registry_.get<U>();
+    }
+    template <typename U>
+    const U& get() const {
+        return registry_.get<U>();
+    }
 
+   private:
+    ResourceRegistry& registry_;
+};
 }  // namespace xc::ecs

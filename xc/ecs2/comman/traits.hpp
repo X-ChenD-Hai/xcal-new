@@ -1,9 +1,15 @@
 #pragma once
+#include <cstddef>
 #include <type_traits>
 
 namespace xc::traits {
 template <typename T>
 struct return_type {
+    using type = T;
+};
+template <typename T, T v>
+struct constant_type {
+    static constexpr T value = v;
     using type = T;
 };
 
@@ -18,29 +24,23 @@ constexpr bool specialized_from = is_specialized<Tmp, T>::value;
 template <template <typename...> typename Tmp, typename... T>
 struct is_specialized<Tmp, Tmp<T...>> : std::true_type {};
 
-template <typename... T>
-struct type_record;
 template <template <typename...> typename... T>
 struct template_record;
+template <template <typename> typename T>
+struct predicate;
+template <typename fn, typename... T>
+struct invoke_meta;
+template <typename fn, typename... T>
+constexpr bool invoke_meta_v = invoke_meta<fn, T...>::value;
+template <typename fn, typename... T>
+using invoke_mata_t = deref<invoke_meta<fn, T...>>;
+template <template <typename> typename fn, typename... T>
+struct invoke_meta<template_record<fn>, T...> : fn<T...> {};
+template <template <typename> typename fn, typename T>
+struct invoke_meta<predicate<fn>, T> : fn<T> {};
 
-template <typename T>
-struct size_of;
-template <typename T>
-static const size_t size_of_v = size_of<T>::value;
-template <template <typename...> typename container, typename... T>
-struct size_of<container<T...>> : std::integral_constant<size_t, sizeof...(T)> {
-};
-
-template <typename T, template <typename...> typename container>
-struct repack;
-template <typename T, template <typename...> typename container>
-using repack_t = deref<repack<T, container>>;
-template <typename... T, template <typename...> typename o,
-          template <typename...> typename container>
-struct repack<o<T...>, container> : public return_type<container<T...>> {};
-
-template <typename T>
-using as_type_record_t = repack_t<T, type_record>;
+template <typename... T>
+struct type_record;
 
 template <typename T, typename... Ts>
 struct push_front;
@@ -52,6 +52,138 @@ template <template <typename...> typename container, typename... T,
           typename... Ts>
 struct push_front<container<Ts...>, T...>
     : return_type<container<T..., Ts...>> {};
+template <typename T, template <typename...> typename container>
+struct repack;
+template <typename T, template <typename...> typename container>
+using repack_t = deref<repack<T, container>>;
+template <typename... T, template <typename...> typename o,
+          template <typename...> typename container>
+struct repack<o<T...>, container> : public return_type<container<T...>> {};
+
+template <typename container, template <typename T> typename predicate>
+struct count_if;
+template <typename container, template <typename T> typename predicate>
+static constexpr size_t count_if_v = count_if<container, predicate>::value;
+template <typename... T, template <typename...> typename container,
+          template <typename> typename predicate>
+struct count_if<container<T...>, predicate>
+    : std::integral_constant<size_t, (predicate<T>::value + ...)> {};
+template <template <typename...> typename container,
+          template <typename> typename predicate>
+struct count_if<container<>, predicate> : std::integral_constant<size_t, 0> {};
+template <typename container, template <typename T> typename predicate>
+struct contains_if
+    : std::integral_constant<bool, count_if_v<container, predicate>> {};
+template <typename container, template <typename T> typename predicate>
+static constexpr bool contains_if_v = contains_if<container, predicate>::value;
+template <typename T>
+struct size_of;
+template <typename T>
+static const size_t size_of_v = size_of<T>::value;
+template <template <typename...> typename container, typename... T>
+struct size_of<container<T...>> : std::integral_constant<size_t, sizeof...(T)> {
+};
+
+template <typename container, size_t I, typename... T>
+struct insert_at;
+template <typename container, size_t I, typename... T>
+using insert_at_t = deref<insert_at<container, I, T...>>;
+template <template <typename...> typename container, typename... U>
+struct insert_at<container<>, 0, U...> : return_type<container<U...>> {};
+template <typename T, typename... Ts, template <typename...> typename container,
+          size_t I, typename... U>
+struct insert_at<container<T, Ts...>, I, U...>
+    : return_type<
+          insert_at_t<insert_at_t<container<Ts...>, I - 1, U...>, 0, T>> {};
+template <typename T, typename... Ts, template <typename...> typename container,
+          typename... U>
+struct insert_at<container<T, Ts...>, 0, U...>
+    : return_type<container<U..., T, Ts...>> {};
+
+template <typename container, size_t I>
+struct remove_at;
+template <typename container, size_t I>
+using remove_at_t = deref<remove_at<container, I>>;
+template <typename T, typename... Ts, template <typename...> typename container,
+          size_t I>
+struct remove_at<container<T, Ts...>, I>
+    : return_type<push_front_t<remove_at_t<container<Ts...>, I - 1>, T>> {};
+
+template <typename T, typename... Ts, template <typename...> typename container>
+struct remove_at<container<T, Ts...>, 0> : return_type<container<Ts...>> {};
+
+template <typename container, size_t I>
+struct type_at;
+template <typename container, size_t I>
+using type_at_t = deref<type_at<container, I>>;
+template <typename T, typename... Ts, template <typename...> typename container,
+          size_t I>
+    requires(I <= sizeof...(Ts))
+struct type_at<container<T, Ts...>, I> : type_at<container<Ts...>, I - 1> {};
+template <typename T, typename... Ts, template <typename...> typename container>
+struct type_at<container<T, Ts...>, 0> : return_type<T> {};
+
+template <template <typename...> typename container, size_t I>
+struct type_at<container<>, I> {
+    static_assert(false, "index out of range");
+};
+
+template <typename C, typename U, size_t start = 0, size_t end = size_of_v<C>>
+struct find_first;
+template <typename C, typename U, size_t start = 0, size_t end = size_of_v<C>>
+static constexpr size_t find_first_v = find_first<C, U, start, end>::value;
+template <typename C, typename U, size_t start, size_t end>
+struct find_first : std::conditional_t<std::is_same_v<type_at_t<C, start>, U>,
+                                       std::integral_constant<size_t, start>,
+                                       find_first<C, U, start + 1, end>> {};
+template <typename C, typename U, size_t end>
+struct find_first<C, U, end, end> {
+    static_assert(false, "index out of range");
+};
+template <typename c, typename From, typename To>
+struct replace_one;
+template <typename c, typename From, typename To>
+using replace_one_t = deref<replace_one<c, From, To>>;
+template <typename C, typename From, typename To>
+struct replace_one
+    : return_type<insert_at_t<remove_at_t<C, find_first_v<C, From>>,
+                              find_first_v<C, From>, To>> {};
+
+template <size_t I, typename... T>
+struct bind_at;
+
+template <typename T>
+constexpr bool is_bind_at_arg_v = false;
+template <typename T, size_t I>
+constexpr bool is_bind_at_arg_v<bind_at<I, T>> = true;
+
+template <typename C, typename B, size_t I = 0>
+struct batch_insert;
+template <typename C, typename B, size_t I = 0>
+using batch_insert_t = deref<batch_insert<C, B, I>>;
+template <typename C, size_t I, size_t n, typename... Arg, typename... T>
+struct batch_insert<C, type_record<bind_at<I, Arg...>, T...>, n>
+    : batch_insert<insert_at_t<C, n + I, Arg...>, type_record<T...>,
+                   n + sizeof...(Arg)> {};
+template <typename C, size_t n, typename Arg, typename... T>
+struct batch_insert<C, type_record<Arg, T...>, n>
+    : batch_insert<insert_at_t<C, n, Arg>, type_record<T...>, n + 1> {};
+template <typename C, size_t n>
+struct batch_insert<C, type_record<>, n> : return_type<C> {};
+
+template <template <typename...> typename tmp, typename... T>
+struct bind {
+    using type = bind<tmp, T...>;
+};
+template <template <typename...> typename tmp, typename... T>
+using bind_t = bind<tmp, T...>::type;
+
+template <typename... T, typename... B, template <typename...> typename tmp>
+struct invoke_meta<bind<tmp, B...>, T...>
+    : repack_t<batch_insert_t<type_record<T...>, type_record<B...>>, tmp> {};
+
+template <typename T>
+using as_type_record_t = repack_t<T, type_record>;
 
 template <typename T, typename... Ts>
 struct concat;
@@ -84,6 +216,18 @@ struct flatten<type_record<T, Ts...>>
 
 template <typename T, template <typename> typename predicate>
 struct remove_if;
+
+template <typename... Pre>
+struct conjunction;
+template <typename... Pre>
+struct disjunction;
+
+template <typename... P, typename... T>
+struct invoke_meta<conjunction<P...>, T...>
+    : std::conjunction<invoke_meta<P, T...>...> {};
+template <typename... P, typename... T>
+struct invoke_meta<disjunction<P...>, T...>
+    : std::disjunction<invoke_meta<P, T...>...> {};
 
 template <typename T, template <typename> typename predicate>
 using remove_if_t = deref<remove_if<T, predicate>>;
