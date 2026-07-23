@@ -24,7 +24,7 @@ struct invoke_meta;
 template <typename fn, typename... T>
 constexpr bool invoke_meta_v = invoke_meta<fn, T...>::value;
 template <typename fn, typename... T>
-using invoke_mata_t = deref<invoke_meta<fn, T...>>;
+using invoke_meta_t = deref<invoke_meta<fn, T...>>;
 
 template <template <typename...> typename Tmp, typename T>
 struct is_specialized : false_type {};
