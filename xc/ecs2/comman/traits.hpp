@@ -3,6 +3,11 @@
 #include <type_traits>
 
 namespace xc::traits {
+using std::conditional_t;
+using std::enable_if_t;
+using std::false_type;
+using std::integral_constant;
+using std::true_type;
 template <typename T>
 struct return_type {
     using type = T;
@@ -12,32 +17,69 @@ struct constant_type {
     static constexpr T value = v;
     using type = T;
 };
-
 template <typename T>
 using deref = typename T::type;
-template <template <typename...> typename Tmp, typename T>
-struct is_specialized : std::false_type {};
-template <template <typename...> typename Tmp, typename T>
-constexpr bool is_specialized_v = is_specialized<Tmp, T>::value;
-template <typename T, template <typename...> typename Tmp>
-constexpr bool specialized_from = is_specialized<Tmp, T>::value;
-template <template <typename...> typename Tmp, typename... T>
-struct is_specialized<Tmp, Tmp<T...>> : std::true_type {};
-
-template <template <typename...> typename... T>
-struct template_record;
-template <template <typename> typename T>
-struct predicate;
 template <typename fn, typename... T>
 struct invoke_meta;
 template <typename fn, typename... T>
 constexpr bool invoke_meta_v = invoke_meta<fn, T...>::value;
 template <typename fn, typename... T>
 using invoke_mata_t = deref<invoke_meta<fn, T...>>;
+
+template <template <typename...> typename Tmp, typename T>
+struct is_specialized : false_type {};
+template <template <typename...> typename Tmp, typename T>
+constexpr bool is_specialized_v = is_specialized<Tmp, T>::value;
+template <typename T, template <typename...> typename Tmp>
+constexpr bool specialized_from_v = is_specialized<Tmp, T>::value;
+template <template <typename...> typename Tmp, typename... T>
+struct is_specialized<Tmp, Tmp<T...>> : true_type {};
+template <template <typename...> typename Tmp>
+struct specialized_from;
+template <typename... T, template <typename...> typename Tmp>
+struct invoke_meta<specialized_from<Tmp>, T...> : return_type<Tmp<T...>> {};
+
+template <template <typename...> typename Tmp>
+struct is_specialized_from;
+template <typename... T, template <typename...> typename Tmp>
+struct invoke_meta<is_specialized_from<Tmp>, Tmp<T...>> : true_type {};
+template <typename T, template <typename...> typename Tmp>
+struct invoke_meta<is_specialized_from<Tmp>, T> : false_type {};
+
+template <template <typename...> typename... T>
+struct template_record;
+template <template <typename> typename T>
+struct predicate;
+
 template <template <typename> typename fn, typename... T>
 struct invoke_meta<template_record<fn>, T...> : fn<T...> {};
 template <template <typename> typename fn, typename T>
 struct invoke_meta<predicate<fn>, T> : fn<T> {};
+
+template <typename... Pre>
+struct conjunction;
+template <typename... Pre>
+struct disjunction;
+template <typename Pre>
+struct negation;
+
+template <typename... P, typename... T>
+struct invoke_meta<conjunction<P...>, T...>
+    : std::conjunction<invoke_meta<P, T...>...> {};
+template <typename... P, typename... T>
+struct invoke_meta<disjunction<P...>, T...>
+    : std::disjunction<invoke_meta<P, T...>...> {};
+template <typename P, typename... T>
+struct invoke_meta<negation<P>, T...> : std::negation<invoke_meta<P, T...>> {};
+
+template <typename T>
+struct same_as;
+template <typename T, typename... Ns>
+struct invoke_meta<same_as<T>, T, Ns...> : invoke_meta<same_as<T>, Ns...> {};
+template <typename T>
+struct invoke_meta<same_as<T>, T> : true_type {};
+template <typename T, typename U>
+struct invoke_meta<same_as<T>, U> : false_type {};
 
 template <typename... T>
 struct type_record;
@@ -60,29 +102,29 @@ template <typename... T, template <typename...> typename o,
           template <typename...> typename container>
 struct repack<o<T...>, container> : public return_type<container<T...>> {};
 
-template <typename container, template <typename T> typename predicate>
+template <typename container, typename predicate>
 struct count_if;
-template <typename container, template <typename T> typename predicate>
+template <typename container, typename predicate>
 static constexpr size_t count_if_v = count_if<container, predicate>::value;
 template <typename... T, template <typename...> typename container,
-          template <typename> typename predicate>
+          typename predicate>
 struct count_if<container<T...>, predicate>
-    : std::integral_constant<size_t, (predicate<T>::value + ...)> {};
-template <template <typename...> typename container,
-          template <typename> typename predicate>
-struct count_if<container<>, predicate> : std::integral_constant<size_t, 0> {};
-template <typename container, template <typename T> typename predicate>
-struct contains_if
-    : std::integral_constant<bool, count_if_v<container, predicate>> {};
-template <typename container, template <typename T> typename predicate>
+    : integral_constant<size_t, (invoke_meta_v<predicate, T> + ...)> {};
+template <template <typename...> typename container, typename predicate>
+struct count_if<container<>, predicate> : integral_constant<size_t, 0> {};
+template <typename container, typename predicate>
+struct contains_if : integral_constant<bool, count_if_v<container, predicate>> {
+};
+
+template <typename container, typename predicate>
 static constexpr bool contains_if_v = contains_if<container, predicate>::value;
+
 template <typename T>
 struct size_of;
 template <typename T>
 static const size_t size_of_v = size_of<T>::value;
 template <template <typename...> typename container, typename... T>
-struct size_of<container<T...>> : std::integral_constant<size_t, sizeof...(T)> {
-};
+struct size_of<container<T...>> : integral_constant<size_t, sizeof...(T)> {};
 
 template <typename container, size_t I, typename... T>
 struct insert_at;
@@ -133,9 +175,9 @@ struct find_first;
 template <typename C, typename U, size_t start = 0, size_t end = size_of_v<C>>
 static constexpr size_t find_first_v = find_first<C, U, start, end>::value;
 template <typename C, typename U, size_t start, size_t end>
-struct find_first : std::conditional_t<std::is_same_v<type_at_t<C, start>, U>,
-                                       std::integral_constant<size_t, start>,
-                                       find_first<C, U, start + 1, end>> {};
+struct find_first : conditional_t<std::is_same_v<type_at_t<C, start>, U>,
+                                  integral_constant<size_t, start>,
+                                  find_first<C, U, start + 1, end>> {};
 template <typename C, typename U, size_t end>
 struct find_first<C, U, end, end> {
     static_assert(false, "index out of range");
@@ -214,34 +256,25 @@ template <typename T, typename... Ts>
 struct flatten<type_record<T, Ts...>>
     : return_type<push_front_t<flatten_t<type_record<Ts...>>, T>> {};
 
-template <typename T, template <typename> typename predicate>
+template <typename T, typename predicate>
 struct remove_if;
-
-template <typename... Pre>
-struct conjunction;
-template <typename... Pre>
-struct disjunction;
-
-template <typename... P, typename... T>
-struct invoke_meta<conjunction<P...>, T...>
-    : std::conjunction<invoke_meta<P, T...>...> {};
-template <typename... P, typename... T>
-struct invoke_meta<disjunction<P...>, T...>
-    : std::disjunction<invoke_meta<P, T...>...> {};
-
-template <typename T, template <typename> typename predicate>
+template <typename T, typename predicate>
 using remove_if_t = deref<remove_if<T, predicate>>;
-
-template <template <typename T> typename predicate,
-          template <typename...> typename container, typename T, typename... Ts>
+template <typename predicate, template <typename...> typename container,
+          typename T, typename... Ts>
 struct remove_if<container<T, Ts...>, predicate>
-    : return_type<std::conditional_t<
-          predicate<T>::value, remove_if_t<container<Ts...>, predicate>,
+    : return_type<conditional_t<
+          invoke_meta_v<predicate, T>, remove_if_t<container<Ts...>, predicate>,
           push_front_t<remove_if_t<container<Ts...>, predicate>, T>>> {};
-
-template <template <typename T> typename predicate,
-          template <typename...> typename container>
+template <typename predicate, template <typename...> typename container>
 struct remove_if<container<>, predicate> : return_type<container<>> {};
+
+template <typename C, typename predicate>
+struct filter_if;
+template <typename C, typename predicate>
+using filter_if_t = deref<filter_if<C, predicate>>;
+template <typename C, typename predicate>
+struct filter_if : remove_if<C, negation<predicate>> {};
 
 template <typename from, typename applies>
 struct batch_transform;
@@ -276,21 +309,21 @@ template <bool inc_unwrapper, template <typename...> typename marker,
           typename exclude_record, typename... Ts, typename... T>
 struct collect_marker<inc_unwrapper, marker, exclude_record, marker<Ts...>,
                       T...>
-    : return_type<std::conditional_t<
-          (sizeof...(T) > 0),
-          push_front_t<
-              collect_marker_t<inc_unwrapper, marker, exclude_record, T...>,
-              Ts...>,
-          marker<Ts...>>> {};
+    : return_type<
+          conditional_t<(sizeof...(T) > 0),
+                        push_front_t<collect_marker_t<inc_unwrapper, marker,
+                                                      exclude_record, T...>,
+                                     Ts...>,
+                        marker<Ts...>>> {};
 
 template <template <typename...> typename marker,
           template <typename...> typename... ex_markers, typename T,
           typename... Ts>
     requires(!is_specialized_v<marker, T> && !is_specialized_v<type_record, T>)
 struct collect_marker<true, marker, template_record<ex_markers...>, T, Ts...>
-    : return_type<std::conditional_t<
+    : return_type<conditional_t<
           (sizeof...(Ts) > 0),
-          std::conditional_t<
+          conditional_t<
               (is_specialized_v<ex_markers, T> || ...) && sizeof...(ex_markers),
               collect_marker_t<true, marker, template_record<ex_markers...>,
                                Ts...>,
@@ -298,15 +331,15 @@ struct collect_marker<true, marker, template_record<ex_markers...>, T, Ts...>
                   collect_marker_t<true, marker, template_record<ex_markers...>,
                                    Ts...>,
                   T>>,
-          std::conditional_t<(is_specialized_v<ex_markers, T> || ...) &&
-                                 sizeof...(ex_markers),
-                             marker<>, marker<T>>>> {};
+          conditional_t<(is_specialized_v<ex_markers, T> || ...) &&
+                            sizeof...(ex_markers),
+                        marker<>, marker<T>>>> {};
 
 template <template <typename...> typename marker, typename exclude_record,
           typename T, typename... Ts>
     requires(!is_specialized_v<marker, T> && !is_specialized_v<type_record, T>)
 struct collect_marker<false, marker, exclude_record, T, Ts...>
-    : return_type<std::conditional_t<
+    : return_type<conditional_t<
           (sizeof...(Ts) > 0),
           collect_marker_t<false, marker, exclude_record, Ts...>, marker<>>> {};
 

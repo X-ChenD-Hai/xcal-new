@@ -1,12 +1,11 @@
 #include <gtest/gtest.h>
 
 #include <print>
-#include <tuple>
 
 #include "ecs2/comman/dependency_graph.hpp"
 #include "ecs2/comman/traits.hpp"
-#include "ecs2/command.hpp"
 #include "ecs2/component.hpp"
+#include "ecs2/resource.hpp"
 #include "ecs2/schedule.hpp"
 #include "ecs2/system.hpp"
 
@@ -47,4 +46,21 @@ TEST(Ecs2, Graphy) {
 
     EXPECT_EQ(phase[0][0], 0);
     EXPECT_EQ(phase[1][0], 1);
+}
+
+TEST(Ecs2, Resouse) {
+    ResourceRegistry registry;
+
+    registry.create<int>(111);
+    registry.create<double>(111);
+    registry.create<float>(111);
+    EXPECT_EQ(registry.get<int>(), 111);
+
+    ResourceAccessor<int, const double> acc{registry};
+
+    auto& s = acc.get<const int>();
+    EXPECT_EQ(s, 111);
+    acc.get<int>() = 12;
+    EXPECT_EQ(registry.get<int>(), 12);
+    auto& v = acc.get<double>();
 }
