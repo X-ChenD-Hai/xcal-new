@@ -14,6 +14,7 @@
 #include "xc/ecs2/comman/sparse_set.hpp"
 #include "xc/ecs2/comman/traits.hpp"
 #include "xc/ecs2/entity.hpp"
+#include "xc/ecs2/markers.hpp"
 
 namespace xc::ecs {
 
@@ -244,20 +245,6 @@ class ComponentRegistry {
         fill_value{}};
     std::vector<BaseComponentPool*> pool_ptrs_{};
 };
-
-template <typename... Eany>
-struct ExcludeAny;
-
-template <typename... Eall>
-struct ExcludeAll;
-
-template <typename... R>
-struct Read;
-
-template <typename... Rw>
-struct ReadWrite;
-template <typename... Rw>
-struct CacheTag;
 
 class ComponentQueryCachePool {
    public:

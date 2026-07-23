@@ -8,7 +8,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "ecs2/comman/traits.hpp"
 #include "xc/ecs2/comman/conflict_matrix.hpp"
 #include "xc/ecs2/comman/dependency_graph.hpp"
 #include "xc/ecs2/comman/sparse_set.hpp"

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <print>
-#include <xc/ecs2/ecs.hpp>
 
+#include "ecs2/comman/dependency_graph.hpp"
 #include "ecs2/command.hpp"
 #include "ecs2/component.hpp"
 #include "ecs2/schedule.hpp"
@@ -34,4 +34,15 @@ TEST(Ecs2, Query) {
 
     using tt = collect_marker_t<true, ReadWrite, template_record<Read>, t>;
     static_assert(std::is_same_v<tt, ReadWrite<int, double>>, "");
+}
+TEST(Ecs2, Graphy) {
+    DependencyGraph graphy{2};
+
+    graphy.add_edge(0, 1);
+    graphy.add_edge(0, 1);
+
+    auto phase = graphy.phases();
+
+    EXPECT_EQ(phase[0][0], 0);
+    EXPECT_EQ(phase[1][0], 1);
 }

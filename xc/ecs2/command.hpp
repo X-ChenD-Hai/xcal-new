@@ -6,22 +6,10 @@
 
 #include "xc/ecs2/comman/traits.hpp"
 #include "xc/ecs2/entity.hpp"
+#include "xc/ecs2/markers.hpp"
 
 namespace xc::ecs {
-template <typename... T>
-struct CreateEntity;
-template <typename... T>
-struct DestroyEntity;
-template <typename... T>
-struct Attach;
-template <typename... T>
-struct Detach;
-template <typename... T>
-struct Optional;
-template <typename T>
-struct Optional<T> {
-    using type = T;
-};
+
 template <typename U>
 using component_t = std::conditional_t<traits::is_specialized_v<Optional, U>,
                                        std::optional<typename U::type>, U>;

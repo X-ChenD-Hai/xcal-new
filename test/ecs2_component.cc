@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <print>
-#include <xc/ecs2/ecs.hpp>
 
 #include "ecs2/component.hpp"
 #include "ecs2/entity.hpp"

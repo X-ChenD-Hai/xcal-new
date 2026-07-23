@@ -1,13 +1,11 @@
 #pragma once
 #include <type_traits>
 
-#include "ecs2/comman/traits.hpp"
-#include "xc/ecs2/command.hpp"
+#include "xc/ecs2/comman/traits.hpp"
 #include "xc/ecs2/component.hpp"
-
+#include "xc/ecs2/markers.hpp"
 namespace xc::ecs {
-template <typename... T>
-class Derived;
+
 template <typename... T>
 class System;
 class BaseSystem {
@@ -88,24 +86,6 @@ class System<Detach<D...>, T...> : public System<T...> {};
 template <typename... T>
 class System : public base_sys_t<T...> {};
 
-// template <typename Q, typename Derive>
-//     requires(traits::is_specialized_v<ComponentQuery, Q> &&
-//              !std::is_invocable_v<Derive, Q&>)
-// class System<Q, Derive> : public BaseSystem {
-//    public:
-//     using query_t = Q;
-//     using BaseSys = System<Q>;
-//     System() = default;
-//     void set_query_pool(ComponentQueryCachePool* pool) { pool_ = pool; }
-//     ComponentQueryCachePool* query_pool() { return pool_; }
-
-//    protected:
-//     virtual void execute(ComponentRegistry&) override {}
-
-//    public:
-//     ~System() override = default;
-//     ComponentQueryCachePool* pool_{nullptr};
-// };
 template <typename Fn, typename... T>
     requires(std::is_invocable_v<Fn, system_query_t<T...>&>)
 class System<Derived<void, Fn>, T...>
