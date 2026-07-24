@@ -32,7 +32,6 @@ class Msys : public System<CreateEntity<int>, ComponentQuery<int>,
         query().each([](auto& o) { std::println("{}", o); });
     }
 };
-class Msys;
 TEST(Ecs2, Query) {
     using base_sys = base_sys_t<CreateEntity<int>, ComponentQuery<int>,
                                 DestroyEntity<float>>;

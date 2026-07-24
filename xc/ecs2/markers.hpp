@@ -128,39 +128,6 @@ struct collect_all_markers_with_default<default_marker, C<M...>, T...>
           traits::type_record<collect_default_marker_t<default_marker, T...>,
                               collect_marker_t<M, T...>...>> {};
 
-// template <template <typename...> typename marker, typename exclude_record,
-//           typename... T>
-// struct collect_marker<true, marker, exclude_record,
-// traits::type_record<T...>>
-//     : collect_marker<true, marker, exclude_record, T...> {};
-// template <template <typename...> typename marker, typename exclude_record,
-//           typename... T>
-// struct collect_marker<false, marker, exclude_record,
-// traits::type_record<T...>>
-//     : collect_marker<false, marker, exclude_record, T...> {};
-
-// template <bool inc_unwrapper, template <typename...> typename marker,
-//           typename exclude_record, typename... T>
-// using collect_marker_t =
-//     traits::deref<collect_marker<inc_unwrapper, marker, exclude_record,
-//     T...>>;
-
-// template <template <typename...> typename marker, typename exclude_record,
-//           typename... T>
-// struct collect_marker<false, marker, exclude_record, T...>
-//     : traits::return_type<traits::flatten_t<traits::filter_if_t<
-//           marker<T...>,
-//           traits::conjunction<
-//               traits::is_specialized_from<marker>,
-//               traits::repack_template_t<exclude_record,
-//                                         traits::not_specialized_from>>>>> {};
-// template <template <typename...> typename marker, typename exclude_record,
-//           typename... T>
-// struct collect_marker<true, marker, exclude_record, T...>
-//     : traits::return_type<traits::flatten_t<traits::filter_if_t<
-//           marker<T...>, traits::repack_template_t<
-// exclude_record, traits::not_specialized_from>>>> {};
-
 };  // namespace xc::ecs
 #undef MARKER
 #undef Container
