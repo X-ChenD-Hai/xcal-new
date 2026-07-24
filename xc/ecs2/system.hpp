@@ -15,42 +15,19 @@ class BaseSystem {
 };
 inline BaseSystem::~BaseSystem() = default;
 
-template <typename... T>
-using system_derived_t =
-    collect_marker_t<false, Derived, traits::template_record<>, T...>;
-template <typename... T>
-using system_query_t =
-    collect_marker_t<false, ComponentQuery, traits::template_record<>, T...>;
-template <typename... T>
-using system_create_t =
-    collect_marker_t<false, CreateEntity, traits::template_record<>, T...>;
-template <typename... T>
-using system_destroy_t =
-    collect_marker_t<false, DestroyEntity, traits::template_record<>, T...>;
-template <typename... T>
-using system_attach_t =
-    collect_marker_t<false, Attach, traits::template_record<>, T...>;
-template <typename... T>
-using system_detach_t =
-    collect_marker_t<false, Detach, traits::template_record<>, T...>;
-using system_type_list_t = template_record<  //
-    system_query_t,                          //
-    system_create_t,                         //
-    system_destroy_t,                        //
-    system_attach_t,                         //
-    system_detach_t,                         //
-    system_derived_t                         //
-    >;
+using system_marker_list_t =
+    traits::template_record<ComponentQuery, CreateEntity, DestroyEntity, Attach,
+                            Detach, Derived>;
 
+template <typename derive, typename... T>
+using derived_system_t = traits::conditional_t<
+    traits::count_if_v<System<T...>, traits::is_specialized_from<Derived>>,
+    traits::transform_if_t<System<T...>, traits::same_as<Derived<>>,
+                           traits::transfer_to<Derived<derive>>>,
+    System<T..., Derived<derive>>>;
 template <typename... T>
-using base_sys_t = traits::repack_t<
-    traits::batch_transform_t<traits::type_record<std::conditional_t<
-                                  traits::is_specialized_v<Derived, T>,
-                                  std::conditional_t<traits::size_of_v<T> != 1,
-                                                     Derived<System<T...>>, T>,
-                                  T>...>,
-                              system_type_list_t>,
-    System>;
+using base_sys_t =
+    traits::repack_t<collect_all_markers_t<system_marker_list_t, T...>, System>;
 
 template <typename D>
 class System<Derived<D>> : public BaseSystem {
@@ -61,7 +38,8 @@ class System<Derived<D>> : public BaseSystem {
     virtual void execute(ComponentRegistry&) = 0;
 };
 template <typename... Q, typename... T>
-class System<ComponentQuery<Q...>, T...> : public System<T...> {
+class System<ComponentQuery<Q...>, T...>
+    : public derived_system_t<System<ComponentQuery<Q...>, T...>, T...> {
    public:
     using System<T...>::System;
     using query_t = ComponentQuery<Q...>;
@@ -69,22 +47,28 @@ class System<ComponentQuery<Q...>, T...> : public System<T...> {
     void set_query_pool(ComponentQueryCachePool* pool) { pool_ = pool; }
     ComponentQueryCachePool* query_pool() { return pool_; }
 
+    query_t query() { return pool_->query<query_t>(); }
+
    private:
     ComponentQueryCachePool* pool_{nullptr};
 };
 template <typename... C, typename... T>
-class System<CreateEntity<C...>, T...> : public System<T...> {};
+class System<CreateEntity<C...>, T...>
+    : public derived_system_t<System<CreateEntity<C...>, T...>, T...> {};
 template <typename... D, typename... T>
-class System<DestroyEntity<D...>, T...> : public System<T...> {};
+class System<DestroyEntity<D...>, T...>
+    : public derived_system_t<System<DestroyEntity<D...>, T...>, T...> {};
 template <typename... A, typename... T>
-class System<Attach<A...>, T...> : public System<T...> {};
+class System<Attach<A...>, T...>
+    : public derived_system_t<System<Attach<A...>, T...>, T...> {};
 template <typename... D, typename... T>
-class System<Detach<D...>, T...> : public System<T...> {};
+class System<Detach<D...>, T...>
+    : public derived_system_t<System<Detach<D...>, T...>, T...> {};
 template <typename... T>
 class System : public base_sys_t<T...> {};
 
 template <typename Fn, typename... T>
-    requires(std::is_invocable_v<Fn, system_query_t<T...>&>)
+    requires(std::is_invocable_v<Fn, collect_marker_t<ComponentQuery, T...>&>)
 class System<Derived<void, Fn>, T...>
     : public System<T..., Derived<System<Derived<void, Fn>, T...>>> {
    public:

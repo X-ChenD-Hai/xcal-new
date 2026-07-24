@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
 
-#include <ecs/plugin/core/clock.hpp>
-#include <ecs/world.hpp>
 #include <memory>
 #include <print>
 
-#include "ecs/command/system.hpp"
+#include "xc/ecs/command/system.hpp"
+#include "xc/ecs/plugin/core/clock.hpp"
+#include "xc/ecs/world.hpp"
+
 struct App {
     bool running;
 };

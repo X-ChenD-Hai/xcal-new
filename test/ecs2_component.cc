@@ -4,9 +4,9 @@
 #include <print>
 #include <type_traits>
 
-#include "ecs2/comman/traits.hpp"
-#include "ecs2/component.hpp"
-#include "ecs2/entity.hpp"
+#include "xc/ecs2/comman/traits.hpp"
+#include "xc/ecs2/component.hpp"
+#include "xc/ecs2/entity.hpp"
 
 using namespace xc::ecs;
 TEST(Ecs2, Ecs2) {

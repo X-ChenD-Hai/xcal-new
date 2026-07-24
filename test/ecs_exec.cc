@@ -3,8 +3,8 @@
 #include <print>
 #include <xc/ecs_executor/executor.hpp>
 
-#include "async/system.hpp"
 #include "xc/async/scheduler.hpp"
+#include "xc/async/system.hpp"
 #include "xc/ecs2/component.hpp"
 #include "xc/ecs2/system.hpp"
 
