@@ -28,7 +28,7 @@ TEST(Ecs2, Ecs2) {
 class Msys : public System<CreateEntity<int>, ComponentQuery<int>,
                            DestroyEntity<float>> {
    public:
-    void execute(ComponentRegistry&) override {
+    void vtl_execute() {
         query().each([](auto& o) { std::println("{}", o); });
     }
 };
@@ -94,4 +94,11 @@ TEST(Ecs2, Resouse) {
     acc.get<int>() = 12;
     EXPECT_EQ(registry.get<int>(), 12);
     auto& v = acc.get<double>();
+}
+
+TEST(Ecs2, Traits) {
+    using namespace xc::ecs;
+    using namespace xc::traits;
+
+    auto is_abs = is_abstract_system_v<System<ComponentQuery<int>>>;
 }

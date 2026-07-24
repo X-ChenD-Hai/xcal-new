@@ -10,6 +10,7 @@ using std::enable_if_t;
 using std::false_type;
 using std::integral_constant;
 using std::true_type;
+using std::void_t;
 template <typename T>
 struct return_type {
     using type = T;
@@ -124,8 +125,8 @@ struct count_if<container<T...>, predicate>
 template <Container container, typename predicate>
 struct count_if<container<>, predicate> : integral_constant<size_t, 0> {};
 template <typename container, typename predicate>
-struct contains_if : integral_constant<bool, count_if_v<container, predicate>> {
-};
+struct contains_if
+    : integral_constant<bool, (bool)count_if_v<container, predicate>> {};
 
 template <typename container, typename predicate>
 static constexpr bool contains_if_v = contains_if<container, predicate>::value;
@@ -478,6 +479,54 @@ struct sort<value_record<v...>, comp, void>
     : as_value_record<
           sort_t<as_integral_type_record_t<value_record<v...>>, comp>> {};
 
+template <typename Fn, typename = void>
+struct function_traits;
+template <typename Fn>
+struct function_traits<Fn, void_t<decltype(&Fn::operator())>>
+    : function_traits<decltype(&Fn::operator())> {};
+template <typename R, typename... Args>
+struct function_traits<R(Args...)> {
+    using return_type = R;
+    using args_type = type_record<Args...>;
+    using is_member = false_type;
+    using is_pointer = false_type;
+};
+template <typename R, typename... Args>
+struct function_traits<R (*)(Args...)> : function_traits<R(Args...)> {
+    using is_pointer = true_type;
+};
+template <typename R, typename C, typename... Args>
+struct function_traits<R (C::*)(Args...)> : function_traits<R(Args...)> {
+    using is_pointer = true_type;
+    using class_ = C;
+    using is_member = true_type;
+    using is_const_member = false_type;
+    using is_volatile_member = false_type;
+};
+template <typename R, typename C, typename... Args>
+struct function_traits<R (C::*)(Args...) const>
+    : function_traits<R (C::*)(Args...)> {
+    using is_const_member = true_type;
+    using is_volatile_member = false_type;
+};
+template <typename R, typename C, typename... Args>
+struct function_traits<R (C::*)(Args...) volatile>
+    : function_traits<R (C::*)(Args...)> {
+    using is_volatile_member = true_type;
+};
+template <typename T, typename = void>
+struct is_function : false_type {};
+template <typename T>
+struct is_function<T, void_t<typename function_traits<T>::return_type>>
+    : true_type {};
+template <typename T>
+constexpr bool is_function_v = is_function<T>::value;
+template <typename T>
+using function_args_t = typename function_traits<T>::args_type;
+template <typename T>
+using function_return_type_t = typename function_traits<T>::return_type;
+template <typename T>
+using function_class_t = typename function_traits<T>::class_;
 }  // namespace xc::traits
 
 #undef Container

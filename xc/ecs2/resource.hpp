@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <type_traits>
+#include <vector>
 
 #include "xc/common/type_map.hpp"
 #include "xc/ecs2/comman/traits.hpp"
@@ -72,6 +73,22 @@ class ResourceAccessor {
         const U&> {
         return registry_.get<std::decay_t<U>>();
     }
+    static std::vector<size_t> write_resource_id_list(
+        const ResourceRegistry& reg) {
+        std::vector<size_t> idx{};
+        idx.reserve(traits::size_of_v<writable_t>);
+        [&]<typename... U>(traits::type_record<U...>*) {
+            (idx.push_back(reg.resource_id<std::decay_t<U>>()), ...);
+        }((writable_t*)nullptr);
+    };
+    static std::vector<size_t> read_resource_id_list(
+        const ResourceRegistry& reg) {
+        std::vector<size_t> idx{};
+        idx.reserve(traits::size_of_v<writable_t>);
+        [&]<typename... U>(traits::type_record<U...>*) {
+            (idx.push_back(reg.resource_id<std::decay_t<U>>()), ...);
+        }((readable_t*)nullptr);
+    };
 
    private:
     ResourceRegistry& registry_;

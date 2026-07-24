@@ -26,6 +26,7 @@ MARKER(ExcludeAll);
 MARKER(Optional);
 
 MARKER(Derived);
+MARKER(Base);
 
 MARKER(Resource);
 MARKER(CacheTag);

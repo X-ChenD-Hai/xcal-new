@@ -62,4 +62,7 @@ TEST(Ecs2_trait, comp) {
     static_assert(std::is_same_v<type_record<long, double, float>, k>);
     constexpr auto k1 = count_if_v<a, same_as<int>>;
     static_assert(k1 == 1);
+
+    using overload_set = decltype([](auto& a) {});
+    using fn = decltype([](int& a) {});
 }

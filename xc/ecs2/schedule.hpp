@@ -5,6 +5,7 @@
 #include <format>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -55,24 +56,6 @@ struct SystemInfo {
     }
 };
 
-namespace details {
-template <typename Sys, typename... Args>
-struct system_creater {
-    using system_t = Sys;
-    static system_t* create(Args&&... args) {
-        return new system_t(std::forward<Args>(args)...);
-    }
-};
-template <typename Q, std::invocable<Q&> Fn>
-struct system_creater<System<Q>, Fn> {
-    using system_t = System<Derived<void, Fn>, Q>;
-    template <typename... Args>
-    static system_t* create(Args&&... args) {
-        return new system_t(std::forward<Args>(args)...);
-    }
-};
-}  // namespace details
-
 class Schedule {
     friend struct std::formatter<xc::ecs::Schedule>;
 
@@ -85,10 +68,10 @@ class Schedule {
     ~Schedule() = default;
     template <typename Sys, typename... Args>
     Schedule& add_system(Args&&... args) {
-        using creater_t = details::system_creater<Sys, Args...>;
+        using creater_t = SystemCreator<Sys, std::tuple<Args...>>;
         using sys_t = creater_t::system_t;
         auto sys = creater_t::create(std::forward<Args>(args)...);
-        sys->set_query_pool(&cache_query_pool_);
+        sys->vtl_set_query_pool(&cache_query_pool_);
         systems_.emplace_back((BaseSystem*)(sys));
         size_t id = systems_.size() - 1;
         system_infos_.emplace_back(SystemInfo::create<sys_t>(
@@ -133,7 +116,7 @@ class Schedule {
         return res;
     }
     EntityFactory& entity_factory() { return *entity_factory_; }
-    void exec_system(uint32_t id) { systems_[id]->execute(*registry_); }
+    void exec_system(uint32_t id) { systems_[id]->vtl_execute(); }
     ComponentQueryCachePool& cache_query_pool() { return cache_query_pool_; }
 
    protected:
