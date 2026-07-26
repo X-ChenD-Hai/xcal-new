@@ -2,11 +2,12 @@ add_rules("mode.debug", "mode.release","mode.minsizerel")
 set_project("libxc")
 set_languages("c++23")
 add_cxxflags("-std=c++23")
-add_cxxflags("/std:c++23preview")
+add_cxxflags("/std:c++latest")
 if is_plat("linux") then
     add_requireconfs("*",{configs ={runtimes = "c++_static"} })
 end
 add_requires("gtest",{configs = {main = true }})
+add_requires("benchmark")
 
 if is_mode("debug") then
     add_defines("_DEBUG")

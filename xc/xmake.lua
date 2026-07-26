@@ -1,3 +1,4 @@
+add_includedirs("../")
 target("libxc")
     set_kind("phony")
     add_includedirs("./common",{public = true})
