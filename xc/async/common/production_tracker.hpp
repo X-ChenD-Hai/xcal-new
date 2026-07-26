@@ -5,8 +5,20 @@
 
 #include "xc/async/common/active_counter.hpp"
 #include "xc/async/common/async_gate.hpp"
+#include "xc/async/common/notify.hpp"
 
 namespace xc::async {
+struct ProductionTrackerNotifier {
+    static bool notify(auto* tracker) {
+        if (!tracker) return false;
+        auto remain = tracker->active_counter_.decrement();
+        if (remain == 0 && tracker->gate_.closing()) {
+            tracker->try_final_close();
+        }
+        return true;
+    }
+};
+
 template <typename T, typename Derived = void>
 class ProductionTracker;
 template <typename T>
@@ -16,25 +28,23 @@ class ProducerGuard {
     ProducerGuard& operator=(const ProducerGuard&) = delete;
 
     ProducerGuard(T* tracker);
-
-   public:
-    ProducerGuard(ProducerGuard&& o) : tracker_(o.tracker_) {
-        o.tracker_ = nullptr;
-    }
+    
+    public:
+    ProducerGuard() = default;
+    ProducerGuard(ProducerGuard&& o) : tracker_(std::move(o.tracker_)) {}
     ProducerGuard& operator=(ProducerGuard&& o) {
         complete();
-        tracker_ = o.tracker_;
-        o.tracker_ = nullptr;
+        tracker_ = std::move(o.tracker_);
         return *this;
     };
     ~ProducerGuard();
     operator bool() const noexcept { return producible(); }
-    bool producible() const noexcept { return tracker_; }
+    bool producible() const noexcept { return tracker_.load(); }
 
-    void complete();
+    bool complete();
 
    private:
-    T* tracker_{nullptr};
+    NotifyOnce<T, ProductionTrackerNotifier> tracker_{nullptr};
 };
 template <typename T>
 class ProductionTrackerImpl {
@@ -63,16 +73,16 @@ class alignas(64) ProductionTracker : public ProductionTrackerImpl<T> {
         std::conditional_t<std::is_void_v<Derived>, self_t, Derived>;
     using tracker_type = self_t;
     friend ProducerGuard<derived_t>;
+    friend struct ProductionTrackerNotifier;
 
    public:
+    using guard_type = ProducerGuard<derived_t>;
     using ProductionTrackerImpl<T>::ProductionTrackerImpl;
 
     ProductionTracker() = default;
     ~ProductionTracker() = default;
 
-    ProducerGuard<derived_t> spawn() {
-        return ProducerGuard<derived_t>(static_cast<derived_t*>(this));
-    }
+    guard_type spawn() { return guard_type(static_cast<derived_t*>(this)); }
     bool running() const { return gate_.running(); }
     bool closing() const noexcept { return gate_.closing(); }
     bool closed() const { return gate_.closed(); }
@@ -151,16 +161,14 @@ inline ProducerGuard<T>::ProducerGuard(T* tracker) : tracker_(tracker) {
     if (!tracker_->gate_.running()) complete();
 }
 template <typename T>
-inline void ProducerGuard<T>::complete() {
-    if (!tracker_) return;
-    auto remain = tracker_->active_counter_.decrement();
-    if (remain == 0 && tracker_->gate_.closing()) {
-        tracker_->try_final_close();
-    }
-    tracker_ = nullptr;
+inline bool ProducerGuard<T>::complete() {
+    return tracker_.notify();
 }
 template <typename T>
 inline ProducerGuard<T>::~ProducerGuard() {
     complete();
 }
+using function_callback_production_tracker_t =
+    ProductionTracker<std::function<void(void)>>;
+
 }  // namespace xc::async

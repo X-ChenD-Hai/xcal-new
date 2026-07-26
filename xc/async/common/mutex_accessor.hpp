@@ -4,6 +4,16 @@
 namespace xc::async {
 class SpinLock;
 
+template <typename T>
+class Effect {
+   public:
+    Effect(T fn) : fn_(fn) {}
+    ~Effect() { fn_(); }
+
+   private:
+    T fn_;
+};
+
 // Forward declarations
 template <typename T, typename Lock = ::xc::async::SpinLock>
 class Mutex;
@@ -13,7 +23,6 @@ class SharedMutex;
 // ============================================================================
 // MutexAccessor - for regular mutexes
 // ============================================================================
-
 template <typename T, typename Lock, typename M>
 class MutexAccessor {
     MutexAccessor(const MutexAccessor&) = delete;
@@ -37,6 +46,12 @@ class MutexAccessor {
     operator const T&() const { return mutex_->value_; }
     operator value_type&() & { return mutex_->value_; }
     operator value_type&&() && { return std::move(mutex_->value_); }
+    template <typename Fn>
+    auto unlock_entry(Fn&& f) {
+        mutex_->lock_.unlock();
+        Effect e{[this]() { mutex_->lock_.lock(); }};
+        return f();
+    }
 
     ~MutexAccessor() {
         if (mutex_) mutex_->lock_.unlock();
@@ -81,7 +96,12 @@ class SharedReadAccessor {
     const T* operator->() const { return &mutex_->value_; }
     const T& operator*() const { return mutex_->value_; }
     operator const T&() const { return mutex_->value_; }
-
+    template <typename Fn>
+    auto unlock_entry(Fn&& f) {
+        mutex_->lock_.unlock_shared();
+        Effect e{[this]() { mutex_->lock_.lock_shared(); }};
+        return f();
+    }
     ~SharedReadAccessor() {
         if (mutex_) mutex_->lock_.unlock_shared();
     };
@@ -116,6 +136,12 @@ class SharedWriteAccessor {
     const T* operator->() const { return &mutex_->value_; }
     operator const T&() const { return mutex_->value_; }
     operator T&() & { return mutex_->value_; }
+    template <typename Fn>
+    auto unlock_entry(Fn&& f) {
+        mutex_->lock_.unlock();
+        Effect e{[this]() { mutex_->lock_.lock(); }};
+        return f();
+    }
 
     ~SharedWriteAccessor() {
         if (mutex_) mutex_->lock_.unlock();

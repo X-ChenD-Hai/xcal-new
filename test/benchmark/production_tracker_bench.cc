@@ -1,6 +1,9 @@
 #include <benchmark/benchmark.h>
 
+#include <atomic>
 #include <functional>
+#include <thread>
+#include <vector>
 
 #include "xc/async/common/production_tracker.hpp"
 
@@ -208,6 +211,39 @@ BENCHMARK(BM_SyncProductionTracker_ConcurrentWaiters)
     ->Arg(4)
     ->Arg(8)
     ->Arg(16)
+    ->UseRealTime();
+
+// ============================================================================
+// ProducerGuard::complete() thread-safety
+// N threads race to complete() the SAME guard; only one wins (decrements the
+// counter), the rest observe an already-null tracker and return false.
+// NOTE: per-iteration std::thread creation is included in the measurement,
+// so absolute numbers reflect thread-spawn cost, not just the CAS race.
+// The relative scaling across thread counts shows the contention behaviour.
+// ============================================================================
+
+static void BM_ProducerGuard_ConcurrentCompleteRace(benchmark::State& state) {
+    const int num_threads = state.range(0);
+    ProductionTracker<void> tracker;
+    std::atomic<int> winners{0};
+    for (auto _ : state) {
+        auto guard = tracker.spawn();
+        std::vector<std::thread> threads;
+        threads.reserve(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+            threads.emplace_back([&] {
+                if (guard.complete()) winners.fetch_add(1, std::memory_order_relaxed);
+            });
+        }
+        for (auto& t : threads) t.join();
+    }
+    state.counters["winners"] = winners.load();
+    state.SetItemsProcessed(state.iterations());
+}
+BENCHMARK(BM_ProducerGuard_ConcurrentCompleteRace)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
     ->UseRealTime();
 
 BENCHMARK_MAIN();

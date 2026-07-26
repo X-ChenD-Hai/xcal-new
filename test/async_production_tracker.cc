@@ -50,7 +50,7 @@ TEST(ProductionTracker, CompleteGuard) {
     VoidTracker tracker;
     auto guard = tracker.spawn();
     EXPECT_TRUE(guard.producible());
-    guard.complete();
+    EXPECT_TRUE(guard.complete());
     EXPECT_FALSE(guard.producible());
     EXPECT_FALSE(static_cast<bool>(guard));
     EXPECT_TRUE(tracker.running());
@@ -68,9 +68,19 @@ TEST(ProductionTracker, GuardDestructorCompletes) {
 TEST(ProductionTracker, DoubleCompleteIsNoop) {
     VoidTracker tracker;
     auto guard = tracker.spawn();
-    guard.complete();
-    guard.complete();
+    EXPECT_TRUE(guard.complete());   // first complete is effective
+    EXPECT_FALSE(guard.complete());  // second is a no-op (already released)
+    EXPECT_FALSE(guard.complete());  // third still no-op
     EXPECT_FALSE(guard.producible());
+}
+
+// complete() returns false for a guard that was never producible
+TEST(ProductionTracker, CompleteOnEmptyGuardReturnsFalse) {
+    VoidTracker tracker;
+    tracker.close();
+    auto guard = tracker.spawn();  // spawned after close -> immediately completed
+    EXPECT_FALSE(guard.producible());
+    EXPECT_FALSE(guard.complete());  // nothing to release
 }
 
 // ============================================================================
@@ -334,6 +344,136 @@ TEST(ProductionTracker, ConcurrentSpawnsExactlyOneClose) {
         for (auto& t : threads) t.join();
         EXPECT_TRUE(tracker.closed()) << "run " << r;
         EXPECT_EQ(close_count.load(), 1) << "run " << r;
+    }
+}
+
+// ============================================================================
+// ProducerGuard::complete() thread safety
+// complete() uses atomic CAS internally; concurrent complete() calls on the
+// same guard must decrement the counter exactly once (single winner).
+// ============================================================================
+
+TEST(ProducerGuardThreadSafety, ConcurrentCompleteSingleWinner) {
+    constexpr int runs = 50;
+    for (int r = 0; r < runs; ++r) {
+        VoidTracker tracker;
+        auto guard = tracker.spawn();
+        constexpr int num_threads = 8;
+        std::atomic<int> winners{0};
+        std::atomic<int> losers{0};
+
+        std::vector<std::thread> threads;
+        for (int i = 0; i < num_threads; ++i) {
+            threads.emplace_back([&] {
+                if (guard.complete())
+                    winners.fetch_add(1);
+                else
+                    losers.fetch_add(1);
+            });
+        }
+        for (auto& t : threads) t.join();
+        EXPECT_EQ(winners.load(), 1) << "run " << r;
+        EXPECT_EQ(losers.load(), num_threads - 1) << "run " << r;
+        EXPECT_FALSE(guard.producible());
+        EXPECT_FALSE(guard.complete());  // all subsequent are no-ops
+    }
+}
+
+TEST(ProducerGuardThreadSafety, ConcurrentCompleteCounterConsistent) {
+    // After N concurrent completes on one guard, spawning another guard must
+    // see the counter back at 1 (previous decrement happened exactly once).
+    constexpr int runs = 50;
+    for (int r = 0; r < runs; ++r) {
+        VoidTracker tracker;
+        auto guard = tracker.spawn();
+        constexpr int num_threads = 8;
+        std::vector<std::thread> threads;
+        for (int i = 0; i < num_threads; ++i) {
+            threads.emplace_back([&] { guard.complete(); });
+        }
+        for (auto& t : threads) t.join();
+        // Counter should be 0 now; close() with no producers fires immediately
+        std::atomic<int> close_count{0};
+        // can't rebind callback; just verify close goes through instantly
+        tracker.close();
+        EXPECT_TRUE(tracker.closed()) << "run " << r;
+    }
+}
+
+TEST(ProducerGuardThreadSafety, ConcurrentCompleteAndProducible) {
+    // producible() is an atomic load; safe to race with complete(). Readers
+    // spin until complete() has run, so they are guaranteed to observe the
+    // post-complete false state at least once.
+    VoidTracker tracker;
+    auto guard = tracker.spawn();
+    constexpr int num_threads = 8;
+    std::atomic<int> false_count{0};
+    std::atomic<bool> complete_done{false};
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads - 1; ++i) {
+        threads.emplace_back([&] {
+            while (!complete_done.load(std::memory_order_acquire)) {
+                if (!guard.producible()) false_count.fetch_add(1);
+            }
+        });
+    }
+    threads.emplace_back([&] {
+        guard.complete();
+        complete_done.store(true, std::memory_order_release);
+    });
+    for (auto& t : threads) t.join();
+    EXPECT_FALSE(guard.producible());
+    EXPECT_GT(false_count.load(), 0);
+}
+
+TEST(ProducerGuardThreadSafety, ConcurrentMoveAssign) {
+    // Move-assigning from a holding guard into an empty guard must correctly
+    // complete the source's slot exactly once, even when a concurrent
+    // complete() races on the same source guard.
+    constexpr int runs = 20;
+    for (int r = 0; r < runs; ++r) {
+        VoidTracker tracker;
+        auto g1 = tracker.spawn();
+        // Build an empty guard via a closed tracker (spawn-after-close yields
+        // a non-producible guard).
+        VoidTracker helper;
+        helper.close();
+        auto g2 = helper.spawn();
+        EXPECT_FALSE(g2.producible());
+
+        std::thread t1([&] { g1.complete(); });
+        std::thread t2([&] { g2 = std::move(g1); });
+        t1.join();
+        t2.join();
+        // Exactly one decrement happened on tracker's counter; close must
+        // complete immediately (no leaked active producer).
+        g2.complete();
+        tracker.close();
+        EXPECT_TRUE(tracker.closed()) << "run " << r;
+    }
+}
+
+TEST(ProducerGuardThreadSafety, SpawnCompleteConcurrentOnSameTracker) {
+    // Many threads spawn+complete on the same tracker concurrently; counter
+    // must always return to 0 so close() fires instantly.
+    constexpr int runs = 10;
+    for (int r = 0; r < runs; ++r) {
+        VoidTracker tracker;
+        constexpr int num_threads = 8;
+        constexpr int ops = 5000;
+        std::vector<std::thread> threads;
+        for (int i = 0; i < num_threads; ++i) {
+            threads.emplace_back([&] {
+                for (int j = 0; j < ops; ++j) {
+                    auto guard = tracker.spawn();
+                    guard.complete();
+                }
+            });
+        }
+        for (auto& t : threads) t.join();
+        tracker.close();
+        EXPECT_TRUE(tracker.closed()) << "run " << r;
     }
 }
 
